@@ -68,6 +68,15 @@ internal object GuiItems {
         "success"
     )
 
+    fun noPower(required: Long, stored: Long, capacity: Long) = NO_POWER.clone().edit {
+        setLore(
+            listOf(
+                "&7Required: &c${required.coerceAtLeast(0L)} J",
+                "&7Stored: &e${stored.coerceAtLeast(0L)}&7 / &e${capacity.coerceAtLeast(0L)} J"
+            )
+        )
+    }
+
     fun progressBar(progress: Int, total: Int) = InfinityExpansion2.localization.getGuiItem(
         Material.YELLOW_STAINED_GLASS_PANE.asMaterialType(),
         "progress",

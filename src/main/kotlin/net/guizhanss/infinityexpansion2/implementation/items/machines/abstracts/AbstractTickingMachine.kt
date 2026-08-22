@@ -57,8 +57,17 @@ abstract class AbstractTickingMachine(
     override fun getEnergyComponentType() = EnergyNetComponentType.CONSUMER
 
     override fun tick(b: Block, menu: BlockMenu) {
-        if (getCharge(menu.location) < getEnergyConsumptionPerTick()) {
-            menu.setStatus { GuiItems.NO_POWER }
+        val requiredEnergy = getEnergyConsumptionPerTick().toLong()
+        val storedEnergy = getCharge(menu.location).toLong()
+
+        if (storedEnergy < requiredEnergy) {
+            menu.setStatus {
+                GuiItems.noPower(
+                    requiredEnergy,
+                    storedEnergy,
+                    capacity.toLong()
+                )
+            }
         } else if (tickCount % getCustomTickRate() == 0 && process(b, menu)) {
             removeCharge(menu.location, getEnergyConsumptionPerTick())
         }
