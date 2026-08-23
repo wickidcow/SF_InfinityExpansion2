@@ -1,0 +1,1 @@
+Server bundle verification rerun for 2026-08-23 after Legacy Maven resolution fix.
