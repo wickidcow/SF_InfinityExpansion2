@@ -26,6 +26,8 @@ val slimefunApiCoordinate = providers.gradleProperty("slimefunApiCoordinate")
 version = providers.gradleProperty("buildVersion").orElse("1.0.$timestamp").get()
 
 repositories {
+    // CI publishes Slimefun Legacy to the runner's local Maven repository before compiling IE2.
+    mavenLocal()
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
     maven("https://central.sonatype.com/repository/maven-snapshots/")
