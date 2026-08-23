@@ -1,1 +1,1 @@
-Server bundle verification for 2026-08-23.
+Server bundle verification for 2026-08-23 — rerun after Legacy mavenLocal fix.
