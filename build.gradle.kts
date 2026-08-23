@@ -21,11 +21,10 @@ val paperApiVersion = providers.gradleProperty("paperApiVersion").orElse("26.2.b
 val slimefunApiCoordinate = providers.gradleProperty("slimefunApiCoordinate")
     .orElse("com.github.slimefun:Slimefun4:experimental-SNAPSHOT")
 
-// CI builds use a stable Legacy version family instead of the old "preview" label.
-// Tagged/manual releases can still provide an explicit version with -PbuildVersion=...
 version = providers.gradleProperty("buildVersion").orElse("1.0.$timestamp").get()
 
 repositories {
+    mavenLocal()
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
     maven("https://central.sonatype.com/repository/maven-snapshots/")
@@ -34,12 +33,9 @@ repositories {
 }
 
 dependencies {
-    compileOnly(kotlin("stdlib")) // loaded through library loader
-    compileOnly(kotlin("reflect")) // loaded through library loader
+    compileOnly(kotlin("stdlib"))
+    compileOnly(kotlin("reflect"))
     compileOnly("io.papermc.paper:paper-api:${paperApiVersion.get()}")
-
-    // Compile against the stable/common Slimefun API surface. Runtime compatibility with
-    // Legacy/Gugu/United/Core-style forks is handled without linking to fork-specific internals.
     compileOnly(slimefunApiCoordinate.get())
     compileOnly("net.guizhanss:SlimefunTranslation:e03b01a7b7")
     compileOnly("com.github.schntgaispock:SlimeHUD:1.3.0")
@@ -51,8 +47,6 @@ dependencies {
 
 java {
     disableAutoTargetJvm()
-    // Paper 26.2's build toolchain is Java 25, while the fork emits Java 21 bytecode so the
-    // addon itself remains usable on Java-21-capable Slimefun runtimes where their server allows it.
     toolchain.languageVersion.set(JavaLanguageVersion.of(25))
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
@@ -75,7 +69,6 @@ tasks.shadowJar {
         val last = to ?: from.split(".").last()
         relocate(from, "$mainPackage.libs.$last")
     }
-
     doRelocate("net.byteflux.libby")
     doRelocate("net.guizhanss.guizhanlib")
     doRelocate("org.bstats")
@@ -89,45 +82,29 @@ tasks.shadowJar {
 
 bukkit {
     main = "$mainPackage.InfinityExpansion2"
-    // Keep an older API floor because this fork intentionally retains cross-version/fork support.
-    // Paper 26.2 remains the CI and primary runtime target.
     apiVersion = "1.21"
     authors = listOf("ybw0014", "Mooy1", "wickidcow")
     description = "InfinityExpansion2 - Legacy-first Slimefun compatibility and IE1 migration fork"
     depend = listOf("Slimefun")
     softDepend = listOf("GuizhanLibPlugin", "SlimefunTranslation", "InfinityExpansion", "SlimeHUD")
     loadBefore = listOf("SlimeCustomizer", "RykenSlimeCustomizer", "SlimeFunRecipe")
-
     commands {
         register("infinityexpansion2") {
             description = "InfinityExpansion2 command"
             aliases = listOf("ie", "ie2")
         }
     }
-
     permissions {
-        register("infinityexpansion2.command.doctor") {
-            default = BukkitPluginDescription.Permission.Default.OP
-        }
-        register("infinityexpansion2.command.giverecipe") {
-            default = BukkitPluginDescription.Permission.Default.OP
-        }
-        register("infinityexpansion2.command.guide") {
-            default = BukkitPluginDescription.Permission.Default.TRUE
-        }
-        register("infinityexpansion2.command.printitem") {
-            default = BukkitPluginDescription.Permission.Default.OP
-        }
-        register("infinityexpansion2.command.id") {
-            default = BukkitPluginDescription.Permission.Default.OP
-        }
+        register("infinityexpansion2.command.doctor") { default = BukkitPluginDescription.Permission.Default.OP }
+        register("infinityexpansion2.command.giverecipe") { default = BukkitPluginDescription.Permission.Default.OP }
+        register("infinityexpansion2.command.guide") { default = BukkitPluginDescription.Permission.Default.TRUE }
+        register("infinityexpansion2.command.printitem") { default = BukkitPluginDescription.Permission.Default.OP }
+        register("infinityexpansion2.command.id") { default = BukkitPluginDescription.Permission.Default.OP }
     }
 }
 
 tasks {
     runServer {
-        // Deliberately do not auto-download a Slimefun implementation here. Put the exact
-        // Slimefun Legacy/Gugu/United/Core JAR you want to test into run/plugins/.
         jvmArgs("-Dcom.mojang.eula.agree=true")
         minecraftVersion("26.2")
     }
