@@ -59,7 +59,10 @@ class MobSimulationChamber(
     override fun postRegister() {
         super.postRegister()
 
-        if (getEnergyConsumptionPerTick() > capacity) {
+        val requiredEnergy = getEnergyConsumptionPerTick()
+        val configuredCapacity = capacity
+
+        if (requiredEnergy > configuredCapacity) {
             InfinityExpansion2.log(Level.WARNING, "Invalid item settings for $id:")
             InfinityExpansion2.log(
                 Level.WARNING,
@@ -67,6 +70,20 @@ class MobSimulationChamber(
             )
             InfinityExpansion2.log(Level.WARNING, "Using default value now, please update the config.")
             energyPerTickSetting.update(energyPerTickSetting.defaultValue)
+            energyCapacitySetting.update(energyCapacitySetting.defaultValue)
+        } else if (
+            configuredCapacity == requiredEnergy &&
+            energyCapacitySetting.defaultValue > configuredCapacity
+        ) {
+            // Older Legacy builds could persist the chamber with a capacity equal to its per-tick
+            // requirement (for example 150 / 150 J). That leaves no recharge headroom and, when
+            // combined with the old 1 J compatibility drain, strands the machine at 149 / 150 J.
+            // Treat that exact legacy-sized buffer as stale and migrate it to the current default.
+            InfinityExpansion2.log(
+                Level.WARNING,
+                "Detected legacy Mob Simulation Chamber energy capacity ($configuredCapacity J) for $id; " +
+                    "migrating to ${energyCapacitySetting.defaultValue} J."
+            )
             energyCapacitySetting.update(energyCapacitySetting.defaultValue)
         }
     }
@@ -104,17 +121,13 @@ class MobSimulationChamber(
         // Legacy/Albion power compatibility.
         //
         // AbstractTickingMachine.tick() has already verified that the chamber has at least its
-        // configured base charge before process() is called. Do not perform a second base/card
-        // charge gate here in compatibility mode: the proven Albion MobSim patch deliberately
-        // avoided that second gate because it can report NO_POWER on Slimefun forks even while
-        // the surrounding energy network has ample stored power.
+        // configured base charge before process() is called. In compatibility mode we deliberately
+        // skip the extra card-energy gate that can falsely report NO_POWER on some Slimefun forks,
+        // but we still consume the full configured base energy. The previous 1 J drain could leave
+        // a legacy 150 J chamber at 149 / 150 J forever even while its network had ample power.
         //
-        // charge-card-energy=false (default): preserve the previously tested compatibility
-        // behavior. The superclass performs the base-power presence check and this process tick
-        // removes one unit of local charge. This is intentionally conservative and prevents the
-        // false "Insufficient Power" regression seen on Legacy/Gugu-style energy runtimes.
-        //
-        // charge-card-energy=true: opt back into upstream-style full card-energy charging.
+        // charge-card-energy=false (default): consume only the configured base energy.
+        // charge-card-energy=true: opt back into upstream-style base + card-energy charging.
         val chargeCardEnergy = InfinityExpansion2.configService.mobSimChargeCardEnergy.value
         val requestedEnergy = if (chargeCardEnergy) {
             getEnergyConsumptionPerTick().toLong() + props.energy.toLong() * multiplier.toLong()
@@ -136,7 +149,7 @@ class MobSimulationChamber(
             }
             requestedEnergy.toInt()
         } else {
-            LEGACY_COMPATIBILITY_DRAIN
+            getEnergyConsumptionPerTick()
         }
 
         val currentXp = l.getInt(XP_KEY)
@@ -227,7 +240,6 @@ class MobSimulationChamber(
         private const val XP_SLOT = 8
         private const val XP_KEY = "xp"
         private const val MAX_SAFE_ENERGY = 2_000_000_000
-        private const val LEGACY_COMPATIBILITY_DRAIN = 1
         private const val MAX_OUTPUT_STACKS = 4096
 
         /**

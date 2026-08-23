@@ -12,8 +12,8 @@ permissions:
   contents: write
 
 env:
-  LEGACY_ARTIFACT_VERSION: "1.0.2"
-  OUTPUT_NAME: "SF_InfinityExpansion21.0.2.jar"
+  LEGACY_ARTIFACT_VERSION: "2.0.3"
+  OUTPUT_NAME: "SF_InfinityExpansion2.0.3.jar"
 
 jobs:
   paper-26-2:
