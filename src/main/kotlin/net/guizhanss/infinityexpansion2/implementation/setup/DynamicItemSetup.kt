@@ -3,13 +3,15 @@ package net.guizhanss.infinityexpansion2.implementation.setup
 import net.guizhanss.guizhanlib.kt.minecraft.extensions.isAir
 import net.guizhanss.infinityexpansion2.InfinityExpansion2
 import net.guizhanss.infinityexpansion2.core.debug.DebugCase
+import net.guizhanss.infinityexpansion2.implementation.items.machines.PoweredBedrock
 import net.guizhanss.infinityexpansion2.implementation.items.tools.Oscillator
 import net.guizhanss.infinityexpansion2.utils.Debug
 import net.guizhanss.infinityexpansion2.utils.items.toItemStack
 import java.util.logging.Level
 
 /**
- * Registers IE2 items whose ids are derived from configuration at runtime.
+ * Registers IE2 items whose ids are derived from configuration at runtime, plus restored
+ * legacy items that must exist before the IE1 compatibility aliases are installed.
  *
  * These items must be available during normal plugin enable so addons which
  * consume IE2 ids (for example RSC content packs) can resolve them while they
@@ -21,12 +23,13 @@ internal object DynamicItemSetup {
     private val registeredOscillators = mutableSetOf<String>()
 
     fun loadAvailable(finalPass: Boolean = false) {
+        PoweredBedrock.register()
         loadQuarryOscillators(finalPass)
         MobSimulationSetup.loadAvailable(finalPass)
     }
 
     private fun loadQuarryOscillators(finalPass: Boolean) {
-        InfinityExpansion2.log(Level.INFO, "Loading available oscillators...")
+        InfinityExpansion2.log(Level.INFO, "Loading available oscillillators...")
 
         InfinityExpansion2.configService.quarryOscillators.value.forEach { (id, chance) ->
             if (id in registeredOscillators) return@forEach
