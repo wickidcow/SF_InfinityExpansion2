@@ -29,7 +29,7 @@ internal object DynamicItemSetup {
     }
 
     private fun loadQuarryOscillators(finalPass: Boolean) {
-        InfinityExpansion2.log(Level.INFO, "Loading available oscillillators...")
+        InfinityExpansion2.log(Level.INFO, "Loading available oscillators...")
 
         InfinityExpansion2.configService.quarryOscillators.value.forEach { (id, chance) ->
             if (id in registeredOscillators) return@forEach
