@@ -18,6 +18,7 @@ import net.guizhanss.infinityexpansion2.implementation.listeners.InfinityMatrixL
 import net.guizhanss.infinityexpansion2.implementation.listeners.SlimefunRegistryListener
 import net.guizhanss.infinityexpansion2.implementation.listeners.TranslationsLoadListener
 import net.guizhanss.infinityexpansion2.implementation.listeners.VeinMinerListener
+import net.guizhanss.infinityexpansion2.implementation.setup.DynamicItemSetup
 import net.guizhanss.infinityexpansion2.implementation.setup.ResearchSetup
 import net.guizhanss.infinityexpansion2.implementation.tasks.InfinityMatrixTask
 import net.guizhanss.infinityexpansion2.utils.tags.IETag
@@ -101,6 +102,12 @@ class InfinityExpansion2 : AbstractAddon(
 
         // item setup
         IEItems
+
+        // Register config-derived ids while addon registration is still open. This makes
+        // IE_MOB_DATA_CARD_* and IE_OSCILLATOR_* visible to addons such as Magic RSC
+        // during their normal onEnable/load phase. A finalized-registry pass retries any
+        // definitions that depend on items from addons loaded after IE2.
+        DynamicItemSetup.loadAvailable()
 
         // Install only explicit, historically-owned IE1 ids during addon startup. Generic
         // un-prefixed aliases are delayed until Slimefun finalizes addon registration so
