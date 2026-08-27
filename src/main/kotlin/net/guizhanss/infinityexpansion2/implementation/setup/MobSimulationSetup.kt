@@ -18,17 +18,26 @@ import org.bukkit.inventory.ItemStack
 import java.util.logging.Level
 
 /**
- * Read the mob simulation config and load the data cards.
+ * Reads the mob simulation config and registers data cards.
+ *
+ * Registration is intentionally idempotent. IE2 performs an early pass during
+ * plugin enable so dependent addons can resolve generated card ids, followed by
+ * a final pass after Slimefun addon registration to pick up recipes which rely
+ * on items supplied by later addons.
  */
 internal object MobSimulationSetup {
+    private val registeredCards = mutableSetOf<String>()
 
-    init {
+    fun loadAvailable(finalPass: Boolean = false) {
         val cfg = InfinityExpansion2.configService.mobSimConfig
-        InfinityExpansion2.log(Level.INFO, "Loading mob simulation data cards...")
+        InfinityExpansion2.log(Level.INFO, "Loading available mob simulation data cards...")
         if (!InfinityExpansion2.debugService.isEnabled(DebugCase.MOB_SIMULATION)) {
             InfinityExpansion2.log(Level.INFO, "If you encounter any issues, enabling debug mode may help.")
         }
+
         cfg.keys.forEach cfg@{ key ->
+            if (key in registeredCards) return@cfg
+
             val section = cfg.configuration.getConfigurationSection(key) ?: return@cfg
 
             // check for enabled
@@ -45,8 +54,19 @@ internal object MobSimulationSetup {
 
             Debug.log(DebugCase.MOB_SIMULATION, "name=$name, texture=$texture, energy=$energy, experience=$experience")
 
-            // drops
-            val drops = section.getMapList("drops").mapNotNull { it.getAsItemWithChance() }
+            // drops. Do not register an incomplete card during the early pass if
+            // one of its configured drops belongs to an addon that loads later.
+            val dropSections = section.getMapList("drops")
+            val drops = dropSections.mapNotNull { it.getAsItemWithChance() }
+            if (drops.size != dropSections.size) {
+                if (finalPass) {
+                    InfinityExpansion2.log(
+                        Level.WARNING,
+                        "Skipping mob data card $key because one or more configured drops could not be resolved."
+                    )
+                }
+                return@cfg
+            }
             Debug.log(DebugCase.MOB_SIMULATION, "drops=$drops")
 
             // recipe
@@ -60,9 +80,7 @@ internal object MobSimulationSetup {
 
             // find if there is 1 and only 1 X in the pattern
             if (recipePattern.sumOf { it.count { c -> c == 'X' } } != 1) {
-                InfinityExpansion2.log(
-                    Level.WARNING, "Invalid recipe pattern for $key, must have only 1 'X' in the whole pattern."
-                )
+                InfinityExpansion2.log(Level.WARNING, "Invalid recipe pattern for $key, must have only 1 'X' in the whole pattern.")
                 return@cfg
             }
 
@@ -74,16 +92,17 @@ internal object MobSimulationSetup {
             }
             ingredientSection.getKeys(false).forEach { ingredient ->
                 if (ingredient.length != 1) {
-                    InfinityExpansion2.log(
-                        Level.WARNING, "Invalid ingredient \"$ingredient\" for $key: Must be a single character."
-                    )
+                    InfinityExpansion2.log(Level.WARNING, "Invalid ingredient \"$ingredient\" for $key: Must be a single character.")
                     return@cfg
                 }
                 val item = ingredientSection.getConfigurationSection(ingredient).getAsItem()
                 if (item == null) {
-                    InfinityExpansion2.log(
-                        Level.WARNING, "Invalid ingredient \"$ingredient\" for $key: Invalid item section."
-                    )
+                    if (finalPass) {
+                        InfinityExpansion2.log(
+                            Level.WARNING,
+                            "Invalid ingredient \"$ingredient\" for $key: Item is still unavailable after addon registration."
+                        )
+                    }
                     return@cfg
                 }
                 ingredients[ingredient[0]] = item
@@ -102,9 +121,7 @@ internal object MobSimulationSetup {
                     }
 
                     if (char !in ingredients) {
-                        InfinityExpansion2.log(
-                            Level.WARNING, "Invalid recipe pattern for $key: Unknown ingredient \"$char\"."
-                        )
+                        InfinityExpansion2.log(Level.WARNING, "Invalid recipe pattern for $key: Unknown ingredient \"$char\".")
                         return@cfg
                     } else {
                         recipe[index] = ingredients[char]
@@ -114,10 +131,10 @@ internal object MobSimulationSetup {
 
             // register the mob data card
             InfinityExpansion2API.registerMobDataCard(
-                MobDataCardProps(
-                    key, name, texture, energy, experience, drops, recipe
-                ), InfinityExpansion2.instance
+                MobDataCardProps(key, name, texture, energy, experience, drops, recipe),
+                InfinityExpansion2.instance
             )
+            registeredCards += key
         }
     }
 
