@@ -12,8 +12,8 @@ permissions:
   contents: write
 
 env:
-  LEGACY_ARTIFACT_VERSION: "2.0.3"
-  OUTPUT_NAME: "SF_InfinityExpansion2.0.3.jar"
+  LEGACY_ARTIFACT_VERSION: "2.0.4"
+  OUTPUT_NAME: "SF_InfinityExpansion2.0.4.jar"
 
 jobs:
   paper-26-2:
@@ -98,7 +98,7 @@ jobs:
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$JAR" --clobber
           else
-            gh release create "$TAG" "$JAR" --target "$GITHUB_SHA" --title "SF_InfinityExpansion2 $TAG" --notes "Legacy compatibility release: machines now show live Required and Stored/Capacity energy when they cannot run for lack of power, including the Mob Simulation Chamber compatibility path. Built on Paper 26.2 / Java 25 directly against Slimefun Legacy while retaining Java 21 addon bytecode."
+            gh release create "$TAG" "$JAR" --target "$GITHUB_SHA" --title "SF_InfinityExpansion2 $TAG" --notes "Legacy compatibility release: IE1 machine and item migration is now registered with Slimefun Legacy's addon doctor, while /ie2 doctor remains available. Built on Paper 26.2 / Java 25 directly against Slimefun Legacy while retaining Java 21 addon bytecode."
           fi
 
   source-safety:

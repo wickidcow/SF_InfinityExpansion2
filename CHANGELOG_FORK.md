@@ -1,3 +1,11 @@
+## Legacy runtime hotfix 6 - Slimefun Doctor migration bridge
+
+- Registered the existing IE1 -> IE2 migration engine with Slimefun Legacy's addon-doctor API.
+- `/sf doctor addons scan` now reports recognized IE1 machine/block records and IE1 item stacks in the loaded server scope.
+- `/sf doctor addons repair confirm` migrates those records through the same engine used by `/ie2 doctor migrate`.
+- Kept the bridge reflective so IE2 can still load on supported Slimefun forks that do not expose the Legacy diagnostics API.
+- Migration remains chunk-driven and does not force-load unloaded worlds or chunks.
+
 ## Legacy runtime hotfix 5 - cross-addon Slimefun ID ownership
 
 - Fixed IE1 migration aliases pre-claiming legitimate Slimefun IDs from other addons during startup.
