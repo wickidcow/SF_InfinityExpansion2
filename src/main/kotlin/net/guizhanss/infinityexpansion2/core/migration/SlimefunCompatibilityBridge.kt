@@ -28,6 +28,8 @@ class SlimefunCompatibilityBridge {
 
     private fun installAliases(aliases: Map<String, String>, phase: String): AliasResult {
         val registry = Slimefun.getRegistry()
+        publishDiagnosticMappings(registry, aliases)
+
         val ids = findMutableMap(registry, "getSlimefunItemIds") ?: run {
             InfinityExpansion2.log(
                 Level.WARNING,
@@ -59,6 +61,36 @@ class SlimefunCompatibilityBridge {
             )
         }
         return AliasResult(installed, skipped, aliases.size, failed)
+    }
+
+    /**
+     * Publishes IE1 -> IE2 mappings to Slimefun Legacy's optional diagnostic registry when available.
+     *
+     * This is deliberately reflective so the same IE2 jar keeps loading on Gugu/United/Core-style forks
+     * that do not expose Slimefun Legacy's migration diagnostics API. Publishing a mapping does not replace
+     * IE2's existing live aliases or migration service; it only gives `/sf doctor` a trustworthy source of
+     * addon-declared legacy ids.
+     */
+    private fun publishDiagnosticMappings(registry: Any, aliases: Map<String, String>) {
+        val register = registry.javaClass.methods.firstOrNull {
+            it.name == "registerLegacySlimefunItemId" &&
+                it.parameterCount == 2 &&
+                it.parameterTypes.all { type -> type == String::class.java }
+        } ?: return
+
+        var failed = 0
+        aliases.forEach { (oldId, newId) ->
+            runCatching { register.invoke(registry, oldId, newId) }
+                .onFailure { failed++ }
+        }
+
+        if (failed > 0) {
+            InfinityExpansion2.log(
+                Level.WARNING,
+                "IE1 migration: $failed legacy id mappings could not be published to Slimefun Legacy diagnostics. " +
+                    "Live compatibility aliases and IE2 migration remain available."
+            )
+        }
     }
 
     fun runtimeDescription(): String {
