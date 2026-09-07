@@ -7,6 +7,7 @@ import io.github.thebusybiscuit.slimefun4.api.items.settings.IntRangeSetting
 import io.github.thebusybiscuit.slimefun4.api.recipes.RecipeType
 import io.github.thebusybiscuit.slimefun4.utils.SlimefunUtils
 import me.mrCookieSlime.Slimefun.api.inventory.BlockMenu
+import net.guizhanss.infinityexpansion2.core.config.MachineSettings
 import net.guizhanss.infinityexpansion2.core.items.attributes.InformationalRecipeDisplayItem
 import net.guizhanss.infinityexpansion2.core.menu.MenuLayout
 import net.guizhanss.infinityexpansion2.implementation.items.machines.abstracts.AbstractTickingMachine
@@ -48,6 +49,19 @@ open class GrowingMachine(
     @JvmName("addRecipeVararg")
     fun addRecipe(input: RecipeInput, vararg output: ItemStack) {
         addRecipe(input, output)
+    }
+
+    protected fun addConfiguredRecipe(family: String, input: ItemStack, vararg output: ItemStack) {
+        val configuredOutput = MachineSettings.configuredOutputs(family, input.type.name, output) ?: return
+        if (configuredOutput.isNotEmpty()) {
+            addRecipe(input, configuredOutput)
+        }
+    }
+
+    protected fun addCustomConfiguredRecipes(family: String) {
+        MachineSettings.customRecipes(family).forEach { (input, output) ->
+            addRecipe(input, output)
+        }
     }
 
     override fun process(b: Block, menu: BlockMenu): Boolean {

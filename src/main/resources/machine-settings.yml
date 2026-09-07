@@ -1,0 +1,447 @@
+# InfinityExpansion2 - Grower Machine Settings
+#
+# This file is intentionally separate from config.yml.
+# Updating or changing IE2 versions will not overwrite an existing copy of this file.
+# Missing settings always fall back to IE2's built-in defaults.
+#
+# Changes require a server restart.
+#
+# Tier settings:
+#   energy-per-tick  - Energy consumed while the machine has a valid input.
+#   output-interval  - Production interval in ticks.
+#
+# Recipe settings:
+#   enabled          - Set false to disable that input.
+#   outputs          - Amount produced for each output material.
+#                      Set an output amount to 0 to remove only that output.
+#                      Extra vanilla output materials may also be added here.
+#
+# To add an entirely new vanilla recipe, use custom-recipes with Bukkit Material names.
+# Custom recipes are disabled unless enabled: true is present.
+
+schema-version: 1
+
+virtual-farm:
+  tiers:
+    tier-1:
+      energy-per-tick: 18
+      output-interval: 300
+    tier-2:
+      energy-per-tick: 90
+      output-interval: 60
+    tier-3:
+      energy-per-tick: 270
+      output-interval: 30
+    tier-4:
+      energy-per-tick: 1000
+      output-interval: 10
+
+  recipes:
+    WHEAT_SEEDS:
+      enabled: true
+      outputs:
+        WHEAT: 2
+    CARROT:
+      enabled: true
+      outputs:
+        CARROT: 2
+    POTATO:
+      enabled: true
+      outputs:
+        POTATO: 2
+    BEETROOT_SEEDS:
+      enabled: true
+      outputs:
+        BEETROOT: 2
+    PUMPKIN_SEEDS:
+      enabled: true
+      outputs:
+        PUMPKIN: 1
+    MELON_SEEDS:
+      enabled: true
+      outputs:
+        MELON: 1
+    SUGAR_CANE:
+      enabled: true
+      outputs:
+        SUGAR_CANE: 2
+    COCOA_BEANS:
+      enabled: true
+      outputs:
+        COCOA_BEANS: 2
+    CACTUS:
+      enabled: true
+      outputs:
+        CACTUS: 2
+    BAMBOO:
+      enabled: true
+      outputs:
+        BAMBOO: 6
+    CHORUS_FLOWER:
+      enabled: true
+      outputs:
+        CHORUS_FRUIT: 6
+    NETHER_WART:
+      enabled: true
+      outputs:
+        NETHER_WART: 2
+    SWEET_BERRIES:
+      enabled: true
+      outputs:
+        SWEET_BERRIES: 2
+    GLOW_BERRIES:
+      enabled: true
+      outputs:
+        GLOW_BERRIES: 2
+    TORCHFLOWER_SEEDS:
+      enabled: true
+      outputs:
+        TORCHFLOWER: 2
+    PITCHER_POD:
+      enabled: true
+      outputs:
+        PITCHER_PLANT: 2
+    KELP:
+      enabled: true
+      outputs:
+        KELP: 2
+    SEA_PICKLE:
+      enabled: true
+      outputs:
+        SEA_PICKLE: 2
+    MOSS_BLOCK:
+      enabled: true
+      outputs:
+        MOSS_BLOCK: 2
+    PALE_MOSS_BLOCK:
+      enabled: true
+      outputs:
+        PALE_MOSS_BLOCK: 2
+
+  custom-recipes: {}
+  # Example:
+  # custom-recipes:
+  #   GLOW_LICHEN:
+  #     enabled: true
+  #     outputs:
+  #       GLOW_LICHEN: 2
+
+tree-grower:
+  tiers:
+    tier-1:
+      energy-per-tick: 36
+      output-interval: 300
+    tier-2:
+      energy-per-tick: 180
+      output-interval: 60
+    tier-3:
+      energy-per-tick: 540
+      output-interval: 30
+    tier-4:
+      energy-per-tick: 2000
+      output-interval: 10
+
+  recipes:
+    OAK_SAPLING:
+      enabled: true
+      outputs:
+        OAK_LEAVES: 8
+        OAK_LOG: 6
+        STICK: 1
+        APPLE: 1
+    SPRUCE_SAPLING:
+      enabled: true
+      outputs:
+        SPRUCE_LEAVES: 8
+        SPRUCE_LOG: 6
+        STICK: 2
+    DARK_OAK_SAPLING:
+      enabled: true
+      outputs:
+        DARK_OAK_LEAVES: 8
+        DARK_OAK_LOG: 6
+        APPLE: 1
+    BIRCH_SAPLING:
+      enabled: true
+      outputs:
+        BIRCH_LEAVES: 8
+        BIRCH_LOG: 6
+    ACACIA_SAPLING:
+      enabled: true
+      outputs:
+        ACACIA_LEAVES: 8
+        ACACIA_LOG: 6
+    JUNGLE_SAPLING:
+      enabled: true
+      outputs:
+        JUNGLE_LEAVES: 8
+        JUNGLE_LOG: 6
+        COCOA_BEANS: 1
+    WARPED_FUNGUS:
+      enabled: true
+      outputs:
+        WARPED_HYPHAE: 8
+        WARPED_STEM: 6
+        SHROOMLIGHT: 1
+    CRIMSON_FUNGUS:
+      enabled: true
+      outputs:
+        CRIMSON_HYPHAE: 8
+        CRIMSON_STEM: 6
+        WEEPING_VINES: 1
+    MANGROVE_PROPAGULE:
+      enabled: true
+      outputs:
+        MANGROVE_LEAVES: 8
+        MANGROVE_LOG: 6
+        MANGROVE_ROOTS: 4
+        MUDDY_MANGROVE_ROOTS: 2
+    CHERRY_SAPLING:
+      enabled: true
+      outputs:
+        CHERRY_LEAVES: 8
+        CHERRY_LOG: 6
+        STICK: 1
+    PALE_OAK_SAPLING:
+      enabled: true
+      outputs:
+        PALE_OAK_LEAVES: 8
+        PALE_OAK_LOG: 6
+        STICK: 1
+    AZALEA:
+      enabled: true
+      outputs:
+        AZALEA_LEAVES: 8
+        OAK_LOG: 6
+        STICK: 1
+    FLOWERING_AZALEA:
+      enabled: true
+      outputs:
+        FLOWERING_AZALEA_LEAVES: 8
+        OAK_LOG: 6
+        STICK: 1
+    POPLAR_SAPLING:
+      enabled: true
+      outputs:
+        RED_POPLAR_LEAVES: 3
+        ORANGE_POPLAR_LEAVES: 3
+        YELLOW_POPLAR_LEAVES: 3
+        POPLAR_LOG: 6
+        STICK: 1
+
+  custom-recipes: {}
+
+flower-grower:
+  tiers:
+    tier-1:
+      energy-per-tick: 18
+      output-interval: 300
+    tier-2:
+      energy-per-tick: 90
+      output-interval: 60
+    tier-3:
+      energy-per-tick: 270
+      output-interval: 30
+    tier-4:
+      energy-per-tick: 1000
+      output-interval: 10
+
+  recipes:
+    SHORT_GRASS:
+      enabled: true
+      outputs:
+        SHORT_GRASS: 4
+    FERN:
+      enabled: true
+      outputs:
+        FERN: 4
+    DEAD_BUSH:
+      enabled: true
+      outputs:
+        DEAD_BUSH: 4
+    DANDELION:
+      enabled: true
+      outputs:
+        DANDELION: 4
+    POPPY:
+      enabled: true
+      outputs:
+        POPPY: 4
+    BLUE_ORCHID:
+      enabled: true
+      outputs:
+        BLUE_ORCHID: 4
+    ALLIUM:
+      enabled: true
+      outputs:
+        ALLIUM: 4
+    AZURE_BLUET:
+      enabled: true
+      outputs:
+        AZURE_BLUET: 4
+    RED_TULIP:
+      enabled: true
+      outputs:
+        RED_TULIP: 4
+    ORANGE_TULIP:
+      enabled: true
+      outputs:
+        ORANGE_TULIP: 4
+    WHITE_TULIP:
+      enabled: true
+      outputs:
+        WHITE_TULIP: 4
+    PINK_TULIP:
+      enabled: true
+      outputs:
+        PINK_TULIP: 4
+    OXEYE_DAISY:
+      enabled: true
+      outputs:
+        OXEYE_DAISY: 4
+    CORNFLOWER:
+      enabled: true
+      outputs:
+        CORNFLOWER: 4
+    LILY_OF_THE_VALLEY:
+      enabled: true
+      outputs:
+        LILY_OF_THE_VALLEY: 4
+    WITHER_ROSE:
+      enabled: true
+      outputs:
+        WITHER_ROSE: 4
+    PINK_PETALS:
+      enabled: true
+      outputs:
+        PINK_PETALS: 4
+    SPORE_BLOSSOM:
+      enabled: true
+      outputs:
+        SPORE_BLOSSOM: 4
+    WEEPING_VINES:
+      enabled: true
+      outputs:
+        WEEPING_VINES: 4
+    TWISTING_VINES:
+      enabled: true
+      outputs:
+        TWISTING_VINES: 4
+    VINE:
+      enabled: true
+      outputs:
+        VINE: 4
+    TALL_GRASS:
+      enabled: true
+      outputs:
+        TALL_GRASS: 4
+    LARGE_FERN:
+      enabled: true
+      outputs:
+        LARGE_FERN: 4
+    SUNFLOWER:
+      enabled: true
+      outputs:
+        SUNFLOWER: 4
+    LILAC:
+      enabled: true
+      outputs:
+        LILAC: 4
+    ROSE_BUSH:
+      enabled: true
+      outputs:
+        ROSE_BUSH: 4
+    PEONY:
+      enabled: true
+      outputs:
+        PEONY: 4
+    CHORUS_FLOWER:
+      enabled: true
+      outputs:
+        CHORUS_FLOWER: 4
+    GLOW_LICHEN:
+      enabled: true
+      outputs:
+        GLOW_LICHEN: 4
+    LILY_PAD:
+      enabled: true
+      outputs:
+        LILY_PAD: 4
+    TORCHFLOWER:
+      enabled: true
+      outputs:
+        TORCHFLOWER: 4
+    PITCHER_PLANT:
+      enabled: true
+      outputs:
+        PITCHER_PLANT: 4
+    MOSS_CARPET:
+      enabled: true
+      outputs:
+        MOSS_CARPET: 4
+    PALE_MOSS_CARPET:
+      enabled: true
+      outputs:
+        PALE_MOSS_CARPET: 4
+    PALE_HANGING_MOSS:
+      enabled: true
+      outputs:
+        PALE_HANGING_MOSS: 4
+    HANGING_ROOTS:
+      enabled: true
+      outputs:
+        HANGING_ROOTS: 4
+    SMALL_DRIPLEAF:
+      enabled: true
+      outputs:
+        SMALL_DRIPLEAF: 4
+    BIG_DRIPLEAF:
+      enabled: true
+      outputs:
+        BIG_DRIPLEAF: 4
+    OPEN_EYEBLOSSOM:
+      enabled: true
+      outputs:
+        OPEN_EYEBLOSSOM: 4
+    CLOSED_EYEBLOSSOM:
+      enabled: true
+      outputs:
+        CLOSED_EYEBLOSSOM: 4
+    FIREFLY_BUSH:
+      enabled: true
+      outputs:
+        FIREFLY_BUSH: 4
+    BUSH:
+      enabled: true
+      outputs:
+        BUSH: 4
+    WILDFLOWERS:
+      enabled: true
+      outputs:
+        WILDFLOWERS: 4
+    CACTUS_FLOWER:
+      enabled: true
+      outputs:
+        CACTUS_FLOWER: 4
+    LEAF_LITTER:
+      enabled: true
+      outputs:
+        LEAF_LITTER: 4
+    SHORT_DRY_GRASS:
+      enabled: true
+      outputs:
+        SHORT_DRY_GRASS: 4
+    TALL_DRY_GRASS:
+      enabled: true
+      outputs:
+        TALL_DRY_GRASS: 4
+    SHELF_MUSHROOM:
+      enabled: true
+      outputs:
+        SHELF_MUSHROOM: 4
+    RED_SHRUB:
+      enabled: true
+      outputs:
+        RED_SHRUB: 4
+
+  custom-recipes: {}
