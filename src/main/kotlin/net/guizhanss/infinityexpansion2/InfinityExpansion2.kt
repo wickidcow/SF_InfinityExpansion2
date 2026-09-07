@@ -33,6 +33,7 @@ class InfinityExpansion2 : AbstractAddon(
 ) {
 
     override fun load() {
+        // check if there is central repo prop defined
         val centralRepo =
             System.getProperty("centralRepository") ?: "https://maven-central.storage-download.googleapis.com/maven2/"
 
@@ -40,6 +41,7 @@ class InfinityExpansion2 : AbstractAddon(
         logger.info("If you stuck here for a long time, try to specify a mirror repository.")
         logger.info("Add -DcentralRepository=<url> to the JVM arguments.")
 
+        // download libs
         val manager = BukkitLibraryManager(this)
         manager.addRepository(centralRepo)
         manager.loadLibrary(
@@ -70,9 +72,12 @@ class InfinityExpansion2 : AbstractAddon(
 //            return
 //        }
 
+        // config & debug
         configService = ConfigService(this)
         debugService = DebugService(this)
 
+        // AbstractAddon invokes autoUpdate() before enable(), so the override below must
+        // remain config-free. Report the disabled updater only after ConfigService exists.
         if (configService.autoUpdate.value) {
             log(
                 Level.WARNING,
@@ -80,8 +85,10 @@ class InfinityExpansion2 : AbstractAddon(
             )
         }
 
+        // tags
         IETag.reloadAll()
 
+        // localization
         log(Level.INFO, "Loading language...")
         val lang = configService.lang.value
         localization = LocalizationService(this, file)
@@ -92,11 +99,21 @@ class InfinityExpansion2 : AbstractAddon(
         }
         log(Level.INFO, "Loaded language {0}.", lang)
 
+        // item groups setup
         IEItemGroups
+
+        // item setup
         IEItems
 
+        // Register config-derived ids while addon registration is still open. This makes
+        // IE_MOB_DATA_CARD_* and IE_OSCILLATOR_* visible to addons such as Magic RSC
+        // during their normal onEnable/load phase. A finalized-registry pass retries any
+        // definitions that depend on items from addons loaded after IE2.
         DynamicItemSetup.loadAvailable()
 
+        // Install only explicit, historically-owned IE1 ids during addon startup. Generic
+        // un-prefixed aliases are delayed until Slimefun finalizes addon registration so
+        // IE2 cannot pre-claim ids legitimately owned by ExoticGarden, ExtraTools, etc.
         migrationService = LegacyMigrationService(this)
         if (configService.migrationEnabled.value) {
             migrationService.installStartupAliases()
@@ -104,17 +121,22 @@ class InfinityExpansion2 : AbstractAddon(
         LegacyAddonDoctorBridge.register(this)
         LegacyMigrationProviderBridge.register(this)
 
+        // researches setup
         if (configService.enableResearches.value) {
             ResearchSetup
         }
 
+        // integrations
         integrationService = IntegrationService(this)
 
+        // commands
         MainCommand(getPluginCommand("infinityexpansion2")).register()
 
+        // listeners & tasks
         setupListeners()
         setupTasks()
 
+        // Metrics setup
         setupMetrics()
     }
 
