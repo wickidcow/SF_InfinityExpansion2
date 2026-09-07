@@ -99,5 +99,47 @@ class TreeGrower(
                 Material.STICK.toItem()
             )
         )
+
+        // Modern vanilla trees. String lookup keeps the same build compatible with older Paper APIs.
+        addOptionalRecipe(
+            "PALE_OAK_SAPLING",
+            "PALE_OAK_LEAVES" to 8,
+            "PALE_OAK_LOG" to 6,
+            "STICK" to 1,
+        )
+        addOptionalRecipe(
+            "AZALEA",
+            "AZALEA_LEAVES" to 8,
+            "OAK_LOG" to 6,
+            "STICK" to 1,
+        )
+        addOptionalRecipe(
+            "FLOWERING_AZALEA",
+            "FLOWERING_AZALEA_LEAVES" to 8,
+            "OAK_LOG" to 6,
+            "STICK" to 1,
+        )
+
+        // Minecraft 26.3 forward compatibility: Poplar saplings can grow any of three leaf colors.
+        // These recipes silently activate as soon as the runtime exposes the 26.3 Material names.
+        addOptionalRecipe(
+            "POPLAR_SAPLING",
+            "RED_POPLAR_LEAVES" to 3,
+            "ORANGE_POPLAR_LEAVES" to 3,
+            "YELLOW_POPLAR_LEAVES" to 3,
+            "POPLAR_LOG" to 6,
+            "STICK" to 1,
+        )
+    }
+
+    private fun addOptionalRecipe(inputName: String, vararg outputs: Pair<String, Int>) {
+        val input = Material.matchMaterial(inputName) ?: return
+        val outputStacks = outputs.mapNotNull { (materialName, amount) ->
+            Material.matchMaterial(materialName)?.let { ItemStack(it, amount) }
+        }.toTypedArray()
+
+        if (outputStacks.isNotEmpty()) {
+            addRecipe(ItemStack(input), outputStacks)
+        }
     }
 }
