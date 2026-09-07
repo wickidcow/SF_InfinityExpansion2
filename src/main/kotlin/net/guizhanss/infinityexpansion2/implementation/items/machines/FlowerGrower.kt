@@ -51,5 +51,34 @@ class FlowerGrower(
         addRecipe(Material.CHORUS_FLOWER.toItem(), Material.CHORUS_FLOWER.toItem(4))
         addRecipe(Material.GLOW_LICHEN.toItem(), Material.GLOW_LICHEN.toItem(4))
         addRecipe(Material.LILY_PAD.toItem(), Material.LILY_PAD.toItem(4))
+
+        // Newer vanilla vegetation. Runtime lookup lets IE2 keep building on older APIs.
+        listOf(
+            "TORCHFLOWER",
+            "PITCHER_PLANT",
+            "MOSS_CARPET",
+            "PALE_MOSS_CARPET",
+            "PALE_HANGING_MOSS",
+            "HANGING_ROOTS",
+            "SMALL_DRIPLEAF",
+            "BIG_DRIPLEAF",
+            "OPEN_EYEBLOSSOM",
+            "CLOSED_EYEBLOSSOM",
+            "FIREFLY_BUSH",
+            "BUSH",
+            "WILDFLOWERS",
+            "CACTUS_FLOWER",
+            "LEAF_LITTER",
+            "SHORT_DRY_GRASS",
+            "TALL_DRY_GRASS",
+            // Minecraft 26.3 forward compatibility.
+            "SHELF_MUSHROOM",
+            "RED_SHRUB",
+        ).forEach { addOptionalSelfRecipe(it, 4) }
+    }
+
+    private fun addOptionalSelfRecipe(materialName: String, amount: Int) {
+        val material = Material.matchMaterial(materialName) ?: return
+        addRecipe(ItemStack(material), ItemStack(material, amount))
     }
 }
