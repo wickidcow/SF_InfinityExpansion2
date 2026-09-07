@@ -33,5 +33,20 @@ class VirtualFarm(
         addRecipe(Material.CHORUS_FLOWER.toItem(), Material.CHORUS_FRUIT.toItem(6))
         addRecipe(Material.NETHER_WART.toItem(), Material.NETHER_WART.toItem(2))
         addRecipe(Material.SWEET_BERRIES.toItem(), Material.SWEET_BERRIES.toItem(2))
+
+        // Modern farmables and renewable vegetation.
+        addOptionalRecipe("GLOW_BERRIES", "GLOW_BERRIES", 2)
+        addOptionalRecipe("TORCHFLOWER_SEEDS", "TORCHFLOWER", 2)
+        addOptionalRecipe("PITCHER_POD", "PITCHER_PLANT", 2)
+        addOptionalRecipe("KELP", "KELP", 2)
+        addOptionalRecipe("SEA_PICKLE", "SEA_PICKLE", 2)
+        addOptionalRecipe("MOSS_BLOCK", "MOSS_BLOCK", 2)
+        addOptionalRecipe("PALE_MOSS_BLOCK", "PALE_MOSS_BLOCK", 2)
+    }
+
+    private fun addOptionalRecipe(inputName: String, outputName: String, amount: Int) {
+        val input = Material.matchMaterial(inputName) ?: return
+        val output = Material.matchMaterial(outputName) ?: return
+        addRecipe(ItemStack(input), ItemStack(output, amount))
     }
 }
