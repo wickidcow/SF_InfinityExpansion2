@@ -6,6 +6,7 @@ root = Path(__file__).resolve().parents[1]
 mapper = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/core/migration/LegacyIdMapper.kt").read_text()
 service = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/core/migration/LegacyMigrationService.kt").read_text()
 bridge = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/core/migration/SlimefunCompatibilityBridge.kt").read_text()
+provider_bridge = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/core/migration/LegacyMigrationProviderBridge.kt").read_text()
 registry_listener = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/listeners/SlimefunRegistryListener.kt").read_text()
 build = (root / "build.gradle.kts").read_text()
 config = (root / "src/main/resources/config.yml").read_text()
@@ -103,6 +104,21 @@ if 'EventPriority.HIGHEST' not in registry_listener or 'fun installMigrationAlia
     errors.append("post-registration alias installation must run after normal finalized-event registration")
 if 'InfinityExpansion2.migrationService.installAliases()' not in registry_listener:
     errors.append("full alias set is not installed after addon registration finalizes")
+# Slimefun Legacy's dedicated migration provider is optional and must remain reflective so
+# this IE2 jar still loads on other Slimefun implementations. Core delegates back to the
+# existing migration service; no duplicate migration engine is permitted in the bridge.
+if 'LegacyItemMigrationProvider' not in provider_bridge or 'Class.forName(PROVIDER_CLASS' not in provider_bridge:
+    errors.append("Slimefun Legacy migration provider bridge must remain reflective")
+if 'getLegacyItemMappings' not in provider_bridge or 'LegacyIdMapper.resolvedAliases()' not in provider_bridge:
+    errors.append("migration provider must expose the same resolved IE1 mapping table")
+if 'runMigration' not in provider_bridge or 'migrationService.scanLoaded(repair)' not in provider_bridge:
+    errors.append("migration provider must delegate scan/repair to LegacyMigrationService")
+if '!InfinityExpansion2.configService.migrationEnabled.value' not in provider_bridge:
+    errors.append("migration provider must not register when IE1 migration support is disabled")
+if 'LegacyMigrationProviderBridge.register(this)' not in main_plugin:
+    errors.append("plugin startup does not register the optional Legacy migration provider bridge")
+if 'import io.github.thebusybiscuit.slimefun4.api.diagnostics.LegacyItemMigrationProvider' in provider_bridge:
+    errors.append("IE2 migration provider bridge must not hard-link the Legacy-only provider API")
 if errors:
     print("Legacy migration verification failed:")
     for error in errors:

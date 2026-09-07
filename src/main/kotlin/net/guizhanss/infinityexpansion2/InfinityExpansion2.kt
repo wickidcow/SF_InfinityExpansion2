@@ -6,6 +6,7 @@ import net.guizhanss.guizhanlib.libraries.BukkitLibraryManager
 import net.guizhanss.guizhanlib.slimefun.addon.AbstractAddon
 import net.guizhanss.infinityexpansion2.core.commands.MainCommand
 import net.guizhanss.infinityexpansion2.core.migration.LegacyAddonDoctorBridge
+import net.guizhanss.infinityexpansion2.core.migration.LegacyMigrationProviderBridge
 import net.guizhanss.infinityexpansion2.core.migration.LegacyMigrationService
 import net.guizhanss.infinityexpansion2.core.services.ConfigService
 import net.guizhanss.infinityexpansion2.core.services.DebugService
@@ -118,6 +119,7 @@ class InfinityExpansion2 : AbstractAddon(
             migrationService.installStartupAliases()
         }
         LegacyAddonDoctorBridge.register(this)
+        LegacyMigrationProviderBridge.register(this)
 
         // researches setup
         if (configService.enableResearches.value) {
