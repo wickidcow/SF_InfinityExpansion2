@@ -22,42 +22,23 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           path = Path('src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/items/storage/StorageUnit.kt')
-          text = path.read_text()
-          old = '''    override fun getInputSlots(menu: DirtyChestMenu, item: ItemStack): IntArray {
-    val cache = _caches[(menu as BlockMenu).position]
-    return if (
-        cache != null &&
-        !item.isBlacklisted() &&
-        (cache.isEmpty() || (cache.matches(item) && isSimilar(item, menu.getItemInSlot(outputSlots[0]))))
-    ) {
-        inputSlots
-    } else {
-        intArrayOf()
-    }
-}
-
-private fun tick(b: Block) {'''
-          new = '''    override fun getInputSlots(menu: DirtyChestMenu, item: ItemStack): IntArray {
-        val cache = _caches[(menu as BlockMenu).position]
-        return if (
-            cache != null &&
-            !item.isBlacklisted() &&
-            (cache.isEmpty() || (cache.matches(item) && isSimilar(item, menu.getItemInSlot(outputSlots[0]))))
-        ) {
-            inputSlots
-        } else {
-            intArrayOf()
-        }
-    }
-
-    private fun tick(b: Block) {'''
-          if old not in text:
-              if new in text:
+          lines = path.read_text().splitlines()
+          start = next((i for i, line in enumerate(lines) if line == '    override fun getInputSlots(menu: DirtyChestMenu, item: ItemStack): IntArray {'), None)
+          tick = next((i for i, line in enumerate(lines) if line == 'private fun tick(b: Block) {'), None)
+          if start is None:
+              raise SystemExit('StorageUnit transport method not found.')
+          if tick is None:
+              if any(line == '    private fun tick(b: Block) {' for line in lines):
                   print('StorageUnit formatting is already normalized.')
               else:
-                  raise SystemExit('Expected patched StorageUnit block was not found; refusing cleanup.')
+                  raise SystemExit('StorageUnit tick method not found.')
           else:
-              path.write_text(text.replace(old, new, 1))
+              for i in range(start + 1, tick):
+                  if lines[i]:
+                      lines[i] = '    ' + lines[i]
+              lines[tick] = '    ' + lines[tick]
+              path.write_text('\n'.join(lines) + '\n')
+              print('StorageUnit formatting normalized.')
           PY
       - name: Remove one-shot workflow and commit
         shell: bash
