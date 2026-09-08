@@ -1,0 +1,71 @@
+name: One-shot IE2 StorageUnit formatting cleanup
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/ie2-format-storage.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  format-storage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Normalize patched StorageUnit method formatting
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/items/storage/StorageUnit.kt')
+          text = path.read_text()
+          old = '''    override fun getInputSlots(menu: DirtyChestMenu, item: ItemStack): IntArray {
+    val cache = _caches[(menu as BlockMenu).position]
+    return if (
+        cache != null &&
+        !item.isBlacklisted() &&
+        (cache.isEmpty() || (cache.matches(item) && isSimilar(item, menu.getItemInSlot(outputSlots[0]))))
+    ) {
+        inputSlots
+    } else {
+        intArrayOf()
+    }
+}
+
+private fun tick(b: Block) {'''
+          new = '''    override fun getInputSlots(menu: DirtyChestMenu, item: ItemStack): IntArray {
+        val cache = _caches[(menu as BlockMenu).position]
+        return if (
+            cache != null &&
+            !item.isBlacklisted() &&
+            (cache.isEmpty() || (cache.matches(item) && isSimilar(item, menu.getItemInSlot(outputSlots[0]))))
+        ) {
+            inputSlots
+        } else {
+            intArrayOf()
+        }
+    }
+
+    private fun tick(b: Block) {'''
+          if old not in text:
+              if new in text:
+                  print('StorageUnit formatting is already normalized.')
+              else:
+                  raise SystemExit('Expected patched StorageUnit block was not found; refusing cleanup.')
+          else:
+              path.write_text(text.replace(old, new, 1))
+          PY
+      - name: Remove one-shot workflow and commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/ie2-format-storage.yml
+          git add src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/items/storage/StorageUnit.kt
+          git commit -m 'Normalize IE2 Storage Unit transport formatting'
+          git push origin HEAD:master
