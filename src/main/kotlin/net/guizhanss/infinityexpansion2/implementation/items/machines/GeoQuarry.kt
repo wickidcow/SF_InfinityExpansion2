@@ -37,10 +37,13 @@ class GeoQuarry(
         menu.setStatus { GuiItems.PRODUCING }
         if (!shouldProduce()) return true
 
-        produce(menu).let {
-            menu.pushItem(it.edit { amount(speed) }, *outputSlots)
+        val output = produce(menu).edit { amount(speed) }
+        if (!menu.fits(output, *outputSlots)) {
+            menu.setStatus { GuiItems.NO_ROOM }
+            return false
         }
 
+        menu.pushItem(output, *outputSlots)
         return true
     }
 
