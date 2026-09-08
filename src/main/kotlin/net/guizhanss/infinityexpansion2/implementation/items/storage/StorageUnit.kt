@@ -112,19 +112,19 @@ class StorageUnit(
     }
 
     override fun getInputSlots(menu: DirtyChestMenu, item: ItemStack): IntArray {
-    val cache = _caches[(menu as BlockMenu).position]
-    return if (
-        cache != null &&
-        !item.isBlacklisted() &&
-        (cache.isEmpty() || (cache.matches(item) && isSimilar(item, menu.getItemInSlot(outputSlots[0]))))
-    ) {
-        inputSlots
-    } else {
-        intArrayOf()
+        val cache = _caches[(menu as BlockMenu).position]
+        return if (
+            cache != null &&
+            !item.isBlacklisted() &&
+            (cache.isEmpty() || (cache.matches(item) && isSimilar(item, menu.getItemInSlot(outputSlots[0]))))
+        ) {
+            inputSlots
+        } else {
+            intArrayOf()
+        }
     }
-}
 
-private fun tick(b: Block) {
+    private fun tick(b: Block) {
         val menu = b.getBlockMenu() ?: run {
             _caches.remove(b.position)
             return
