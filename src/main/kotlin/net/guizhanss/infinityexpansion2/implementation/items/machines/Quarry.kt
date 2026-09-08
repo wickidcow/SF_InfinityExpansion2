@@ -67,10 +67,13 @@ class Quarry(
         menu.setStatus { GuiItems.PRODUCING }
         if (!shouldProduce()) return true
 
-        produce(menu)?.let {
-            menu.pushItem(it, *outputSlots)
+        val output = produce(menu) ?: return true
+        if (!menu.fits(output, *outputSlots)) {
+            menu.setStatus { GuiItems.NO_ROOM }
+            return false
         }
 
+        menu.pushItem(output, *outputSlots)
         return true
     }
 
