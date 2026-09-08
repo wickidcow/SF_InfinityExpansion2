@@ -5,6 +5,7 @@ import io.github.thebusybiscuit.slimefun4.api.items.ItemState
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItemStack
 import io.github.thebusybiscuit.slimefun4.api.items.settings.IntRangeSetting
 import io.github.thebusybiscuit.slimefun4.api.recipes.RecipeType
+import io.github.thebusybiscuit.slimefun4.libraries.dough.inventory.InvUtils
 import io.github.thebusybiscuit.slimefun4.utils.SlimefunUtils
 import me.mrCookieSlime.Slimefun.api.inventory.BlockMenu
 import net.guizhanss.infinityexpansion2.core.config.MachineSettings
@@ -77,10 +78,16 @@ open class GrowingMachine(
             return false
         }
 
-        menu.setStatus { GuiItems.PRODUCING }
         if (shouldProduce()) {
-            output.forEach { menu.pushItem(it.clone(), *outputSlots) }
+            val generated = output.map { it.clone() }.toTypedArray()
+            if (!InvUtils.fitAll(menu.toInventory(), generated, *outputSlots)) {
+                menu.setStatus { GuiItems.NO_ROOM }
+                return false
+            }
+            generated.forEach { menu.pushItem(it, *outputSlots) }
         }
+
+        menu.setStatus { GuiItems.PRODUCING }
         return true
     }
 
