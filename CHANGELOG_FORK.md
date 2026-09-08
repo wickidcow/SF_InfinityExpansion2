@@ -1,3 +1,10 @@
+## v2.0.6 - Cargo and output backpressure hardening
+
+- Fixed Slimefun Legacy Cargo seeding of completely empty IE2 Storage Units while preserving blacklist and typed-storage checks.
+- Made Tree Grower, Flower Grower, and Virtual Farm production transactional when output slots are full; blocked production now preserves generated items and power.
+- Added equivalent backpressure protection to Quarry and Geo Quarry so generated resources cannot be lost when automation backs up.
+- Added transport-contract CI coverage against Slimefun Legacy Cargo and Networks Expansion to catch future slot-routing and integration regressions.
+
 ## v2.0.5 - Modern Mob Simulation and upstream hardening
 
 - Added modern/default Mob Simulation cards for Goat, Frog, Sniffer, Armadillo, Breeze, Warden, Creaking, Shulker, Phantom, Drowned, Hoglin, Zombified Piglin, and Rabbit.
