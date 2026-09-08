@@ -12,8 +12,8 @@ permissions:
   contents: write
 
 env:
-  LEGACY_ARTIFACT_VERSION: "2.0.5"
-  OUTPUT_NAME: "SF_InfinityExpansion2.0.5.jar"
+  LEGACY_ARTIFACT_VERSION: "2.0.6"
+  OUTPUT_NAME: "SF_InfinityExpansion2.0.6.jar"
 
 jobs:
   paper-26-2:
@@ -96,7 +96,7 @@ jobs:
           set -euo pipefail
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then TAG="$GITHUB_REF_NAME"; else TAG="v${LEGACY_ARTIFACT_VERSION}"; fi
           JAR="dist/${OUTPUT_NAME}"
-          NOTES="v2.0.5 adds modern Mob Simulation cards for Goat, Frog, Sniffer, Armadillo, Breeze, Warden, Creaking, Shulker, Phantom, Drowned, Hoglin, Zombified Piglin, and Rabbit; functional random Goat Horn variants and exclusive Frog/Sniffer pools; plus upstream-safe energy capacity hardening. Built on Paper 26.2 / Java 25 directly against Slimefun Legacy while retaining Java 21 addon bytecode."
+          NOTES="v2.0.6 hardens IE2 automation: empty Storage Units can be seeded through Slimefun Legacy Cargo, Tree/Flower Growers and Virtual Farm now stop losslessly when outputs are full, Quarry and Geo Quarry now preserve generated resources and power under backpressure, and CI verifies transport contracts against Slimefun Legacy Cargo and Networks Expansion. Built on Paper 26.2 / Java 25 directly against Slimefun Legacy while retaining Java 21 addon bytecode."
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$JAR" --clobber
           else
@@ -104,10 +104,26 @@ jobs:
           fi
 
   source-safety:
-    name: Migration safety checks
+    name: Migration and transport safety checks
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout IE2
         uses: actions/checkout@v6
-      - name: Verify migration invariants
-        run: python3 scripts/verify_legacy_migration.py
+      - name: Checkout Slimefun Legacy transport contract
+        uses: actions/checkout@v6
+        with:
+          repository: wickidcow/Slimefun-Legacy
+          ref: master
+          path: .deps/Slimefun-Legacy
+      - name: Checkout Networks Expansion transport contract
+        uses: actions/checkout@v6
+        with:
+          repository: wickidcow/SF_NetworksExp
+          ref: master
+          path: .deps/SF_NetworksExp
+      - name: Verify migration and transport invariants
+        run: |
+          python3 scripts/verify_legacy_migration.py
+          python3 scripts/verify_transport_contracts.py \
+            --slimefun .deps/Slimefun-Legacy \
+            --networks .deps/SF_NetworksExp
