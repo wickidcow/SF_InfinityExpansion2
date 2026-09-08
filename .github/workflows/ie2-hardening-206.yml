@@ -23,21 +23,21 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           path = Path('src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/items/storage/StorageUnit.kt')
           text = path.read_text()
-          old = '''    override fun getInputSlots(menu: DirtyChestMenu, item: ItemStack): IntArray {
-              val cache = _caches[(menu as BlockMenu).position]
-              return if (cache != null &&
-                  ((cache.isEmpty() || cache.matches(item)) && isSimilar(item, menu.getItemInSlot(outputSlots[0])))
-              ) {
-                  inputSlots
-              } else {
-                  intArrayOf()
-              }
-          }
-          '''
-          new = '''    override fun getInputSlots(menu: DirtyChestMenu, item: ItemStack): IntArray {
+          marker = '!item.isBlacklisted() &&'
+          if marker in text:
+              print('Storage transport hardening is already present.')
+          else:
+              pattern = re.compile(
+                  r'    override fun getInputSlots\(menu: DirtyChestMenu, item: ItemStack\): IntArray \{\n'
+                  r'.*?'
+                  r'\n    \}\n\n    private fun tick',
+                  re.DOTALL,
+              )
+              replacement = '''    override fun getInputSlots(menu: DirtyChestMenu, item: ItemStack): IntArray {
               val cache = _caches[(menu as BlockMenu).position]
               return if (
                   cache != null &&
@@ -49,14 +49,12 @@ jobs:
                   intArrayOf()
               }
           }
-          '''
-          if old not in text:
-              if new in text:
-                  print('Storage transport hardening is already present.')
-              else:
-                  raise SystemExit('Expected StorageUnit transport block was not found; refusing unsafe patch.')
-          else:
-              path.write_text(text.replace(old, new, 1))
+
+          private fun tick'''
+              updated, count = pattern.subn(replacement, text, count=1)
+              if count != 1:
+                  raise SystemExit(f'Expected exactly one StorageUnit transport method, replaced {count}; refusing unsafe patch.')
+              path.write_text(updated)
               print('Patched StorageUnit empty Cargo seeding safely.')
           PY
 
