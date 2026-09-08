@@ -52,7 +52,8 @@ abstract class AbstractTickingMachine(
 
     override fun getOutputSlots() = layout.outputSlots
 
-    override fun getCapacity() = getEnergyConsumptionPerTick() * 2
+    override fun getCapacity() =
+        (getEnergyConsumptionPerTick().toLong() * 2L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
 
     override fun getEnergyComponentType() = EnergyNetComponentType.CONSUMER
 

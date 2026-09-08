@@ -1,0 +1,383 @@
+# Slimefun Legacy modern Mob Simulation defaults.
+# This file is intentionally separate from mob-simulation.yml so existing customized
+# servers receive new cards without their historical config being overwritten.
+# Define the same card id in mob-simulation.yml to override one of these defaults.
+# drop-mode: random-one selects exactly one configured drop per production cycle.
+
+goat:
+  enabled: true
+  name: "Goat"
+  texture: GOAT_SPAWN_EGG
+  energy: 300
+  experience: 2
+  drop-mode: random-one
+  drops:
+    - item: GOAT_HORN
+      instrument: ponder_goat_horn
+      chance: 1
+    - item: GOAT_HORN
+      instrument: sing_goat_horn
+      chance: 1
+    - item: GOAT_HORN
+      instrument: seek_goat_horn
+      chance: 1
+    - item: GOAT_HORN
+      instrument: feel_goat_horn
+      chance: 1
+    - item: GOAT_HORN
+      instrument: admire_goat_horn
+      chance: 1
+    - item: GOAT_HORN
+      instrument: call_goat_horn
+      chance: 1
+    - item: GOAT_HORN
+      instrument: yearn_goat_horn
+      chance: 1
+    - item: GOAT_HORN
+      instrument: dream_goat_horn
+      chance: 1
+  recipe:
+    pattern:
+      - "WHW"
+      - "MXM"
+      - "WHW"
+    ingredient:
+      W:
+        item: WHITE_WOOL
+        amount: 64
+      H:
+        item: GOAT_HORN
+        amount: 1
+      M:
+        item: MILK_BUCKET
+        amount: 1
+
+frog:
+  enabled: true
+  name: "Frog"
+  texture: FROG_SPAWN_EGG
+  energy: 300
+  experience: 2
+  drop-mode: random-one
+  drops:
+    - item: OCHRE_FROGLIGHT
+      chance: 1
+    - item: VERDANT_FROGLIGHT
+      chance: 1
+    - item: PEARLESCENT_FROGLIGHT
+      chance: 1
+  recipe:
+    pattern:
+      - "SMS"
+      - "MXM"
+      - "SMS"
+    ingredient:
+      S:
+        item: SLIME_BLOCK
+        amount: 16
+      M:
+        item: MAGMA_BLOCK
+        amount: 16
+
+sniffer:
+  enabled: true
+  name: "Sniffer"
+  texture: SNIFFER_SPAWN_EGG
+  energy: 300
+  experience: 2
+  drop-mode: random-one
+  drops:
+    - item: TORCHFLOWER_SEEDS
+      chance: 1
+    - item: PITCHER_POD
+      chance: 1
+  recipe:
+    pattern:
+      - "TPT"
+      - "EXE"
+      - "PTP"
+    ingredient:
+      T:
+        item: TORCHFLOWER_SEEDS
+        amount: 32
+      P:
+        item: PITCHER_POD
+        amount: 32
+      E:
+        item: SNIFFER_EGG
+        amount: 1
+
+armadillo:
+  enabled: true
+  name: "Armadillo"
+  texture: ARMADILLO_SPAWN_EGG
+  energy: 300
+  experience: 2
+  drops:
+    - item: ARMADILLO_SCUTE
+      chance: 1
+  recipe:
+    pattern:
+      - "SBS"
+      - "BXB"
+      - "SBS"
+    ingredient:
+      S:
+        item: ARMADILLO_SCUTE
+        amount: 16
+      B:
+        item: BRUSH
+        amount: 1
+
+breeze:
+  enabled: true
+  name: "Breeze"
+  texture: BREEZE_SPAWN_EGG
+  energy: 600
+  experience: 4
+  drops:
+    - item: BREEZE_ROD
+      chance: 1
+    - item: BREEZE_ROD
+      chance: 0.5
+  recipe:
+    pattern:
+      - "WTW"
+      - "RXR"
+      - "WTW"
+    ingredient:
+      W:
+        item: WIND_CHARGE
+        amount: 64
+      T:
+        item: CHISELED_TUFF
+        amount: 64
+      R:
+        item: BREEZE_ROD
+        amount: 16
+
+warden:
+  enabled: true
+  name: "Warden"
+  texture: WARDEN_SPAWN_EGG
+  energy: 4500
+  experience: 32
+  drops:
+    - item: SCULK_CATALYST
+      chance: 1
+  recipe:
+    pattern:
+      - "ESE"
+      - "CXC"
+      - "ESE"
+    ingredient:
+      E:
+        item: ECHO_SHARD
+        amount: 32
+      S:
+        item: SCULK_SHRIEKER
+        amount: 16
+      C:
+        item: SCULK_CATALYST
+        amount: 16
+
+creaking:
+  enabled: true
+  name: "Creaking"
+  texture: CREAKING_SPAWN_EGG
+  energy: 600
+  experience: 4
+  drops:
+    - item: RESIN_CLUMP
+      amount: 2
+      chance: 1
+    - item: RESIN_CLUMP
+      chance: 0.5
+  recipe:
+    pattern:
+      - "RPR"
+      - "HXH"
+      - "RPR"
+    ingredient:
+      R:
+        item: RESIN_CLUMP
+        amount: 64
+      P:
+        item: PALE_OAK_LOG
+        amount: 64
+      H:
+        item: CREAKING_HEART
+        amount: 4
+
+shulker:
+  enabled: true
+  name: "Shulker"
+  texture: SHULKER_SPAWN_EGG
+  energy: 600
+  experience: 4
+  drops:
+    - item: SHULKER_SHELL
+      chance: 0.5
+  recipe:
+    pattern:
+      - "SPS"
+      - "EXE"
+      - "SPS"
+    ingredient:
+      S:
+        item: SHULKER_SHELL
+        amount: 16
+      P:
+        item: PURPUR_BLOCK
+        amount: 64
+      E:
+        item: ENDER_PEARL
+        amount: 16
+
+phantom:
+  enabled: true
+  name: "Phantom"
+  texture: PHANTOM_SPAWN_EGG
+  energy: 300
+  experience: 2
+  drops:
+    - item: PHANTOM_MEMBRANE
+      chance: 0.5
+  recipe:
+    pattern:
+      - "MFM"
+      - "EXE"
+      - "MFM"
+    ingredient:
+      M:
+        item: PHANTOM_MEMBRANE
+        amount: 32
+      F:
+        item: FEATHER
+        amount: 64
+      E:
+        item: END_ROD
+        amount: 16
+
+drowned:
+  enabled: true
+  name: "Drowned"
+  texture: DROWNED_SPAWN_EGG
+  energy: 300
+  experience: 2
+  drops:
+    - item: ROTTEN_FLESH
+      chance: 1
+    - item: COPPER_INGOT
+      chance: 0.11
+    - item: TRIDENT
+      chance: 0.0375
+    - item: NAUTILUS_SHELL
+      chance: 0.03
+  recipe:
+    pattern:
+      - "CTR"
+      - "FXF"
+      - "RTC"
+    ingredient:
+      C:
+        item: COPPER_INGOT
+        amount: 64
+      T:
+        item: TRIDENT
+        amount: 1
+      R:
+        item: ROTTEN_FLESH
+        amount: 64
+      F:
+        item: PRISMARINE_CRYSTALS
+        amount: 32
+
+hoglin:
+  enabled: true
+  name: "Hoglin"
+  texture: HOGLIN_SPAWN_EGG
+  energy: 300
+  experience: 2
+  drops:
+    - item: PORKCHOP
+      amount: 2
+      chance: 1
+    - item: LEATHER
+      chance: 0.5
+  recipe:
+    pattern:
+      - "PLP"
+      - "CXC"
+      - "PLP"
+    ingredient:
+      P:
+        item: PORKCHOP
+        amount: 64
+      L:
+        item: LEATHER
+        amount: 64
+      C:
+        item: CRIMSON_STEM
+        amount: 64
+
+zombified_piglin:
+  enabled: true
+  name: "Zombified Piglin"
+  texture: ZOMBIFIED_PIGLIN_SPAWN_EGG
+  energy: 300
+  experience: 2
+  drops:
+    - item: ROTTEN_FLESH
+      chance: 1
+    - item: GOLD_NUGGET
+      chance: 1
+    - item: GOLD_INGOT
+      chance: 0.025
+  recipe:
+    pattern:
+      - "GFG"
+      - "NXN"
+      - "GFG"
+    ingredient:
+      G:
+        item: GOLD_INGOT
+        amount: 64
+      F:
+        item: ROTTEN_FLESH
+        amount: 64
+      N:
+        item: GOLD_NUGGET
+        amount: 64
+
+rabbit:
+  enabled: true
+  name: "Rabbit"
+  texture: RABBIT_SPAWN_EGG
+  energy: 150
+  experience: 1
+  drops:
+    - item: RABBIT
+      chance: 1
+    - item: RABBIT_HIDE
+      chance: 0.5
+    - item: RABBIT_FOOT
+      chance: 0.1
+  recipe:
+    pattern:
+      - "HCR"
+      - "FXF"
+      - "RCH"
+    ingredient:
+      H:
+        item: RABBIT_HIDE
+        amount: 64
+      C:
+        item: CARROT
+        amount: 64
+      R:
+        item: RABBIT
+        amount: 64
+      F:
+        item: RABBIT_FOOT
+        amount: 8

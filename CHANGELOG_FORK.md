@@ -1,3 +1,15 @@
+## v2.0.5 - Modern Mob Simulation and upstream hardening
+
+- Added modern/default Mob Simulation cards for Goat, Frog, Sniffer, Armadillo, Breeze, Warden, Creaking, Shulker, Phantom, Drowned, Hoglin, Zombified Piglin, and Rabbit.
+- Added `mob-simulation-modern.yml` so existing servers receive the new defaults without overwriting or re-serializing customized `mob-simulation.yml` files.
+- Historical/custom `mob-simulation.yml` definitions take priority when the same card id is present.
+- Added per-card `drop-mode: random-one` support for exclusive output pools.
+- Goat simulation can produce all eight functional horn instruments: Ponder, Sing, Seek, Feel, Admire, Call, Yearn, and Dream.
+- Frog simulation can produce Ochre, Verdant, or Pearlescent Froglight; Sniffer simulation can produce Torchflower Seeds or Pitcher Pods.
+- Added Goat Horn instrument metadata parsing so simulated horns retain their real playable instrument variant.
+- Hardened malformed external Mob Data Cards against negative energy values before energy arithmetic.
+- Backported upstream overflow-safe capacity calculations for generators and ticking machines without replacing the Legacy Mob Simulation compatibility path.
+
 ## Legacy runtime hotfix 6 - Slimefun Doctor migration bridge
 
 - Registered the existing IE1 -> IE2 migration engine with Slimefun Legacy's addon-doctor API.

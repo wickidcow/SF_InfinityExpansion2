@@ -115,11 +115,17 @@ class ConfigService(plugin: InfinityExpansion2) {
     }
 
     internal val mobSimConfig = Config(plugin, "mob-simulation.yml")
+    // Kept separate from the historical file so existing servers receive new default cards
+    // without overwriting or re-serializing their customized mob-simulation.yml.
+    internal val modernMobSimConfig = Config(plugin, "mob-simulation-modern.yml")
     internal val machineSettingsConfig = Config(plugin, "machine-settings.yml")
 
     init {
         if (!mobSimConfig.file.exists()) {
             plugin.saveResource("mob-simulation.yml", false)
+        }
+        if (!modernMobSimConfig.file.exists()) {
+            plugin.saveResource("mob-simulation-modern.yml", false)
         }
         if (!machineSettingsConfig.file.exists()) {
             plugin.saveResource("machine-settings.yml", false)
@@ -130,6 +136,7 @@ class ConfigService(plugin: InfinityExpansion2) {
     fun reload() {
         config.reload()
         mobSimConfig.reload()
+        modernMobSimConfig.reload()
         machineSettingsConfig.reload()
     }
 }

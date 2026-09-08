@@ -23,6 +23,7 @@ import net.guizhanss.infinityexpansion2.core.items.attributes.EnergyTickingConsu
 import net.guizhanss.infinityexpansion2.core.items.attributes.InformationalRecipeDisplayItem
 import net.guizhanss.infinityexpansion2.core.menu.MenuLayout
 import net.guizhanss.infinityexpansion2.implementation.items.machines.abstracts.AbstractTickingMachine
+import net.guizhanss.infinityexpansion2.implementation.setup.MobSimulationSetup
 import net.guizhanss.infinityexpansion2.utils.items.GuiItems
 import org.bukkit.Sound
 import org.bukkit.block.Block
@@ -118,6 +119,14 @@ class MobSimulationChamber(
         // When stacked cards are enabled, one card stack represents parallel simulations.
         val multiplier = if (InfinityExpansion2.configService.mobSimAllowStackedCard.value) cardAmount else 1
 
+        // Reject malformed custom/API cards before doing any energy arithmetic. Built-in config
+        // already clamps energy non-negative, but external addons can register MobDataCardProps.
+        if (props.energy < 0 || multiplier <= 0) {
+            menu.setStatus { GuiItems.NO_POWER }
+            menu.setEnergyConsumption(0)
+            return false
+        }
+
         // Legacy/Albion power compatibility.
         //
         // AbstractTickingMachine.tick() has already verified that the chamber has at least its
@@ -159,7 +168,8 @@ class MobSimulationChamber(
 
         val outputTicks = InfinityExpansion2.configService.mobSimInterval.value.toLong() * getCustomTickRate().toLong()
         if (outputTicks > 0L && tickCount.toLong() % outputTicks == 0L) {
-            val drops = if (InfinityExpansion2.configService.mobSimLegacyOutput.value) {
+            val randomOne = MobSimulationSetup.usesRandomOneDrops(props.id)
+            val drops = if (InfinityExpansion2.configService.mobSimLegacyOutput.value || randomOne) {
                 expandDrop(props.getRandomDrop(), multiplier)?.toMutableList()
             } else {
                 val generated = mutableListOf<ItemStack>()

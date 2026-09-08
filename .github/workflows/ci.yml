@@ -12,8 +12,8 @@ permissions:
   contents: write
 
 env:
-  LEGACY_ARTIFACT_VERSION: "2.0.4"
-  OUTPUT_NAME: "SF_InfinityExpansion2.0.4.jar"
+  LEGACY_ARTIFACT_VERSION: "2.0.5"
+  OUTPUT_NAME: "SF_InfinityExpansion2.0.5.jar"
 
 jobs:
   paper-26-2:
@@ -79,6 +79,7 @@ jobs:
           cp "${jars[0]}" "dist/${OUTPUT_NAME}"
           test -s "dist/${OUTPUT_NAME}"
           jar tf "dist/${OUTPUT_NAME}" | grep -Fxq 'plugin.yml'
+          jar tf "dist/${OUTPUT_NAME}" | grep -Fxq 'mob-simulation-modern.yml'
           sha256sum "dist/${OUTPUT_NAME}"
       - name: Upload raw JAR artifact
         uses: actions/upload-artifact@v7
@@ -95,10 +96,11 @@ jobs:
           set -euo pipefail
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then TAG="$GITHUB_REF_NAME"; else TAG="v${LEGACY_ARTIFACT_VERSION}"; fi
           JAR="dist/${OUTPUT_NAME}"
+          NOTES="v2.0.5 adds modern Mob Simulation cards for Goat, Frog, Sniffer, Armadillo, Breeze, Warden, Creaking, Shulker, Phantom, Drowned, Hoglin, Zombified Piglin, and Rabbit; functional random Goat Horn variants and exclusive Frog/Sniffer pools; plus upstream-safe energy capacity hardening. Built on Paper 26.2 / Java 25 directly against Slimefun Legacy while retaining Java 21 addon bytecode."
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$JAR" --clobber
           else
-            gh release create "$TAG" "$JAR" --target "$GITHUB_SHA" --title "SF_InfinityExpansion2 $TAG" --notes "Legacy compatibility release: IE1 machine and item migration is now registered with Slimefun Legacy's addon doctor, while /ie2 doctor remains available. Built on Paper 26.2 / Java 25 directly against Slimefun Legacy while retaining Java 21 addon bytecode."
+            gh release create "$TAG" "$JAR" --target "$GITHUB_SHA" --title "SF_InfinityExpansion2 $TAG" --notes "$NOTES"
           fi
 
   source-safety:
