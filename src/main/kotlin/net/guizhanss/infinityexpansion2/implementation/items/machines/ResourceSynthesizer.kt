@@ -12,6 +12,7 @@ import net.guizhanss.infinityexpansion2.InfinityExpansion2
 import net.guizhanss.infinityexpansion2.core.items.attributes.CustomWikiItem
 import net.guizhanss.infinityexpansion2.core.items.attributes.InformationalRecipeDisplayItem
 import net.guizhanss.infinityexpansion2.core.menu.MenuLayout
+import net.guizhanss.infinityexpansion2.core.recipes.MachineRecipe
 import net.guizhanss.infinityexpansion2.implementation.items.machines.abstracts.AbstractTickingActionMachine
 import net.guizhanss.infinityexpansion2.utils.items.GuiItems
 import org.bukkit.block.Block
@@ -49,6 +50,19 @@ class ResourceSynthesizer(
                 getById(recipe.output.first)!!.item.edit { amount(recipe.output.second) }
         }
     }
+
+    /**
+     * Exposes the real two-input synthesizer recipes through the same public recipe shape used by
+     * InfinityExpansion2 crafting machines. The existing ID-keyed [recipes] map remains unchanged for
+     * addon/runtime use; this accessor is structured display/provider metadata and does not participate
+     * in processing.
+     */
+    fun getMachineRecipes(): List<MachineRecipe> =
+        _recipes.mapNotNull { (ids, output) ->
+            val input1 = getById(ids.first)?.item?.clone() ?: return@mapNotNull null
+            val input2 = getById(ids.second)?.item?.clone() ?: return@mapNotNull null
+            MachineRecipe.of(arrayOf(input1, input2), output.clone())
+        }
 
     override fun process(b: Block, menu: BlockMenu): Boolean {
         // check input
