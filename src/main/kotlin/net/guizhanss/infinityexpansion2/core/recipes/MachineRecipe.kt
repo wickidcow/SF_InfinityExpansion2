@@ -18,6 +18,15 @@ class MachineRecipe private constructor(
     val output: ItemStack,
 ) {
 
+    /**
+     * Public compatibility alias for machine-recipe consumers that use the common `getInput()` convention.
+     *
+     * This keeps the native [recipe] property unchanged while allowing guide/provider integrations to discover
+     * InfinityExpansion2 crafting recipes without private reflection or a dependency on a specific Slimefun fork.
+     */
+    val input: Array<out ItemStack?>
+        get() = recipe
+
     private val sfOutput: SlimefunItem? = SlimefunItem.getByItem(output)
     private val recipeValidItemCount = recipe.count { it != null }
 
