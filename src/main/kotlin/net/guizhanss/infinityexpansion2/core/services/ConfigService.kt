@@ -131,6 +131,43 @@ class ConfigService(plugin: InfinityExpansion2) {
             plugin.saveResource("machine-settings.yml", false)
         }
         reload()
+        migrateModernMobSimulationTextures()
+    }
+
+    /**
+     * The first Legacy modern-card release used spawn eggs as card textures. Preserve arbitrary
+     * administrator texture choices, but upgrade the exact shipped spawn-egg defaults to IE2's
+     * historical armor-based difficulty language.
+     */
+    private fun migrateModernMobSimulationTextures() {
+        val textureMigrations = mapOf(
+            "goat" to ("GOAT_SPAWN_EGG" to "IRON_CHESTPLATE"),
+            "frog" to ("FROG_SPAWN_EGG" to "IRON_CHESTPLATE"),
+            "sniffer" to ("SNIFFER_SPAWN_EGG" to "IRON_CHESTPLATE"),
+            "armadillo" to ("ARMADILLO_SPAWN_EGG" to "IRON_CHESTPLATE"),
+            "breeze" to ("BREEZE_SPAWN_EGG" to "DIAMOND_CHESTPLATE"),
+            "warden" to ("WARDEN_SPAWN_EGG" to "NETHERITE_CHESTPLATE"),
+            "creaking" to ("CREAKING_SPAWN_EGG" to "DIAMOND_CHESTPLATE"),
+            "shulker" to ("SHULKER_SPAWN_EGG" to "DIAMOND_CHESTPLATE"),
+            "phantom" to ("PHANTOM_SPAWN_EGG" to "DIAMOND_CHESTPLATE"),
+            "drowned" to ("DROWNED_SPAWN_EGG" to "DIAMOND_CHESTPLATE"),
+            "hoglin" to ("HOGLIN_SPAWN_EGG" to "DIAMOND_CHESTPLATE"),
+            "zombified_piglin" to ("ZOMBIFIED_PIGLIN_SPAWN_EGG" to "DIAMOND_CHESTPLATE"),
+            "rabbit" to ("RABBIT_SPAWN_EGG" to "IRON_CHESTPLATE")
+        )
+
+        var changed = false
+        textureMigrations.forEach { (id, textures) ->
+            val path = "$id.texture"
+            if (modernMobSimConfig.configuration.getString(path) == textures.first) {
+                modernMobSimConfig.configuration.set(path, textures.second)
+                changed = true
+            }
+        }
+
+        if (changed) {
+            modernMobSimConfig.save()
+        }
     }
 
     fun reload() {
