@@ -3,11 +3,13 @@
 # servers receive new cards without their historical config being overwritten.
 # Define the same card id in mob-simulation.yml to override one of these defaults.
 # drop-mode: random-one selects exactly one configured drop per production cycle.
+# Card textures follow IE2's historical difficulty tiers:
+# iron = passive/low threat, diamond = hostile/tough, netherite = extreme/boss.
 
 goat:
   enabled: true
   name: "Goat"
-  texture: GOAT_SPAWN_EGG
+  texture: IRON_CHESTPLATE
   energy: 300
   experience: 2
   drop-mode: random-one
@@ -55,7 +57,7 @@ goat:
 frog:
   enabled: true
   name: "Frog"
-  texture: FROG_SPAWN_EGG
+  texture: IRON_CHESTPLATE
   energy: 300
   experience: 2
   drop-mode: random-one
@@ -82,7 +84,7 @@ frog:
 sniffer:
   enabled: true
   name: "Sniffer"
-  texture: SNIFFER_SPAWN_EGG
+  texture: IRON_CHESTPLATE
   energy: 300
   experience: 2
   drop-mode: random-one
@@ -110,7 +112,7 @@ sniffer:
 armadillo:
   enabled: true
   name: "Armadillo"
-  texture: ARMADILLO_SPAWN_EGG
+  texture: IRON_CHESTPLATE
   energy: 300
   experience: 2
   drops:
@@ -132,7 +134,7 @@ armadillo:
 breeze:
   enabled: true
   name: "Breeze"
-  texture: BREEZE_SPAWN_EGG
+  texture: DIAMOND_CHESTPLATE
   energy: 600
   experience: 4
   drops:
@@ -159,7 +161,7 @@ breeze:
 warden:
   enabled: true
   name: "Warden"
-  texture: WARDEN_SPAWN_EGG
+  texture: NETHERITE_CHESTPLATE
   energy: 4500
   experience: 32
   drops:
@@ -184,7 +186,7 @@ warden:
 creaking:
   enabled: true
   name: "Creaking"
-  texture: CREAKING_SPAWN_EGG
+  texture: DIAMOND_CHESTPLATE
   energy: 600
   experience: 4
   drops:
@@ -212,7 +214,7 @@ creaking:
 shulker:
   enabled: true
   name: "Shulker"
-  texture: SHULKER_SPAWN_EGG
+  texture: DIAMOND_CHESTPLATE
   energy: 600
   experience: 4
   drops:
@@ -237,7 +239,7 @@ shulker:
 phantom:
   enabled: true
   name: "Phantom"
-  texture: PHANTOM_SPAWN_EGG
+  texture: DIAMOND_CHESTPLATE
   energy: 300
   experience: 2
   drops:
@@ -262,7 +264,7 @@ phantom:
 drowned:
   enabled: true
   name: "Drowned"
-  texture: DROWNED_SPAWN_EGG
+  texture: DIAMOND_CHESTPLATE
   energy: 300
   experience: 2
   drops:
@@ -296,7 +298,7 @@ drowned:
 hoglin:
   enabled: true
   name: "Hoglin"
-  texture: HOGLIN_SPAWN_EGG
+  texture: DIAMOND_CHESTPLATE
   energy: 300
   experience: 2
   drops:
@@ -324,7 +326,7 @@ hoglin:
 zombified_piglin:
   enabled: true
   name: "Zombified Piglin"
-  texture: ZOMBIFIED_PIGLIN_SPAWN_EGG
+  texture: DIAMOND_CHESTPLATE
   energy: 300
   experience: 2
   drops:
@@ -353,7 +355,7 @@ zombified_piglin:
 rabbit:
   enabled: true
   name: "Rabbit"
-  texture: RABBIT_SPAWN_EGG
+  texture: IRON_CHESTPLATE
   energy: 150
   experience: 1
   drops:
