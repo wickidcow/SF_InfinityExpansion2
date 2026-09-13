@@ -22,7 +22,7 @@ object LegacyAddonDoctorBridge {
     private var registered = false
 
     fun register(plugin: InfinityExpansion2) {
-        if (registered) return
+        if (registered || !InfinityExpansion2.configService.migrationEnabled.value) return
 
         val slimefun = plugin.server.pluginManager.getPlugin("Slimefun") ?: return
         val loader = slimefun.javaClass.classLoader
@@ -53,9 +53,10 @@ object LegacyAddonDoctorBridge {
                             add("IE1 block records found: ${stats.legacyBlocksFound}; migrated: ${stats.blocksMigrated}; failures: ${stats.blockFailures}")
                             add("IE1 item stacks found: ${stats.legacyItemsFound}; migrated: ${stats.itemsMigrated}; failures: ${stats.itemFailures}")
                             add("Legacy aliases resolved: ${InfinityExpansion2.migrationService.aliasesInstalled.totalResolved}")
-                            add("Loaded chunks, loaded inventories/entities and online players were checked; unloaded chunks migrate when loaded.")
+                            add("Loaded chunks, loaded inventories/entities and online players were checked; unloaded chunks were not force-loaded.")
+                            add("With automatic migration disabled, load additional areas normally and rerun the Doctor scan/repair to include them.")
                             if (repair) {
-                                add("Run /sf doctor addons scan or /sf doctor ie2 scan again after a clean shutdown/restart to verify the loaded scope is clean.")
+                                add("Run /sf doctor addons scan or /sf doctor migrations scan InfinityExpansion2 again after normal world activity to verify the loaded scope is clean.")
                             }
                         }
 
