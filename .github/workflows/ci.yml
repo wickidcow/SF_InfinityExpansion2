@@ -124,6 +124,7 @@ jobs:
       - name: Verify migration and transport invariants
         run: |
           python3 scripts/verify_legacy_migration.py
+          python3 scripts/verify_doctor_bridge_safety.py .
           python3 scripts/verify_transport_contracts.py \
             --slimefun .deps/Slimefun-Legacy \
             --networks .deps/SF_NetworksExp
