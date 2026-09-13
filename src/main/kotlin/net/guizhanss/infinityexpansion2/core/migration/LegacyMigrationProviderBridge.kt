@@ -56,9 +56,10 @@ object LegacyMigrationProviderBridge {
                             add("IE1 block records found: ${stats.legacyBlocksFound}; migrated: ${stats.blocksMigrated}; failures: ${stats.blockFailures}")
                             add("IE1 item stacks found: ${stats.legacyItemsFound}; migrated: ${stats.itemsMigrated}; failures: ${stats.itemFailures}")
                             add("Legacy aliases resolved: ${InfinityExpansion2.migrationService.aliasesInstalled.totalResolved}")
-                            add("Loaded chunks, loaded inventories/entities and online players were checked; unloaded chunks migrate when loaded.")
+                            add("Loaded chunks, loaded inventories/entities and online players were checked; unloaded chunks were not force-loaded.")
+                            add("With automatic migration disabled, load additional areas normally and rerun this provider to include them.")
                             if (repair) {
-                                add("Run /sf doctor migrations scan InfinityExpansion2 after a clean shutdown/restart to verify the loaded scope is clean.")
+                                add("Run /sf doctor migrations scan InfinityExpansion2 again after normal world activity to verify the loaded scope is clean.")
                             }
                         }
 
