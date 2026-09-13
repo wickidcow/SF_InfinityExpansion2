@@ -22,6 +22,7 @@ required_mappings = {
     '"INFINITY_STORAGE" to "IE_STORAGE_UNIT_6"',
     '"EMPTY_DATA_CARD" to "IE_MOB_DATA_CARD_EMPTY"',
     '"DATA_INFUSER" to "IE_MOB_DATA_INFUSER"',
+    '"ENDERMEN_DATA_CARD" to "IE_MOB_DATA_CARD_ENDERMAN"',
 }
 errors = [f"missing mapping: {m}" for m in sorted(required_mappings) if m not in mapper]
 if 'sourceId.endsWith("_DATA_CARD")' not in mapper:
