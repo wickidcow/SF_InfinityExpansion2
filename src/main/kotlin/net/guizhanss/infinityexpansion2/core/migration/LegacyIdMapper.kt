@@ -66,6 +66,8 @@ object LegacyIdMapper {
         // Mob simulation
         "EMPTY_DATA_CARD" to "IE_MOB_DATA_CARD_EMPTY",
         "DATA_INFUSER" to "IE_MOB_DATA_INFUSER",
+        // IE1 used the historical plural ENDERMEN id; Bukkit/IE2 use ENDERMAN.
+        "ENDERMEN_DATA_CARD" to "IE_MOB_DATA_CARD_ENDERMAN",
 
         // IE1 storage capacity equivalents. IE2 tier 1 remains the native 1,024 unit.
         "BASIC_STORAGE" to "IE_STORAGE_UNIT_2",
