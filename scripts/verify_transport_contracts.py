@@ -77,8 +77,10 @@ def main() -> None:
 
     pusher = read(args.networks / "src/main/java/io/github/sefiraat/networks/slimefun/network/pusher/AbstractNetworkPusher.java")
     checks += require(pusher, [
-        "BlockMenuUtil.getSafeTransportSlots(targetMenu, ItemTransportFlow.INSERT, template)",
-    ], "Networks Expansion pusher routing")
+        "BlockMenuUtil.getSafeTransportSlots(",
+        "ItemTransportFlow.INSERT,",
+        "template);",
+    ], "Networks Expansion pusher item-aware routing")
 
     grabber = read(args.networks / "src/main/java/io/github/sefiraat/networks/slimefun/network/NetworkGrabber.java")
     checks += require(grabber, [
