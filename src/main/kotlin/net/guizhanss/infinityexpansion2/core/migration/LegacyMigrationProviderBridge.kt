@@ -8,14 +8,13 @@ import java.util.logging.Level
 /**
  * Optional bridge into Slimefun Legacy's dedicated legacy-item migration provider API.
  *
- * The provider API is resolved reflectively so the same IE2 jar remains loadable on
- * Slimefun implementations that do not expose this Legacy-only execution boundary.
- * Slimefun core only validates and delegates; all actual migration remains in
- * [LegacyMigrationService].
+ * Placed blocks are deliberately excluded from this older broad provider. New Legacy builds
+ * receive them through [LegacyBlockMigrationProviderBridge], where exact loaded locations and
+ * state claims are fingerprinted and revalidated before mutation.
  */
 object LegacyMigrationProviderBridge {
 
-    private const val MIGRATION_NAME = "InfinityExpansion2 IE1 Migration"
+    private const val MIGRATION_NAME = "InfinityExpansion2 IE1 Item Migration"
     private const val PROVIDER_CLASS =
         "io.github.thebusybiscuit.slimefun4.api.diagnostics.LegacyItemMigrationProvider"
     private const val REPORT_CLASS = "io.github.thebusybiscuit.slimefun4.api.diagnostics.AddonDoctorReport"
@@ -24,6 +23,9 @@ object LegacyMigrationProviderBridge {
     private var registered = false
 
     fun register(plugin: InfinityExpansion2) {
+        // Offer the exact placed-block lane first when the running Slimefun Legacy exposes it.
+        LegacyBlockMigrationProviderBridge.register(plugin)
+
         if (registered || !InfinityExpansion2.configService.migrationEnabled.value) return
 
         val slimefun = plugin.server.pluginManager.getPlugin("Slimefun") ?: return
@@ -41,6 +43,8 @@ object LegacyMigrationProviderBridge {
                 java.lang.Long.TYPE,
                 List::class.java,
             )
+            val itemService = LegacyDoctorItemMigrationService()
+            val blockService = LegacyDoctorBlockMigrationService()
 
             val provider = Proxy.newProxyInstance(providerClass.classLoader, arrayOf(providerClass)) { proxy, method, args ->
                 when (method.name) {
@@ -48,17 +52,20 @@ object LegacyMigrationProviderBridge {
                     "getLegacyItemMappings" -> LegacyIdMapper.resolvedAliases()
                     "runMigration" -> {
                         val repair = args?.firstOrNull() as? Boolean ?: false
-                        val stats = InfinityExpansion2.migrationService.scanLoaded(repair)
-                        val issues = stats.legacyBlocksFound.toLong() + stats.legacyItemsFound.toLong()
-                        val repaired = stats.blocksMigrated.toLong() + stats.itemsMigrated.toLong()
-                        val failures = stats.blockFailures.toLong() + stats.itemFailures.toLong()
+                        val stats = itemService.scanLoaded(repair)
+                        val blockCandidates = blockService.scanLoadedCandidates().size
+                        val issues = blockCandidates.toLong() + stats.legacyItemsFound.toLong()
+                        val repaired = stats.itemsMigrated.toLong()
+                        val failures = stats.itemFailures.toLong()
                         val details = buildList {
-                            add("IE1 block records found: ${stats.legacyBlocksFound}; migrated: ${stats.blocksMigrated}; failures: ${stats.blockFailures}")
+                            add("IE1 exact placed-block candidates found: $blockCandidates; this item provider never rewrites them.")
                             add("IE1 item stacks found: ${stats.legacyItemsFound}; migrated: ${stats.itemsMigrated}; failures: ${stats.itemFailures}")
                             add("Legacy aliases resolved: ${InfinityExpansion2.migrationService.aliasesInstalled.totalResolved}")
-                            add("Loaded chunks, loaded inventories/entities and online players were checked; unloaded chunks migrate when loaded.")
+                            add("Loaded chunks, loaded inventories/entities and online players were checked; unloaded chunks were not force-loaded.")
+                            add("Placed blocks require Slimefun Legacy's exact block migration provider with location/state revalidation.")
+                            add("With automatic migration disabled, load additional areas normally and rerun the providers to include them.")
                             if (repair) {
-                                add("Run /sf doctor migrations scan InfinityExpansion2 after a clean shutdown/restart to verify the loaded scope is clean.")
+                                add("Run /sf doctor migrations scan InfinityExpansion2 again after normal world activity to verify the loaded item scope is clean.")
                             }
                         }
 
@@ -87,11 +94,11 @@ object LegacyMigrationProviderBridge {
                 ServicePriority.Normal,
             )
             registered = true
-            InfinityExpansion2.log(Level.INFO, "Registered IE1 migration with Slimefun Legacy migration provider API.")
+            InfinityExpansion2.log(Level.INFO, "Registered IE1 item migration with Slimefun Legacy migration provider API.")
         } catch (_: ClassNotFoundException) {
             // Expected on Slimefun implementations that do not provide the Legacy provider API.
         } catch (t: Throwable) {
-            InfinityExpansion2.log(Level.WARNING, t, "Unable to register the Slimefun Legacy migration provider bridge")
+            InfinityExpansion2.log(Level.WARNING, t, "Unable to register the Slimefun Legacy item migration provider bridge")
         }
     }
 }

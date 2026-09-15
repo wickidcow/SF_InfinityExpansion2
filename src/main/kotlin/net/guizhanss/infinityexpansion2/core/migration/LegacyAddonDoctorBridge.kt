@@ -8,9 +8,9 @@ import java.util.logging.Level
 /**
  * Optional bridge into Slimefun Legacy's addon-doctor API.
  *
- * The API is resolved reflectively so IE2 can still load on Slimefun forks that do not expose
- * Legacy's diagnostics package. The actual migration work always remains in
- * [LegacyMigrationService], which keeps `/ie2 doctor` and `/sf doctor addons` on one code path.
+ * This generic Doctor path remains useful on older Slimefun cores, but it intentionally never
+ * rewrites placed block identities. Exact placed-block mutation belongs to the dedicated
+ * fingerprinted [LegacyBlockMigrationProviderBridge] lane.
  */
 object LegacyAddonDoctorBridge {
 
@@ -22,7 +22,7 @@ object LegacyAddonDoctorBridge {
     private var registered = false
 
     fun register(plugin: InfinityExpansion2) {
-        if (registered) return
+        if (registered || !InfinityExpansion2.configService.migrationEnabled.value) return
 
         val slimefun = plugin.server.pluginManager.getPlugin("Slimefun") ?: return
         val loader = slimefun.javaClass.classLoader
@@ -39,23 +39,28 @@ object LegacyAddonDoctorBridge {
                 java.lang.Long.TYPE,
                 List::class.java,
             )
+            val itemService = LegacyDoctorItemMigrationService()
+            val blockService = LegacyDoctorBlockMigrationService()
 
             val provider = Proxy.newProxyInstance(doctorClass.classLoader, arrayOf(doctorClass)) { proxy, method, args ->
                 when (method.name) {
                     "getAddonName" -> ADDON_NAME
                     "runDoctor" -> {
                         val repair = args?.firstOrNull() as? Boolean ?: false
-                        val stats = InfinityExpansion2.migrationService.scanLoaded(repair)
-                        val issues = stats.legacyBlocksFound.toLong() + stats.legacyItemsFound.toLong()
-                        val repaired = stats.blocksMigrated.toLong() + stats.itemsMigrated.toLong()
-                        val failures = stats.blockFailures.toLong() + stats.itemFailures.toLong()
+                        val stats = itemService.scanLoaded(repair)
+                        val blockCandidates = blockService.scanLoadedCandidates().size
+                        val issues = blockCandidates.toLong() + stats.legacyItemsFound.toLong()
+                        val repaired = stats.itemsMigrated.toLong()
+                        val failures = stats.itemFailures.toLong()
                         val details = buildList {
-                            add("IE1 block records found: ${stats.legacyBlocksFound}; migrated: ${stats.blocksMigrated}; failures: ${stats.blockFailures}")
+                            add("IE1 exact placed-block candidates found: $blockCandidates; generic Addon Doctor never rewrites them.")
                             add("IE1 item stacks found: ${stats.legacyItemsFound}; migrated: ${stats.itemsMigrated}; failures: ${stats.itemFailures}")
                             add("Legacy aliases resolved: ${InfinityExpansion2.migrationService.aliasesInstalled.totalResolved}")
-                            add("Loaded chunks, loaded inventories/entities and online players were checked; unloaded chunks migrate when loaded.")
+                            add("Loaded chunks, loaded inventories/entities and online players were checked; unloaded chunks were not force-loaded.")
+                            add("New Slimefun Legacy builds migrate placed blocks only through the exact location/state provider.")
+                            add("With automatic migration disabled, load additional areas normally and rerun Doctor to include them.")
                             if (repair) {
-                                add("Run /sf doctor addons scan or /sf doctor ie2 scan again after a clean shutdown/restart to verify the loaded scope is clean.")
+                                add("Only loaded ItemStacks were eligible for repair in this generic Doctor pass.")
                             }
                         }
 
