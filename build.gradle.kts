@@ -57,6 +57,12 @@ kotlin {
     }
 }
 
+// The plugin runtime requires GuizhanLib to be shaded and relocated. Do not leave a
+// second thin JAR in build/libs where packaging automation could accidentally select it.
+tasks.named("jar") {
+    enabled = false
+}
+
 tasks.shadowJar {
     fun doRelocate(from: String, to: String? = null) {
         val last = to ?: from.split(".").last()
@@ -71,6 +77,10 @@ tasks.shadowJar {
     minimize()
     archiveClassifier = ""
     archiveFileName.set("SF_InfinityExpansion${project.version}.jar")
+}
+
+tasks.build {
+    dependsOn(tasks.shadowJar)
 }
 
 bukkit {
