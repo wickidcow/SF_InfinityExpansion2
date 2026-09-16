@@ -8,7 +8,10 @@ import io.github.thebusybiscuit.slimefun4.api.items.settings.IntRangeSetting
 import io.github.thebusybiscuit.slimefun4.api.recipes.RecipeType
 import io.github.thebusybiscuit.slimefun4.libraries.dough.inventory.InvUtils
 import io.github.thebusybiscuit.slimefun4.utils.ChestMenuUtils
+import me.mrCookieSlime.CSCoreLibPlugin.general.Inventory.ChestMenu
+import me.mrCookieSlime.CSCoreLibPlugin.general.Inventory.ClickAction
 import me.mrCookieSlime.Slimefun.api.inventory.BlockMenu
+import me.mrCookieSlime.Slimefun.api.inventory.DirtyChestMenu
 import net.guizhanss.guizhanlib.kt.minecraft.extensions.isAir
 import net.guizhanss.guizhanlib.kt.slimefun.extensions.isSlimefunItem
 import net.guizhanss.guizhanlib.kt.slimefun.utils.getBlockMenu
@@ -27,6 +30,9 @@ import net.guizhanss.infinityexpansion2.implementation.setup.MobSimulationSetup
 import net.guizhanss.infinityexpansion2.utils.items.GuiItems
 import org.bukkit.Sound
 import org.bukkit.block.Block
+import org.bukkit.entity.Player
+import org.bukkit.event.inventory.ClickType
+import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.inventory.ItemStack
 import java.util.logging.Level
 import kotlin.math.floor
@@ -91,8 +97,51 @@ class MobSimulationChamber(
 
     override fun getCapacity() = energyCapacitySetting.value
 
+    override fun getInputSlots(menu: DirtyChestMenu, item: ItemStack): IntArray =
+        if (item.getMobDataCardProps() != null) layout.inputSlots else intArrayOf()
+
     override fun onNewInstance(menu: BlockMenu, b: Block) {
         val l = b.location
+        val inputSlot = layout.inputSlots[0]
+
+        // Only real, registered Mob Data Cards may be placed into the chamber manually.
+        // Picking up/removing the current card remains allowed. Number-key and offhand swaps
+        // are checked against the item that would actually enter the slot.
+        menu.addMenuClickHandler(inputSlot, object : ChestMenu.AdvancedMenuClickHandler {
+            override fun onClick(
+                event: InventoryClickEvent,
+                player: Player,
+                slot: Int,
+                cursor: ItemStack?,
+                action: ClickAction,
+            ): Boolean {
+                val hotbarButton = event.hotbarButton
+                if (hotbarButton >= 0) {
+                    val hotbarItem = player.inventory.getItem(hotbarButton)
+                    return hotbarItem.isAir() || hotbarItem.getMobDataCardProps() != null
+                }
+
+                if (event.click == ClickType.SWAP_OFFHAND) {
+                    val offhandItem = player.inventory.itemInOffHand
+                    return offhandItem.isAir() || offhandItem.getMobDataCardProps() != null
+                }
+
+                return cursor.isAir() || cursor.getMobDataCardProps() != null
+            }
+
+            override fun onClick(
+                player: Player,
+                slot: Int,
+                item: ItemStack?,
+                action: ClickAction,
+            ) = true
+        })
+
+        // Shift-clicks originate from the player's inventory and otherwise bypass the input-slot
+        // click handler. Reject invalid shift-click inserts while leaving normal inventory clicks alone.
+        menu.addPlayerInventoryClickHandler { _, _, item, action ->
+            !action.isShiftClicked || item.isAir() || item.getMobDataCardProps() != null
+        }
 
         // xp button
         menu.replaceExistingItem(XP_SLOT, GuiItems.experience(0))
@@ -252,6 +301,15 @@ class MobSimulationChamber(
         private const val MAX_SAFE_ENERGY = 2_000_000_000
         private const val MAX_OUTPUT_STACKS = 4096
 
+        private fun ItemStack?.getMobDataCardProps(): MobDataCardProps? {
+            if (this == null || isAir() || !isSlimefunItem<MobDataCard>()) {
+                return null
+            }
+
+            val id = MobDataCard.getMobDataId(this) ?: return null
+            return IERegistry.mobDataCards[id]
+        }
+
         /**
          * Get the data card from the menu input slot (the layout must be [MenuLayout.SINGLE_INPUT]).
          * If the input is invalid, return null.
@@ -259,14 +317,7 @@ class MobSimulationChamber(
          */
         private fun BlockMenu.getDataCard(layout: MenuLayout): Pair<MobDataCardProps, Int>? {
             val input = getItemInSlot(layout.inputSlots[0])
-            if (input.isAir() || !input.isSlimefunItem<MobDataCard>()) {
-                return null
-            }
-
-            // check if input is a registered card
-            val id = MobDataCard.getMobDataId(input) ?: return null
-            val props = IERegistry.mobDataCards[id] ?: return null
-
+            val props = input.getMobDataCardProps() ?: return null
             return props to input.amount
         }
 
