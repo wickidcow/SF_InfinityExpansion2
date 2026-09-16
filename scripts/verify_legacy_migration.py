@@ -10,6 +10,7 @@ provider_bridge = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/core
 block_provider_bridge = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/core/migration/LegacyBlockMigrationProviderBridge.kt").read_text()
 registry_listener = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/listeners/SlimefunRegistryListener.kt").read_text()
 build = (root / "build.gradle.kts").read_text()
+workflow = (root / ".github/workflows/ci.yml").read_text()
 config = (root / "src/main/resources/config.yml").read_text()
 config_service = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/core/services/ConfigService.kt").read_text()
 mobsim = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/items/mobsim/MobSimulationChamber.kt").read_text()
@@ -54,12 +55,27 @@ if "scanChunk(event.chunk" in chunk_load_body or "scanLoaded(" in chunk_load_bod
     errors.append("ChunkLoadEvent must enqueue migration work instead of scanning synchronously")
 if 'world.loadedChunks.forEach(::queueChunk)' not in service:
     errors.append("server-load migration must queue loaded chunks instead of scanning them all at once")
-if 'paperApiVersion=26.2.build.+' in build:
-    errors.append("unexpected literal property syntax in Gradle source")
-if 'orElse("26.2.build.+")' not in build:
-    errors.append("Paper 26.2 is not the default compile target")
-if 'jvmTarget = JvmTarget.JVM_21' not in build:
-    errors.append("plugin bytecode target is not Java 21")
+
+# Universal compatibility contract: the shipped addon is compiled from the oldest supported
+# Paper baseline and emits Java 21 bytecode. Paper 26.2 remains the production compatibility
+# lane, while 26.3 is a candidate lane compiled with Java 25. Do not force the Gradle defaults
+# themselves to 26.2/Java 25 because doing so would raise the release artifact's runtime floor.
+if 'orElse("1.21.11-R0.1-SNAPSHOT")' not in build:
+    errors.append("Paper 1.21.11 release compile baseline is missing")
+if 'providers.gradleProperty("targetJvm").orElse("21")' not in build:
+    errors.append("configurable Java 21 release bytecode target is missing")
+if 'options.release.set(targetJvm)' not in build:
+    errors.append("Java compiler does not honor the configurable release bytecode target")
+if 'JvmTarget.fromTarget(targetJvm.toString())' not in build:
+    errors.append("Kotlin compiler does not honor the configurable release bytecode target")
+if '-PpaperApiVersion=26.2.build.+' not in workflow or '-PtargetJvm=25' not in workflow:
+    errors.append("Paper 26.2 / Java 25 primary compatibility lane is missing")
+if '-PpaperApiVersion=26.3-rc-3.build.1-alpha' not in workflow:
+    errors.append("Paper 26.3 alpha compatibility lane is missing")
+if '-PpaperApiVersion=1.21.11-R0.1-SNAPSHOT' not in workflow or '-PtargetJvm=21' not in workflow:
+    errors.append("Paper 1.21.11 / Java 21 universal release lane is missing")
+if 'SF_InfinityExpansion2${project.version}.jar' not in build:
+    errors.append("standard SF_InfinityExpansion2 public JAR naming is missing")
 if 'gradle-9.3.0-bin.zip' not in wrapper:
     errors.append("Java 25 build requires the Gradle 9.3.0 wrapper")
 if 'kotlin("jvm") version "2.3.21"' not in build:
