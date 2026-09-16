@@ -1,9 +1,6 @@
 import net.minecrell.pluginyml.bukkit.BukkitPluginDescription
 import org.gradle.api.tasks.compile.JavaCompile
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import java.time.Instant
-import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
 
 plugins {
     kotlin("jvm") version "2.3.21"
@@ -15,18 +12,16 @@ plugins {
 group = "net.guizhanss"
 description = "InfinityExpansion2 Legacy Compatibility Fork"
 
-val timestamp: String = DateTimeFormatter.ofPattern("yyMMddHHmm").withZone(ZoneOffset.UTC).format(Instant.now())
 val mainPackage = "net.guizhanss.infinityexpansion2"
-val paperApiVersion = providers.gradleProperty("paperApiVersion").orElse("26.2.build.+")
+val paperApiVersion = providers.gradleProperty("paperApiVersion").orElse("1.21.11-R0.1-SNAPSHOT")
 val slimefunApiCoordinate = providers.gradleProperty("slimefunApiCoordinate")
     .orElse("com.github.slimefun:Slimefun4:experimental-SNAPSHOT")
+val targetJvm = providers.gradleProperty("targetJvm").orElse("21").get().toInt()
 
-// CI builds use a stable Legacy version family instead of the old "preview" label.
-// Tagged/manual releases can still provide an explicit version with -PbuildVersion=...
-version = providers.gradleProperty("buildVersion").orElse("1.0.$timestamp").get()
+// Compatibility releases use an explicit semantic version. Do not generate public versions from timestamps.
+version = providers.gradleProperty("buildVersion").orElse("2.0.7").get()
 
 repositories {
-    // CI publishes Slimefun Legacy to the runner's local Maven repository before compiling IE2.
     mavenLocal()
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
@@ -36,12 +31,9 @@ repositories {
 }
 
 dependencies {
-    compileOnly(kotlin("stdlib")) // loaded through library loader
-    compileOnly(kotlin("reflect")) // loaded through library loader
+    compileOnly(kotlin("stdlib"))
+    compileOnly(kotlin("reflect"))
     compileOnly("io.papermc.paper:paper-api:${paperApiVersion.get()}")
-
-    // Compile against the stable/common Slimefun API surface. Runtime compatibility with
-    // Legacy/Gugu/United/Core-style forks is handled without linking to fork-specific internals.
     compileOnly(slimefunApiCoordinate.get())
     compileOnly("net.guizhanss:SlimefunTranslation:e03b01a7b7")
     compileOnly("com.github.schntgaispock:SlimeHUD:1.3.0")
@@ -53,22 +45,20 @@ dependencies {
 
 java {
     disableAutoTargetJvm()
-    // Paper 26.2's build toolchain is Java 25, while the fork emits Java 21 bytecode so the
-    // addon itself remains usable on Java-21-capable Slimefun runtimes where their server allows it.
     toolchain.languageVersion.set(JavaLanguageVersion.of(25))
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
+    sourceCompatibility = JavaVersion.toVersion(targetJvm)
+    targetCompatibility = JavaVersion.toVersion(targetJvm)
 }
 
 tasks.withType<JavaCompile>().configureEach {
-    options.release.set(21)
+    options.release.set(targetJvm)
 }
 
 kotlin {
     jvmToolchain(25)
     compilerOptions {
         javaParameters = true
-        jvmTarget = JvmTarget.JVM_21
+        jvmTarget = JvmTarget.fromTarget(targetJvm.toString())
     }
 }
 
@@ -86,13 +76,11 @@ tasks.shadowJar {
     doRelocate("com.jeff_media.morepersistentdatatypes")
     minimize()
     archiveClassifier = ""
-    archiveFileName.set("SF_IE2Legacy${project.version}.jar")
+    archiveFileName.set("SF_InfinityExpansion2${project.version}.jar")
 }
 
 bukkit {
     main = "$mainPackage.InfinityExpansion2"
-    // Keep an older API floor because this fork intentionally retains cross-version/fork support.
-    // Paper 26.2 remains the CI and primary runtime target.
     apiVersion = "1.21"
     authors = listOf("ybw0014", "Mooy1", "wickidcow")
     description = "InfinityExpansion2 - Legacy-first Slimefun compatibility and IE1 migration fork"
@@ -128,8 +116,7 @@ bukkit {
 
 tasks {
     runServer {
-        // Deliberately do not auto-download a Slimefun implementation here. Put the exact
-        // Slimefun Legacy/Gugu/United/Core JAR you want to test into run/plugins/.
+        // Paper 26.2 remains the production runtime baseline while 26.3 is alpha.
         jvmArgs("-Dcom.mojang.eula.agree=true")
         minecraftVersion("26.2")
     }
