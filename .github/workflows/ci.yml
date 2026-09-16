@@ -13,7 +13,7 @@ permissions:
 
 env:
   VERSION: "2.0.7"
-  OUTPUT_NAME: "SF_InfinityExpansion2.0.7.jar"
+  OUTPUT_NAME: "SF_InfinityExpansion22.0.7.jar"
 
 jobs:
   compatibility:
@@ -47,7 +47,7 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+)*$ ]]
-          test "$OUTPUT_NAME" = "SF_InfinityExpansion${VERSION}.jar"
+          test "$OUTPUT_NAME" = "SF_InfinityExpansion2${VERSION}.jar"
       - name: Verify Paper 1.21.11 baseline compilation
         run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PbuildVersion=2.0.7 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
       - name: Verify Paper 26.2 compilation
@@ -107,7 +107,7 @@ jobs:
             done < <(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
             gh release upload "$TAG" "$JAR" --repo "$GITHUB_REPOSITORY" --clobber
           else
-            gh release create "$TAG" "$JAR" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "SF_InfinityExpansion ${VERSION}" --notes "InfinityExpansion2 ${VERSION}: canonical ${OUTPUT_NAME} release."
+            gh release create "$TAG" "$JAR" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "SF_InfinityExpansion2 ${VERSION}" --notes "InfinityExpansion2 ${VERSION}: canonical ${OUTPUT_NAME} release."
           fi
 
   source-safety:
