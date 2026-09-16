@@ -70,7 +70,7 @@ tasks.shadowJar {
     doRelocate("com.jeff_media.morepersistentdatatypes")
     minimize()
     archiveClassifier = ""
-    archiveFileName.set("SF_InfinityExpansion2${project.version}.jar")
+    archiveFileName.set("SF_InfinityExpansion${project.version}.jar")
 }
 
 bukkit {
