@@ -74,7 +74,7 @@ if '-PpaperApiVersion=26.3-rc-3.build.1-alpha' not in workflow:
     errors.append("Paper 26.3 alpha compatibility lane is missing")
 if '-PpaperApiVersion=1.21.11-R0.1-SNAPSHOT' not in workflow or '-PtargetJvm=21' not in workflow:
     errors.append("Paper 1.21.11 / Java 21 universal release lane is missing")
-if 'SF_InfinityExpansion2${project.version}.jar' not in build:
+if 'archiveFileName.set("SF_InfinityExpansion${project.version}.jar")' not in build:
     errors.append("standard SF_InfinityExpansion2 public JAR naming is missing")
 if 'gradle-9.3.0-bin.zip' not in wrapper:
     errors.append("Java 25 build requires the Gradle 9.3.0 wrapper")
