@@ -12,12 +12,12 @@ permissions:
   contents: write
 
 env:
-  LEGACY_ARTIFACT_VERSION: "2.0.6"
-  OUTPUT_NAME: "SF_InfinityExpansion2.0.6.jar"
+  LEGACY_ARTIFACT_VERSION: "2.0.7"
+  OUTPUT_NAME: "SF_InfinityExpansion22.0.7.jar"
 
 jobs:
-  paper-26-2:
-    name: Paper 26.2 / Java 25 / Slimefun Legacy
+  compatibility:
+    name: Paper compatibility / Slimefun Legacy
     runs-on: ubuntu-latest
     steps:
       - name: Checkout IE2
@@ -42,51 +42,73 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew publishToMavenLocal -PprojectVersion=ALBION-SNAPSHOT --no-daemon
-      - name: Build Paper 26.2 target
-        shell: bash
-        run: |
-          set -o pipefail
-          ./gradlew clean shadowJar --stacktrace --console=plain --warning-mode=all \
-            -PpaperApiVersion=26.2.build.+ \
-            -PbuildVersion="${LEGACY_ARTIFACT_VERSION}" \
-            -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT \
-            2>&1 | tee build-paper-26.2.log
-      - name: Verify Java 21 plugin bytecode
-        run: |
-          python3 - <<'PY'
-          import glob, struct, zipfile
-          jars = glob.glob('build/libs/SF_IE2Legacy*.jar')
-          if not jars:
-              raise SystemExit('No IE2 Legacy jar produced')
-          majors = set()
-          with zipfile.ZipFile(jars[0]) as z:
-              for name in z.namelist():
-                  if name.endswith('.class'):
-                      data = z.read(name)[:8]
-                      if len(data) == 8 and data[:4] == b'\xca\xfe\xba\xbe':
-                          majors.add(struct.unpack('>H', data[6:8])[0])
-          if 65 not in majors:
-              raise SystemExit(f'Expected Java 21 class major 65; saw {sorted(majors)}')
-          print('Verified Java 21-compatible plugin classes.')
-          PY
-      - name: Stage versioned JAR
+
+      - name: Verify Paper 1.21.11 baseline compilation
+        run: >-
+          ./gradlew clean compileJava compileKotlin --stacktrace --console=plain
+          -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT
+          -PtargetJvm=21
+          -PbuildVersion=2.0.7
+          -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+
+      - name: Verify Paper 26.2 compilation
+        run: >-
+          ./gradlew clean compileJava compileKotlin --stacktrace --console=plain
+          -PpaperApiVersion=26.2.build.+
+          -PtargetJvm=25
+          -PbuildVersion=2.0.7
+          -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+
+      - name: Verify Paper 26.3 alpha compilation
+        run: >-
+          ./gradlew clean compileJava compileKotlin --stacktrace --console=plain
+          -PpaperApiVersion=26.3-rc-3.build.1-alpha
+          -PtargetJvm=25
+          -PbuildVersion=2.0.7
+          -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+
+      - name: Build universal Java 21 release JAR
+        run: >-
+          ./gradlew clean shadowJar --stacktrace --console=plain
+          -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT
+          -PtargetJvm=21
+          -PbuildVersion=2.0.7
+          -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+
+      - name: Verify and stage release JAR
         shell: bash
         run: |
           set -euo pipefail
+          JAR="build/libs/${OUTPUT_NAME}"
+          test -s "$JAR"
+          python3 - <<'PY'
+          import struct, zipfile
+          jar='build/libs/SF_InfinityExpansion22.0.7.jar'
+          majors=set()
+          with zipfile.ZipFile(jar) as z:
+              for name in z.namelist():
+                  if name.endswith('.class'):
+                      data=z.read(name)[:8]
+                      if len(data)==8 and data[:4]==b'\xca\xfe\xba\xbe':
+                          majors.add(struct.unpack('>H', data[6:8])[0])
+          if 65 not in majors or any(m > 65 for m in majors):
+              raise SystemExit(f'Expected only Java 21-or-older plugin classes; saw {sorted(majors)}')
+          print('Verified Java 21-compatible plugin classes.')
+          PY
+          jar tf "$JAR" | grep -Fxq 'plugin.yml'
+          jar tf "$JAR" | grep -Fxq 'mob-simulation-modern.yml'
           mkdir -p dist
-          mapfile -t jars < <(find build/libs -maxdepth 1 -type f -name 'SF_IE2Legacy*.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar')
-          test "${#jars[@]}" -eq 1
-          cp "${jars[0]}" "dist/${OUTPUT_NAME}"
-          test -s "dist/${OUTPUT_NAME}"
-          jar tf "dist/${OUTPUT_NAME}" | grep -Fxq 'plugin.yml'
-          jar tf "dist/${OUTPUT_NAME}" | grep -Fxq 'mob-simulation-modern.yml'
+          cp "$JAR" "dist/${OUTPUT_NAME}"
           sha256sum "dist/${OUTPUT_NAME}"
+
       - name: Upload raw JAR artifact
         uses: actions/upload-artifact@v7
         with:
+          name: ${{ env.OUTPUT_NAME }}
           path: dist/${{ env.OUTPUT_NAME }}
           archive: false
           if-no-files-found: error
+
       - name: Publish raw JAR release asset
         if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') || github.ref_name == github.event.repository.default_branch
         env:
@@ -96,7 +118,7 @@ jobs:
           set -euo pipefail
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then TAG="$GITHUB_REF_NAME"; else TAG="v${LEGACY_ARTIFACT_VERSION}"; fi
           JAR="dist/${OUTPUT_NAME}"
-          NOTES="v2.0.6 hardens IE2 automation: empty Storage Units can be seeded through Slimefun Legacy Cargo, Tree/Flower Growers and Virtual Farm now stop losslessly when outputs are full, Quarry and Geo Quarry now preserve generated resources and power under backpressure, and CI verifies transport contracts against Slimefun Legacy Cargo and Networks Expansion. Built on Paper 26.2 / Java 25 directly against Slimefun Legacy while retaining Java 21 addon bytecode."
+          NOTES="InfinityExpansion2 2.0.7 adds Paper 26.3 alpha compatibility validation while keeping Paper 26.2 as the primary production target and preserving the Java 21 universal addon baseline. The public build version is now explicit instead of timestamp-generated, and the artifact follows the standard ${OUTPUT_NAME} naming convention."
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$JAR" --clobber
           else
