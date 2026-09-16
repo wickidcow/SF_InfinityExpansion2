@@ -16,7 +16,7 @@ val mainPackage = "net.guizhanss.infinityexpansion2"
 val paperApiVersion = providers.gradleProperty("paperApiVersion").orElse("1.21.11-R0.1-SNAPSHOT")
 val slimefunApiCoordinate = providers.gradleProperty("slimefunApiCoordinate").orElse("com.github.slimefun:Slimefun4:experimental-SNAPSHOT")
 val targetJvm = providers.gradleProperty("targetJvm").orElse("21").get().toInt()
-version = providers.gradleProperty("buildVersion").orElse("2.0.7").get()
+version = providers.gradleProperty("buildVersion").orElse("2.0.8").get()
 
 repositories {
     mavenLocal()
