@@ -10,15 +10,12 @@ plugins {
 }
 
 group = "net.guizhanss"
-description = "InfinityExpansion2 Legacy Compatibility Fork"
+description = "InfinityExpansion2 compatibility fork"
 
 val mainPackage = "net.guizhanss.infinityexpansion2"
 val paperApiVersion = providers.gradleProperty("paperApiVersion").orElse("1.21.11-R0.1-SNAPSHOT")
-val slimefunApiCoordinate = providers.gradleProperty("slimefunApiCoordinate")
-    .orElse("com.github.slimefun:Slimefun4:experimental-SNAPSHOT")
+val slimefunApiCoordinate = providers.gradleProperty("slimefunApiCoordinate").orElse("com.github.slimefun:Slimefun4:experimental-SNAPSHOT")
 val targetJvm = providers.gradleProperty("targetJvm").orElse("21").get().toInt()
-
-// Compatibility releases use an explicit semantic version. Do not generate public versions from timestamps.
 version = providers.gradleProperty("buildVersion").orElse("2.0.7").get()
 
 repositories {
@@ -50,9 +47,7 @@ java {
     targetCompatibility = JavaVersion.toVersion(targetJvm)
 }
 
-tasks.withType<JavaCompile>().configureEach {
-    options.release.set(targetJvm)
-}
+tasks.withType<JavaCompile>().configureEach { options.release.set(targetJvm) }
 
 kotlin {
     jvmToolchain(25)
@@ -67,7 +62,6 @@ tasks.shadowJar {
         val last = to ?: from.split(".").last()
         relocate(from, "$mainPackage.libs.$last")
     }
-
     doRelocate("net.byteflux.libby")
     doRelocate("net.guizhanss.guizhanlib")
     doRelocate("org.bstats")
@@ -76,47 +70,35 @@ tasks.shadowJar {
     doRelocate("com.jeff_media.morepersistentdatatypes")
     minimize()
     archiveClassifier = ""
-    archiveFileName.set("SF_InfinityExpansion2${project.version}.jar")
+    // Historical public basename: version 2.x follows InfinityExpansion directly.
+    archiveFileName.set("SF_InfinityExpansion${project.version}.jar")
 }
 
 bukkit {
     main = "$mainPackage.InfinityExpansion2"
     apiVersion = "1.21"
     authors = listOf("ybw0014", "Mooy1", "wickidcow")
-    description = "InfinityExpansion2 - Legacy-first Slimefun compatibility and IE1 migration fork"
+    description = "InfinityExpansion2 - Slimefun compatibility and IE1 migration fork"
     depend = listOf("Slimefun")
     softDepend = listOf("GuizhanLibPlugin", "SlimefunTranslation", "InfinityExpansion", "SlimeHUD")
     loadBefore = listOf("SlimeCustomizer", "RykenSlimeCustomizer", "SlimeFunRecipe")
-
     commands {
         register("infinityexpansion2") {
             description = "InfinityExpansion2 command"
             aliases = listOf("ie", "ie2")
         }
     }
-
     permissions {
-        register("infinityexpansion2.command.doctor") {
-            default = BukkitPluginDescription.Permission.Default.OP
-        }
-        register("infinityexpansion2.command.giverecipe") {
-            default = BukkitPluginDescription.Permission.Default.OP
-        }
-        register("infinityexpansion2.command.guide") {
-            default = BukkitPluginDescription.Permission.Default.TRUE
-        }
-        register("infinityexpansion2.command.printitem") {
-            default = BukkitPluginDescription.Permission.Default.OP
-        }
-        register("infinityexpansion2.command.id") {
-            default = BukkitPluginDescription.Permission.Default.OP
-        }
+        register("infinityexpansion2.command.doctor") { default = BukkitPluginDescription.Permission.Default.OP }
+        register("infinityexpansion2.command.giverecipe") { default = BukkitPluginDescription.Permission.Default.OP }
+        register("infinityexpansion2.command.guide") { default = BukkitPluginDescription.Permission.Default.TRUE }
+        register("infinityexpansion2.command.printitem") { default = BukkitPluginDescription.Permission.Default.OP }
+        register("infinityexpansion2.command.id") { default = BukkitPluginDescription.Permission.Default.OP }
     }
 }
 
 tasks {
     runServer {
-        // Paper 26.2 remains the production runtime baseline while 26.3 is alpha.
         jvmArgs("-Dcom.mojang.eula.agree=true")
         minecraftVersion("26.2")
     }
