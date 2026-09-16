@@ -70,9 +70,7 @@ tasks.shadowJar {
     doRelocate("com.jeff_media.morepersistentdatatypes")
     minimize()
     archiveClassifier = ""
-    // Historical public basename: version 2.x follows InfinityExpansion directly.
-    // Migration verifier compatibility marker only: SF_InfinityExpansion2${project.version}.jar
-    archiveFileName.set("SF_InfinityExpansion${project.version}.jar")
+    archiveFileName.set("SF_InfinityExpansion2${project.version}.jar")
 }
 
 bukkit {
