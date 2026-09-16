@@ -55,8 +55,17 @@ class MobDataCard(
 
     override fun getDefaultDisplayRecipes(): List<ItemStack?> {
         val result = mutableListOf<ItemStack?>()
-        props.drops.forEach { (item, chance) ->
-            result.add(item.clone())
+        props.drops.forEachIndexed { index, (item, chance) ->
+            val displayItem = item.clone()
+            val amountRange = props.getDropAmountRange(index)
+            if (amountRange.first != amountRange.last) {
+                val meta = displayItem.itemMeta
+                val lore = (meta.lore ?: emptyList()).toMutableList()
+                lore.add("${ChatColor.GRAY}Amount: ${amountRange.first}-${amountRange.last}")
+                meta.lore = lore
+                displayItem.itemMeta = meta
+            }
+            result.add(displayItem)
             result.add(GuiItems.chance(chance))
         }
         return result

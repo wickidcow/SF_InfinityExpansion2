@@ -88,8 +88,8 @@ internal object MobSimulationSetup {
             // drops. Do not register an incomplete card during the early pass if
             // one of its configured drops belongs to an addon that loads later.
             val dropSections = section.getMapList("drops")
-            val drops = dropSections.mapNotNull { it.getAsItemWithChance() }
-            if (drops.size != dropSections.size) {
+            val configuredDrops = dropSections.mapNotNull { it.getAsConfiguredDrop() }
+            if (configuredDrops.size != dropSections.size) {
                 if (finalPass) {
                     InfinityExpansion2.log(
                         Level.WARNING,
@@ -98,6 +98,7 @@ internal object MobSimulationSetup {
                 }
                 return@cfgKey
             }
+            val drops = configuredDrops.map { it.item to it.chance }
             Debug.log(DebugCase.MOB_SIMULATION, "drops=$drops")
 
             // recipe
@@ -160,19 +161,20 @@ internal object MobSimulationSetup {
                 }
             }
 
-            // register the mob data card
-            InfinityExpansion2API.registerMobDataCard(
-                MobDataCardProps(key, name, texture, energy, experience, drops, recipe),
-                InfinityExpansion2.instance
-            )
+            // Keep MobDataCardProps' public constructor unchanged for addon API compatibility.
+            // Config-backed cards attach their amount ranges after construction.
+            val props = MobDataCardProps(key, name, texture, energy, experience, drops, recipe).apply {
+                configureDropAmountRanges(configuredDrops.map { it.amountRange })
+            }
+            InfinityExpansion2API.registerMobDataCard(props, InfinityExpansion2.instance)
             registeredCards += key
             if (randomOne) randomOneCards += key
         }
     }
 
-    private fun Map<*, *>.getAsItem(): ItemStack? {
+    private fun Map<*, *>.getAsItem(amountOverride: Int? = null): ItemStack? {
         val mat = this["item"] as? String ?: return null
-        val amount = (this["amount"] as? Number)?.toInt() ?: 1
+        val amount = amountOverride ?: (this["amount"] as? Number)?.toInt() ?: 1
 
         val item = mat.toItemStack().let { if (it.isAir()) return null else it }.clone()
         item.amount = amount
@@ -195,9 +197,49 @@ internal object MobSimulationSetup {
 
     private fun ConfigurationSection?.getAsItem() = this?.getValues(false)?.getAsItem()
 
-    private fun Map<*, *>.getAsItemWithChance(): Pair<ItemStack, Double>? {
-        val item = this.getAsItem() ?: return null
+    private fun Map<*, *>.getAsConfiguredDrop(): ConfiguredDrop? {
+        val amountRange = parseDropAmount(this["amount"]) ?: return null
+        val item = getAsItem(amountRange.first) ?: return null
         val chance = (this["chance"] as? Number)?.toDouble() ?: 1.0
-        return item to chance
+        return ConfiguredDrop(item, chance, amountRange)
     }
+
+    private fun parseDropAmount(value: Any?): IntRange? {
+        if (value == null) return 1..1
+
+        if (value is Number) {
+            val amount = value.toLong()
+            return if (amount in 1..Int.MAX_VALUE.toLong()) {
+                amount.toInt()..amount.toInt()
+            } else {
+                null
+            }
+        }
+
+        if (value !is String) return null
+        val text = value.trim()
+
+        text.toLongOrNull()?.let { amount ->
+            return if (amount in 1..Int.MAX_VALUE.toLong()) {
+                amount.toInt()..amount.toInt()
+            } else {
+                null
+            }
+        }
+
+        val match = DROP_AMOUNT_RANGE.matchEntire(text) ?: return null
+        val minimum = match.groupValues[1].toLongOrNull() ?: return null
+        val maximum = match.groupValues[2].toLongOrNull() ?: return null
+        if (minimum !in 1..Int.MAX_VALUE.toLong() || maximum !in minimum..Int.MAX_VALUE.toLong()) return null
+
+        return minimum.toInt()..maximum.toInt()
+    }
+
+    private data class ConfiguredDrop(
+        val item: ItemStack,
+        val chance: Double,
+        val amountRange: IntRange,
+    )
+
+    private val DROP_AMOUNT_RANGE = Regex("""(\d+)\s*-\s*(\d+)""")
 }
