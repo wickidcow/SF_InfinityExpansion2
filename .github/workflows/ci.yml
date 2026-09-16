@@ -142,4 +142,5 @@ jobs:
           python3 scripts/verify_legacy_migration.py
           python3 scripts/verify_doctor_bridge_safety.py
           python3 scripts/verify_mob_sim_drop_ranges.py
+          python3 scripts/verify_mob_sim_input_filtering.py
           python3 scripts/verify_transport_contracts.py --slimefun .deps/Slimefun-Legacy --networks .deps/SF_NetworksExp
