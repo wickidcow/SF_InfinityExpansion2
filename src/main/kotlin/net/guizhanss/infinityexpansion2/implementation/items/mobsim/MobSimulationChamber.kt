@@ -174,12 +174,12 @@ class MobSimulationChamber(
             } else {
                 val generated = mutableListOf<ItemStack>()
                 var overflow = false
-                props.drops.forEach { (item, chance) ->
+                props.drops.forEachIndexed { index, (_, chance) ->
                     if (Random.nextDouble() <= chance) {
-                        val expanded = expandDrop(item, multiplier)
+                        val expanded = expandDrop(props.getDrop(index), multiplier)
                         if (expanded == null || generated.size + expanded.size > MAX_OUTPUT_STACKS) {
                             overflow = true
-                            return@forEach
+                            return@forEachIndexed
                         }
                         generated.addAll(expanded)
                     }
