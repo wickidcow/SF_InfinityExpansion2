@@ -5,6 +5,7 @@ import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem
 import io.github.thebusybiscuit.slimefun4.api.player.PlayerProfile
 import io.github.thebusybiscuit.slimefun4.core.guide.SlimefunGuideMode
 import io.github.thebusybiscuit.slimefun4.implementation.Slimefun
+import net.guizhanss.infinityexpansion2.InfinityExpansion2
 import net.guizhanss.infinityexpansion2.api.mobsim.MobDataCardProps
 import net.guizhanss.infinityexpansion2.implementation.items.mobsim.MobDataCard
 import net.guizhanss.infinityexpansion2.utils.SlimefunReflection
