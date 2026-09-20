@@ -158,6 +158,12 @@ quarry:
   # Range: 1 to 3600
   output-interval: 10
 
+  # Optional DracFun integration.
+  # When DRACFUN_DRACONIUM_ORE is registered and the Geo Quarry is in The End,
+  # each production cycle has this independent chance to discover exactly 1 ore.
+  # 0.0025 = 0.25% = about 1 in 400 cycles. Set to 0 to disable.
+  dracfun-ender-draconium-chance: 0.0025
+
   # The product pool of all the quarries
   # There are 3 world environments: normal, nether, the_end
   # A quarry's products are determined by the environment it is in.
