@@ -59,6 +59,7 @@ class ConfigService(plugin: InfinityExpansion2) {
     lateinit var quarryInterval: ConfigField<Int>
     lateinit var quarryPools: ConfigField<Map<Environment, QuarryPool>>
     lateinit var quarryOscillators: ConfigField<Map<String, Double>>
+    lateinit var quarryDracFunEnderDraconiumChance: ConfigField<Double>
 
     // advanced anvil options
     lateinit var advancedAnvilMaxLevels: ConfigField<Map<Enchantment, Int>>
@@ -101,6 +102,8 @@ class ConfigService(plugin: InfinityExpansion2) {
         storageEnableHolograms = boolean("storage.enable-holograms", false)
         storageHologramUpdateInterval = int("storage.hologram-update-interval", 20, 1, 3600)
         quarryInterval = int("quarry.output-interval", 10, 1, 3600)
+        quarryDracFunEnderDraconiumChance =
+            double("quarry.dracfun-ender-draconium-chance", 0.0025, 0.0, 1.0)
         quarryOscillators = custom { it.getConfigurationSection("quarry.oscillators").loadDoubleMap() }
         quarryPools = custom {
             it.getConfigurationSection("quarry.pools")
