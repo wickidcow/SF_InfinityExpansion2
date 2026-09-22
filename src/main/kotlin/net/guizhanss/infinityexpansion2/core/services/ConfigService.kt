@@ -61,6 +61,10 @@ class ConfigService(plugin: InfinityExpansion2) {
     lateinit var quarryOscillators: ConfigField<Map<String, Double>>
     lateinit var quarryDracFunEnderDraconiumChance: ConfigField<Double>
     lateinit var quarryRareGeoDrops: ConfigField<Map<String, Double>>
+    lateinit var quarryGeoMinerDiscoveriesEnabled: ConfigField<Boolean>
+    lateinit var quarryGeoMinerDiscoveryChance: ConfigField<Double>
+    lateinit var quarryAdvancedGeoMinerDiscoveryChance: ConfigField<Double>
+    lateinit var quarryGeoMinerDiscoveriesIncludeExternal: ConfigField<Boolean>
 
     // advanced anvil options
     lateinit var advancedAnvilMaxLevels: ConfigField<Map<Enchantment, Int>>
@@ -108,6 +112,13 @@ class ConfigService(plugin: InfinityExpansion2) {
         quarryRareGeoDrops = custom {
             it.getConfigurationSection("quarry.rare-geo-drops")?.loadDoubleMap() ?: emptyMap()
         }
+        quarryGeoMinerDiscoveriesEnabled = boolean("quarry.geo-miner-discoveries.enabled", true)
+        quarryGeoMinerDiscoveryChance =
+            double("quarry.geo-miner-discoveries.standard-chance", 0.0005, 0.0, 1.0)
+        quarryAdvancedGeoMinerDiscoveryChance =
+            double("quarry.geo-miner-discoveries.advanced-chance", 0.001, 0.0, 1.0)
+        quarryGeoMinerDiscoveriesIncludeExternal =
+            boolean("quarry.geo-miner-discoveries.include-external-addon-resources", false)
         quarryOscillators = custom { it.getConfigurationSection("quarry.oscillators").loadDoubleMap() }
         quarryPools = custom {
             it.getConfigurationSection("quarry.pools")
