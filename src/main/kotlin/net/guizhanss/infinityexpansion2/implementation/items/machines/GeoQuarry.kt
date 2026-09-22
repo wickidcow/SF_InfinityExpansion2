@@ -1,5 +1,6 @@
 package net.guizhanss.infinityexpansion2.implementation.items.machines
 
+import io.github.thebusybiscuit.slimefun4.api.geo.GEOResource
 import io.github.thebusybiscuit.slimefun4.api.items.ItemGroup
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItemStack
@@ -17,6 +18,7 @@ import org.bukkit.World.Environment
 import org.bukkit.block.Biome
 import org.bukkit.block.Block
 import org.bukkit.inventory.ItemStack
+import java.util.Locale
 import kotlin.random.Random
 
 class GeoQuarry(
@@ -26,7 +28,7 @@ class GeoQuarry(
     recipe: Array<out ItemStack?>,
     energyPerTick: Int,
     outputInterval: Int,
-    val speed: Int, // the amount of output
+    val speed: Int, // the amount of normal output
 ) : AbstractTickingMachine(itemGroup, itemStack, recipeType, recipe, MenuLayout.OUTPUT_ONLY, energyPerTick),
     InformationalRecipeDisplayItem {
 
@@ -42,6 +44,7 @@ class GeoQuarry(
 
         val output = tryProduceDracFunEnderDraconium(menu)
             ?: tryProduceRareGeoResource(menu)
+            ?: tryProduceAutomaticGeoMinerDiscovery(menu)
             ?: produce(menu)?.edit { amount(speed) }
             ?: return true
 
@@ -97,6 +100,37 @@ class GeoQuarry(
         return discoveries.randomOrNull()?.clone()?.apply { amount = 1 }
     }
 
+    private fun tryProduceAutomaticGeoMinerDiscovery(menu: BlockMenu): ItemStack? {
+        val config = InfinityExpansion2.configService
+        if (!config.quarryGeoMinerDiscoveriesEnabled.value) return null
+
+        val chance = if (isAdvancedGeoQuarry()) {
+            config.quarryAdvancedGeoMinerDiscoveryChance.value
+        } else {
+            config.quarryGeoMinerDiscoveryChance.value
+        }
+
+        if (chance <= 0.0 || Random.nextDouble() >= chance) return null
+
+        val biome = menu.location.block.biome
+        val env = menu.location.world.environment
+        val includeExternal = config.quarryGeoMinerDiscoveriesIncludeExternal.value
+        val explicitRareIds = activeRareGeoIds()
+
+        val candidates = Slimefun.getRegistry().geoResources.values()
+            .asSequence()
+            .filter { it.isObtainableFromGEOMiner }
+            .filter { it.getDefaultSupply(env, biome) > 0 }
+            .filter { resource ->
+                val itemId = SlimefunItem.getByItem(resource.item)?.id
+                itemId != DRACFUN_ENDER_DRACONIUM_ID && (itemId == null || itemId !in explicitRareIds)
+            }
+            .filter { isOriginalGeoResource(it) || includeExternal }
+            .toList()
+
+        return candidates.randomOrNull()?.item?.clone()?.apply { amount = 1 }
+    }
+
     private fun getProductPool(biome: Biome, env: Environment): List<ItemStack> {
         val rareGeoIds = activeRareGeoIds()
         val key = Triple(biome, env, rareGeoIds)
@@ -106,6 +140,12 @@ class GeoQuarry(
             Slimefun.getRegistry().geoResources.values().filter { it.isObtainableFromGEOMiner }.forEach { resource ->
                 val itemId = SlimefunItem.getByItem(resource.item)?.id
                 if (itemId == DRACFUN_ENDER_DRACONIUM_ID || (itemId != null && itemId in rareGeoIds)) {
+                    return@forEach
+                }
+
+                // External-addon GEO resources are intentionally discovery-only. This keeps
+                // another addon's supply weights from silently changing normal quarry balance.
+                if (!isOriginalGeoResource(resource)) {
                     return@forEach
                 }
 
@@ -126,13 +166,35 @@ class GeoQuarry(
             .keys
             .toSet()
 
+    private fun isOriginalGeoResource(resource: GEOResource): Boolean {
+        val namespace = resource.key.namespace
+        val ieNamespace = InfinityExpansion2.instance.name.lowercase(Locale.ENGLISH)
+        return namespace == SLIMEFUN_NAMESPACE || namespace == ieNamespace
+    }
+
+    private fun isAdvancedGeoQuarry() = speed > 1
+
     override fun getDefaultDisplayRecipes(): List<ItemStack> {
+        val config = InfinityExpansion2.configService
         val rareGeoIds = activeRareGeoIds()
+        val includeExternal = config.quarryGeoMinerDiscoveriesEnabled.value &&
+            config.quarryGeoMinerDiscoveriesIncludeExternal.value
+
         return Slimefun.getRegistry().geoResources.values()
             .filter { it.isObtainableFromGEOMiner }
+            .filter { resource ->
+                val itemId = SlimefunItem.getByItem(resource.item)?.id
+                isOriginalGeoResource(resource) ||
+                    includeExternal ||
+                    itemId == DRACFUN_ENDER_DRACONIUM_ID ||
+                    (itemId != null && itemId in rareGeoIds)
+            }
             .map { resource ->
                 val itemId = SlimefunItem.getByItem(resource.item)?.id
-                resource.item.edit { amount(if (itemId != null && itemId in rareGeoIds) 1 else speed) }
+                val discoveryOnly = !isOriginalGeoResource(resource) ||
+                    itemId == DRACFUN_ENDER_DRACONIUM_ID ||
+                    (itemId != null && itemId in rareGeoIds)
+                resource.item.edit { amount(if (discoveryOnly) 1 else speed) }
             }
     }
 
@@ -146,6 +208,7 @@ class GeoQuarry(
 
     companion object {
 
+        private const val SLIMEFUN_NAMESPACE = "slimefun"
         private const val DRACFUN_ENDER_DRACONIUM_ID = "DRACFUN_DRACONIUM_ORE"
         private val geoRecipes = mutableMapOf<Triple<Biome, Environment, Set<String>>, List<ItemStack>>()
     }
