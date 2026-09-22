@@ -41,6 +41,7 @@ class GeoQuarry(
         if (!shouldProduce()) return true
 
         val output = tryProduceDracFunEnderDraconium(menu)
+            ?: tryProduceRareGeoResource(menu)
             ?: produce(menu)?.edit { amount(speed) }
             ?: return true
 
@@ -73,11 +74,38 @@ class GeoQuarry(
         return ore.item.clone().apply { amount = 1 }
     }
 
-    private fun getProductPool(biome: Biome, env: Environment): List<ItemStack> =
-        geoRecipes.getOrPut(Pair(biome, env)) {
+    private fun tryProduceRareGeoResource(menu: BlockMenu): ItemStack? {
+        val configuredDrops = InfinityExpansion2.configService.quarryRareGeoDrops.value
+        if (configuredDrops.isEmpty()) return null
+
+        val biome = menu.location.block.biome
+        val env = menu.location.world.environment
+        val discoveries = Slimefun.getRegistry().geoResources.values()
+            .asSequence()
+            .filter { it.isObtainableFromGEOMiner }
+            .filter { it.getDefaultSupply(env, biome) > 0 }
+            .mapNotNull { resource ->
+                val itemId = SlimefunItem.getByItem(resource.item)?.id ?: return@mapNotNull null
+                val chance = configuredDrops[itemId] ?: return@mapNotNull null
+                if (chance <= 0.0 || Random.nextDouble() >= chance.coerceAtMost(1.0)) {
+                    return@mapNotNull null
+                }
+                resource.item
+            }
+            .toList()
+
+        return discoveries.randomOrNull()?.clone()?.apply { amount = 1 }
+    }
+
+    private fun getProductPool(biome: Biome, env: Environment): List<ItemStack> {
+        val rareGeoIds = activeRareGeoIds()
+        val key = Triple(biome, env, rareGeoIds)
+
+        return geoRecipes.getOrPut(key) {
             val pool = mutableListOf<ItemStack>()
             Slimefun.getRegistry().geoResources.values().filter { it.isObtainableFromGEOMiner }.forEach { resource ->
-                if (SlimefunItem.getByItem(resource.item)?.id == DRACFUN_ENDER_DRACONIUM_ID) {
+                val itemId = SlimefunItem.getByItem(resource.item)?.id
+                if (itemId == DRACFUN_ENDER_DRACONIUM_ID || itemId in rareGeoIds) {
                     return@forEach
                 }
 
@@ -90,10 +118,23 @@ class GeoQuarry(
             }
             pool
         }
+    }
 
-    override fun getDefaultDisplayRecipes() =
-        Slimefun.getRegistry().geoResources.values().filter { it.isObtainableFromGEOMiner }
-            .map { it.item.edit { amount(speed) } }
+    private fun activeRareGeoIds() =
+        InfinityExpansion2.configService.quarryRareGeoDrops.value
+            .filterValues { it > 0.0 }
+            .keys
+            .toSet()
+
+    override fun getDefaultDisplayRecipes(): List<ItemStack> {
+        val rareGeoIds = activeRareGeoIds()
+        return Slimefun.getRegistry().geoResources.values()
+            .filter { it.isObtainableFromGEOMiner }
+            .map { resource ->
+                val itemId = SlimefunItem.getByItem(resource.item)?.id
+                resource.item.edit { amount(if (itemId in rareGeoIds) 1 else speed) }
+            }
+    }
 
     override fun getInfoItems() = listOf(
         GuiItems.tickRate(getCustomTickRate()),
@@ -106,6 +147,6 @@ class GeoQuarry(
     companion object {
 
         private const val DRACFUN_ENDER_DRACONIUM_ID = "DRACFUN_DRACONIUM_ORE"
-        private val geoRecipes = mutableMapOf<Pair<Biome, Environment>, List<ItemStack>>()
+        private val geoRecipes = mutableMapOf<Triple<Biome, Environment, Set<String>>, List<ItemStack>>()
     }
 }
