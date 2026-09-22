@@ -164,6 +164,15 @@ quarry:
   # 0.0025 = 0.25% = about 1 in 400 cycles. Set to 0 to disable.
   dracfun-ender-draconium-chance: 0.0025
 
+  # Very rare discoveries from the registered GEO-Miner resource pool.
+  # Keys are Slimefun item IDs and values are independent chances per Geo Quarry
+  # production cycle. Configured items are removed from the normal weighted
+  # Geo Quarry pool, always output exactly 1 item, and still obey the GEO
+  # resource's world/biome availability.
+  # 0.0005 = 0.05% = about 1 in 2,000 production cycles.
+  rare-geo-drops:
+    IE_ENDER_ESSENCE: 0.0005
+
   # The product pool of all the quarries
   # There are 3 world environments: normal, nether, the_end
   # A quarry's products are determined by the environment it is in.
