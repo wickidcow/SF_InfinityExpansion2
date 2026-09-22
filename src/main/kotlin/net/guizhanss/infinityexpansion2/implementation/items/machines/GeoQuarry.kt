@@ -105,7 +105,7 @@ class GeoQuarry(
             val pool = mutableListOf<ItemStack>()
             Slimefun.getRegistry().geoResources.values().filter { it.isObtainableFromGEOMiner }.forEach { resource ->
                 val itemId = SlimefunItem.getByItem(resource.item)?.id
-                if (itemId == DRACFUN_ENDER_DRACONIUM_ID || itemId in rareGeoIds) {
+                if (itemId == DRACFUN_ENDER_DRACONIUM_ID || (itemId != null && itemId in rareGeoIds)) {
                     return@forEach
                 }
 
@@ -132,7 +132,7 @@ class GeoQuarry(
             .filter { it.isObtainableFromGEOMiner }
             .map { resource ->
                 val itemId = SlimefunItem.getByItem(resource.item)?.id
-                resource.item.edit { amount(if (itemId in rareGeoIds) 1 else speed) }
+                resource.item.edit { amount(if (itemId != null && itemId in rareGeoIds) 1 else speed) }
             }
     }
 
