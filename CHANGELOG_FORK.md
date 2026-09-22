@@ -1,8 +1,11 @@
 ## Unreleased - Rare Geo Quarry discoveries
 
-- Added configurable ultra-rare Geo Quarry discoveries for any registered GEO-Miner resource.
-- Added `IE_ENDER_ESSENCE` at a default 0.05% chance per Geo Quarry production cycle (about 1 in 2,000).
-- Rare GEO discoveries always output exactly one item, preserve the GEO resource's world/biome restrictions, and are removed from the normal weighted Geo Quarry pool while their configured chance is above zero.
+- Added automatic ultra-rare discovery rolls covering the registered GEO-Miner resource pool.
+- Standard Geo Quarry defaults to a 0.05% automatic discovery roll per production cycle; Advanced Geo Quarry defaults to 0.10%.
+- Automatic discoveries output exactly one eligible GEO resource and preserve its world/biome availability.
+- Added `quarry.geo-miner-discoveries.include-external-addon-resources` so server owners can opt external-addon GEO resources into the rare discovery pool.
+- External-addon GEO resources are discovery-only and never enter the normal weighted quarry pool, preventing addon supply values from unexpectedly flooding quarry output.
+- Retained `rare-geo-drops` as a precise per-item override layer; `IE_ENDER_ESSENCE` remains 0.05% by default.
 - Kept the existing optional DracFun Ender Draconium discovery path separate and compatible.
 
 ## v2.0.6 - Cargo and output backpressure hardening
