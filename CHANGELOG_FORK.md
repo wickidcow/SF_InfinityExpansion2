@@ -1,3 +1,10 @@
+## Unreleased - Rare Geo Quarry discoveries
+
+- Added configurable ultra-rare Geo Quarry discoveries for any registered GEO-Miner resource.
+- Added `IE_ENDER_ESSENCE` at a default 0.05% chance per Geo Quarry production cycle (about 1 in 2,000).
+- Rare GEO discoveries always output exactly one item, preserve the GEO resource's world/biome restrictions, and are removed from the normal weighted Geo Quarry pool while their configured chance is above zero.
+- Kept the existing optional DracFun Ender Draconium discovery path separate and compatible.
+
 ## v2.0.6 - Cargo and output backpressure hardening
 
 - Fixed Slimefun Legacy Cargo seeding of completely empty IE2 Storage Units while preserving blacklist and typed-storage checks.
