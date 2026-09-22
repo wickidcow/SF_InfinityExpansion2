@@ -16,7 +16,7 @@ val mainPackage = "net.guizhanss.infinityexpansion2"
 val paperApiVersion = providers.gradleProperty("paperApiVersion").orElse("1.21.11-R0.1-SNAPSHOT")
 val slimefunApiCoordinate = providers.gradleProperty("slimefunApiCoordinate").orElse("com.github.slimefun:Slimefun4:experimental-SNAPSHOT")
 val targetJvm = providers.gradleProperty("targetJvm").orElse("21").get().toInt()
-version = providers.gradleProperty("buildVersion").orElse("2.0.8").get()
+version = providers.gradleProperty("buildVersion").orElse("2.0.9").get()
 
 repositories {
     mavenLocal()
@@ -90,7 +90,7 @@ bukkit {
     description = "InfinityExpansion2 - Slimefun compatibility and IE1 migration fork"
     depend = listOf("Slimefun")
     softDepend = listOf("GuizhanLibPlugin", "SlimefunTranslation", "InfinityExpansion", "SlimeHUD")
-    loadBefore = listOf("SlimeCustomizer", "RykenSlimeCustomizer", "SlimeFunRecipe")
+    loadBefore = listOf("SlimeCustomizer", "RykenSlimefunCustomizer", "SlimeFunRecipe")
     commands {
         register("infinityexpansion2") {
             description = "InfinityExpansion2 command"
