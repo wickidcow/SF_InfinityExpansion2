@@ -60,6 +60,7 @@ class ConfigService(plugin: InfinityExpansion2) {
     lateinit var quarryPools: ConfigField<Map<Environment, QuarryPool>>
     lateinit var quarryOscillators: ConfigField<Map<String, Double>>
     lateinit var quarryDracFunEnderDraconiumChance: ConfigField<Double>
+    lateinit var quarryRareGeoDrops: ConfigField<Map<String, Double>>
 
     // advanced anvil options
     lateinit var advancedAnvilMaxLevels: ConfigField<Map<Enchantment, Int>>
@@ -104,6 +105,9 @@ class ConfigService(plugin: InfinityExpansion2) {
         quarryInterval = int("quarry.output-interval", 10, 1, 3600)
         quarryDracFunEnderDraconiumChance =
             double("quarry.dracfun-ender-draconium-chance", 0.0025, 0.0, 1.0)
+        quarryRareGeoDrops = custom {
+            it.getConfigurationSection("quarry.rare-geo-drops")?.loadDoubleMap() ?: emptyMap()
+        }
         quarryOscillators = custom { it.getConfigurationSection("quarry.oscillators").loadDoubleMap() }
         quarryPools = custom {
             it.getConfigurationSection("quarry.pools")
