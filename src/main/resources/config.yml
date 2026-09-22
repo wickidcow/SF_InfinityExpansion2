@@ -164,12 +164,33 @@ quarry:
   # 0.0025 = 0.25% = about 1 in 400 cycles. Set to 0 to disable.
   dracfun-ender-draconium-chance: 0.0025
 
-  # Very rare discoveries from the registered GEO-Miner resource pool.
+  # Automatic very-rare GEO Miner discoveries.
+  # A successful discovery replaces that cycle's normal Geo Quarry output with
+  # exactly 1 eligible GEO Miner resource while preserving its world/biome rules.
+  #
+  # The standard Geo Quarry uses standard-chance.
+  # The Advanced Geo Quarry uses advanced-chance.
+  # 0.0005 = 0.05% = about 1 in 2,000 production cycles.
+  # 0.001  = 0.10% = about 1 in 1,000 production cycles.
+  #
+  # Slimefun and Infinity Expansion GEO resources are always eligible.
+  # External addon GEO resources are only eligible when the toggle below is true.
+  # External resources never enter the normal weighted Geo Quarry pool, which
+  # prevents another addon's GEO supply values from flooding quarry output.
+  geo-miner-discoveries:
+    enabled: true
+    standard-chance: 0.0005
+    advanced-chance: 0.001
+    include-external-addon-resources: false
+
+  # Per-item rare overrides.
   # Keys are Slimefun item IDs and values are independent chances per Geo Quarry
   # production cycle. Configured items are removed from the normal weighted
   # Geo Quarry pool, always output exactly 1 item, and still obey the GEO
   # resource's world/biome availability.
-  # 0.0005 = 0.05% = about 1 in 2,000 production cycles.
+  #
+  # Explicit entries remain usable for precise balancing even when automatic
+  # external-addon discovery is disabled.
   rare-geo-drops:
     IE_ENDER_ESSENCE: 0.0005
 
