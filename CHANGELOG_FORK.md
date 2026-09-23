@@ -1,4 +1,4 @@
-## Unreleased - Rare Geo Quarry discoveries
+## v2.0.10 - Rare Geo Quarry discoveries
 
 - Added automatic ultra-rare discovery rolls covering the registered GEO-Miner resource pool.
 - Standard Geo Quarry defaults to a 0.05% automatic discovery roll per production cycle; Advanced Geo Quarry defaults to 0.10%.
