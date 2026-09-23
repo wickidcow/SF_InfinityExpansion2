@@ -12,8 +12,8 @@ permissions:
   contents: write
 
 env:
-  VERSION: "2.0.9"
-  OUTPUT_NAME: "SF_InfinityExpansion2.0.9.jar"
+  VERSION: "2.0.10"
+  OUTPUT_NAME: "SF_InfinityExpansion2.0.10.jar"
 
 jobs:
   compatibility:
@@ -51,13 +51,13 @@ jobs:
           grep -Fq 'archiveFileName.set("SF_InfinityExpansion${project.version}.jar")' build.gradle.kts
           if printf '%s\n%s\n' "$VERSION" "$OUTPUT_NAME" | grep -Eiq '(legacy|english|snapshot)'; then exit 1; fi
       - name: Verify Paper 1.21.11 baseline compilation
-        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PbuildVersion=2.0.9 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PbuildVersion=2.0.10 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
       - name: Verify Paper 26.2 compilation
-        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=26.2.build.+ -PtargetJvm=25 -PbuildVersion=2.0.9 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=26.2.build.+ -PtargetJvm=25 -PbuildVersion=2.0.10 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
       - name: Verify Paper 26.3 alpha compilation
-        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=26.3-rc-3.build.1-alpha -PtargetJvm=25 -PbuildVersion=2.0.9 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=26.3-rc-3.build.1-alpha -PtargetJvm=25 -PbuildVersion=2.0.10 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
       - name: Build universal Java 21 release JAR
-        run: ./gradlew clean build --stacktrace --console=plain -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PbuildVersion=2.0.9 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+        run: ./gradlew clean build --stacktrace --console=plain -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PbuildVersion=2.0.10 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
       - name: Verify and stage canonical shaded JAR
         shell: bash
         run: |
@@ -101,8 +101,23 @@ jobs:
           path: dist/${{ env.OUTPUT_NAME }}
           archive: false
           if-no-files-found: error
-      - name: Publish canonical raw JAR release asset
+      - name: Check release publication state
+        id: release_state
         if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') || github.ref_name == github.event.repository.default_branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then TAG="$GITHUB_REF_NAME"; else TAG="v${VERSION}"; fi
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish canonical raw JAR release asset
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') || (github.ref_name == github.event.repository.default_branch && steps.release_state.outputs.exists == 'false')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
