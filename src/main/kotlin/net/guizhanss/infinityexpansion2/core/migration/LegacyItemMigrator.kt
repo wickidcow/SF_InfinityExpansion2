@@ -2,15 +2,12 @@ package net.guizhanss.infinityexpansion2.core.migration
 
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem
 import io.github.thebusybiscuit.slimefun4.implementation.Slimefun
-import net.guizhanss.infinityexpansion2.InfinityExpansion2
 import org.bukkit.block.Container
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ArmorMeta
 import org.bukkit.inventory.meta.BlockStateMeta
 import org.bukkit.inventory.meta.BundleMeta
 import org.bukkit.inventory.meta.Damageable
-import org.bukkit.persistence.PersistentDataContainer
-import java.util.logging.Level
 
 class LegacyItemMigrator {
 
@@ -98,23 +95,13 @@ class LegacyItemMigrator {
 
     private fun copyPdc(source: ItemStack, target: ItemStack) {
         if (!source.hasItemMeta() || !target.hasItemMeta()) return
-        runCatching {
-            val oldMeta = source.itemMeta
-            val newMeta = target.itemMeta
-            copyPdcReflective(oldMeta.persistentDataContainer, newMeta.persistentDataContainer)
-            target.itemMeta = newMeta
-        }.onFailure {
-            InfinityExpansion2.log(Level.FINE, "Could not copy legacy item PDC during migration: ${it.message}")
-        }
-    }
-
-    /** Paper/Bukkit added PersistentDataContainer#copyTo long ago, but reflection keeps fork compatibility. */
-    private fun copyPdcReflective(source: PersistentDataContainer, target: PersistentDataContainer) {
-        val method = source.javaClass.methods.firstOrNull {
-            it.name == "copyTo" && it.parameterCount == 2
-        } ?: return
-        // replace=false: the fresh IE2 Slimefun id and IE2-native data must win.
-        method.invoke(source, target, false)
+        val oldMeta = source.itemMeta
+        val newMeta = target.itemMeta
+        // This API is part of the supported Paper 1.21.11+ baseline. Keep the
+        // established target-wins policy for explicit IE1-to-IE2 migrations.
+        // A failed copy must abort the staged replacement, never silently lose data.
+        oldMeta.persistentDataContainer.copyTo(newMeta.persistentDataContainer, false)
+        check(target.setItemMeta(newMeta)) { "Target item rejected preserved legacy metadata" }
     }
 
     private fun migrateNestedContents(stack: ItemStack, refreshModern: Boolean, depth: Int): ItemStack? {

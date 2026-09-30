@@ -38,6 +38,13 @@ dependencies {
     implementation("net.guizhanss:guizhanlib-kt-all:0.2.0")
     implementation("org.bstats:bstats-bukkit:3.1.0")
     implementation("com.jeff-media:MorePersistentDataTypes:2.4.0")
+    testImplementation(kotlin("stdlib"))
+    testImplementation("org.junit.jupiter:junit-jupiter:5.12.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.12.2")
+    testImplementation("org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.110.0")
+    // Match MockBukkit independently of the production compile-API override.
+    testImplementation("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
+    testRuntimeOnly(slimefunApiCoordinate.get())
 }
 
 java {
@@ -112,3 +119,6 @@ tasks {
         minecraftVersion("26.2")
     }
 }
+
+// Real metadata-preservation tests; test dependencies are not packaged in the plugin.
+tasks.test { useJUnitPlatform() }
