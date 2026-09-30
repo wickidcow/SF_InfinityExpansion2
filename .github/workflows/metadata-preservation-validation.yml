@@ -66,6 +66,14 @@ jobs:
               data = text.encode()
               assert blob(data) == entry['new'], path
               outputs[str(path)] = data
+          build = 'build.gradle.kts'
+          assert blob(outputs[build]) == '154b8b76b25e30422a8c43b0375e30e9ce2b5efa'
+          old = '    testImplementation("org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.110.0")'
+          new = old + '\n    // Match MockBukkit independently of the production compile-API override.\n    testImplementation("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")'
+          text = outputs[build].decode()
+          assert text.count(old) == 1
+          outputs[build] = text.replace(old, new).encode()
+          assert blob(outputs[build]) == '2e84ffc3bc3dab519fe003b3e5e4f5e471b65adc'
           for name, data in outputs.items():
               path = Path(name)
               path.parent.mkdir(parents=True, exist_ok=True)
