@@ -15,7 +15,6 @@ import io.github.thebusybiscuit.slimefun4.libraries.dough.data.persistent.Persis
 import net.guizhanss.infinityexpansion2.InfinityExpansion2
 import net.guizhanss.infinityexpansion2.implementation.tasks.InfinityMatrixTask
 import net.guizhanss.infinityexpansion2.utils.bukkitext.ie2Key
-import org.bukkit.ChatColor
 import org.bukkit.GameMode
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
@@ -78,15 +77,7 @@ class InfinityMatrix(
     }
 
     private fun setLore(meta: ItemMeta, owner: UUID? = null) {
-        val lore = meta.lore!!
-        val lineIdx = lore.indexOfFirst { ChatColor.stripColor(it)!!.startsWith("Owner:") }
-        val line = "${ChatColor.AQUA}Owner: ${ChatColor.WHITE}${owner ?: "None"}"
-        if (lineIdx == -1) {
-            lore.add(line)
-        } else {
-            lore[lineIdx] = line
-        }
-        meta.lore = lore
+        MatrixOwnerLore.update(meta, owner)
     }
 
     override fun canStack(meta1: ItemMeta, meta2: ItemMeta) =
