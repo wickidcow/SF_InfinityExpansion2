@@ -1,0 +1,157 @@
+name: Matrix Owner Preservation Validation
+
+on:
+  push:
+    branches: ['work/matrix-owner-components-validation']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: matrix-owner-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: gradle
+      - name: Apply exact reviewed owner-lore patch
+        run: |
+          set -euo pipefail
+          mkdir -p audit-evidence
+          python3 - <<'PY'
+          import gzip, hashlib, re, subprocess
+          from pathlib import Path
+          patch = gzip.decompress(Path('.audit/matrix-owner-lore.patch.gz').read_bytes())
+          assert hashlib.sha256(patch).hexdigest() == '3cb0af553cc42e2db8931e08bf66bb6ada6b0c7e5d52cf51563edcbc645a8c7c'
+          names = []
+          for part in patch.decode().split('diff --git ')[1:]:
+              name = part.splitlines()[0].split(' b/', 1)[1]
+              old, new = re.search(r'^index ([0-9a-f]{40})\.\.([0-9a-f]{40})', part, re.M).groups()
+              path = Path(name)
+              assert not path.is_absolute() and '..' not in path.parts
+              if old == '0' * 40:
+                  assert not path.exists()
+              else:
+                  data = path.read_bytes()
+                  assert hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest() == old, name
+              names.append(name)
+          assert len(names) == 3
+          subprocess.run(['git', 'apply', '--check', '-'], input=patch, check=True)
+          subprocess.run(['git', 'apply', '-'], input=patch, check=True)
+          import json
+          Path('audit-evidence/source-paths.json').write_text(json.dumps(names))
+          PY
+          git diff --check
+      - name: Build and publish the exact coordinated core locally
+        run: |
+          set -euo pipefail
+          CORE="$RUNNER_TEMP/verified-core"
+          git init "$CORE"
+          git -C "$CORE" remote add origin https://github.com/wickidcow/Slimefun-Legacy.git
+          git -C "$CORE" fetch --depth=1 origin 9e8de71adf70e9a361a74c21afe5e7006c85faf6
+          git -C "$CORE" checkout --detach FETCH_HEAD
+          test "$(git -C "$CORE" rev-parse HEAD)" = 9e8de71adf70e9a361a74c21afe5e7006c85faf6
+          (cd "$CORE" && chmod +x gradlew && ./gradlew shadowJar -x test --console=plain --no-daemon)
+          JAR="$(find "$CORE/build/libs" -name 'Slimefun-*.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar' -print -quit)"
+          test -s "$JAR"
+          mvn -q org.apache.maven.plugins:maven-install-plugin:3.1.4:install-file \
+            -Dfile="$JAR" -DgroupId=com.github.slimefun -DartifactId=Slimefun \
+            -Dversion=ALBION-SNAPSHOT -Dpackaging=jar -DgeneratePom=true
+          echo "VERIFIED_CORE=$CORE" >> "$GITHUB_ENV"
+          echo 'Core source: 9e8de71adf70e9a361a74c21afe5e7006c85faf6' > audit-evidence/core.txt
+          sha256sum "$JAR" >> audit-evidence/core.txt
+          NETWORKS="$RUNNER_TEMP/verified-networks"
+          git init "$NETWORKS"
+          git -C "$NETWORKS" remote add origin https://github.com/wickidcow/SF_NetworksExp.git
+          git -C "$NETWORKS" fetch --depth=1 origin 41befeb633baabd1e8ee6bc2fdd2b3a66694b643
+          git -C "$NETWORKS" checkout --detach FETCH_HEAD
+          echo "VERIFIED_NETWORKS=$NETWORKS" >> "$GITHUB_ENV"
+      - name: Run unchanged migration Doctor and transport gates
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_legacy_migration.py
+          python3 scripts/verify_doctor_bridge_safety.py
+          python3 scripts/verify_mob_sim_drop_ranges.py
+          python3 scripts/verify_mob_sim_input_filtering.py
+          python3 scripts/verify_transport_contracts.py --slimefun "$VERIFIED_CORE" --networks "$VERIFIED_NETWORKS"
+      - name: Full build and actual item metadata tests on the supported floor
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew clean build --console=plain --no-daemon --no-build-cache \
+            -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PbuildVersion=2.0.10 \
+            -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT \
+            2>&1 | tee audit-evidence/build.log
+          git diff --check
+      - name: Check executed tests and candidate bytecode
+        run: |
+          python3 - <<'PY'
+          import json, struct, zipfile
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          totals = dict.fromkeys(('tests','failures','errors','skipped'), 0)
+          found = False
+          for p in Path('build/test-results/test').glob('TEST-*.xml'):
+              suite = ET.parse(p).getroot()
+              for key in totals: totals[key] += int(suite.get(key, '0'))
+              if p.name.endswith('.MatrixOwnerLoreTest.xml'):
+                  found = True
+                  assert int(suite.get('tests')) == 10, suite.attrib
+                  assert all(int(suite.get(k, '0')) == 0 for k in ('failures','errors','skipped')), suite.attrib
+          assert found and totals['failures'] == totals['errors'] == totals['skipped'] == 0, totals
+          jar = Path('build/libs/SF_InfinityExpansion2.0.10.jar')
+          with zipfile.ZipFile(jar) as archive:
+              assert archive.testzip() is None
+              for name in archive.namelist():
+                  if name.endswith('.class') and not name.startswith('META-INF/versions/'):
+                      header = archive.read(name)[:8]
+                      assert header[:4] == b'\xca\xfe\xba\xbe'
+                      assert struct.unpack('>H', header[6:8])[0] <= 65, name
+              assert not any('mockbukkit' in name.lower() or 'junit' in name.lower() for name in archive.namelist())
+          Path('audit-evidence/results.json').write_text(json.dumps(totals, indent=2))
+          print(totals)
+          PY
+      - name: Store only validated source blobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, json, os, subprocess
+          from pathlib import Path
+          manifest = {}
+          for name in json.loads(Path('audit-evidence/source-paths.json').read_text()):
+              data = Path(name).read_bytes()
+              expected = hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()
+              payload = json.dumps({'content':base64.b64encode(data).decode(), 'encoding':'base64'})
+              result = subprocess.run(['gh','api','--method','POST',f"repos/{os.environ['GITHUB_REPOSITORY']}/git/blobs",'--input','-','--jq','.sha'],input=payload,text=True,capture_output=True,check=True)
+              assert result.stdout.strip() == expected
+              manifest[name] = expected
+          Path('audit-evidence/validated-blobs.json').write_text(json.dumps(manifest,indent=2))
+          print(manifest)
+          PY
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: matrix-owner-preservation-evidence
+          path: |
+            audit-evidence/
+            build/test-results/test/TEST-*.xml
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v7
+        if: success()
+        with:
+          path: build/libs/SF_InfinityExpansion2.0.10.jar
+          archive: false
+          if-no-files-found: error
