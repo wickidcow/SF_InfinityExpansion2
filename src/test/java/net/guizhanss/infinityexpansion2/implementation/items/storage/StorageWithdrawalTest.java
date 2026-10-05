@@ -22,6 +22,10 @@ class StorageWithdrawalTest {
     @BeforeEach
     void setUp() {
         inventory = MockBukkit.mock().addPlayer().getInventory();
+        // MockBukkit 4.110.0 addItem scans equipment slots too; keep them unavailable.
+        for (int slot = inventory.getStorageContents().length; slot < inventory.getSize(); slot++) {
+            inventory.setItem(slot, new ItemStack(Material.BARRIER, 64));
+        }
     }
 
     @AfterEach
