@@ -1,3 +1,11 @@
+## v2.0.11 - Storage withdrawal and existing-item safety
+
+- Deducts the actual number of items accepted by a player's inventory during Storage Unit withdrawals, including partial insertions into nearly full inventories.
+- Keeps unaccepted items in storage and preserves the stored template's metadata and existing fill order.
+- Adds real inventory regression tests covering partial/full transfers, stack limits, metadata, and repeated withdrawals.
+- Includes the already-merged legacy metadata preservation and Matrix owner-lore fixes: failed metadata copies stop conversion, and older Matrix items retain their existing rich lore.
+- Preserves storage keys, item IDs, recipes, production rates, and the opt-in legacy migration policy.
+
 ## v2.0.10 - Rare Geo Quarry discoveries
 
 - Added automatic ultra-rare discovery rolls covering the registered GEO-Miner resource pool.

@@ -261,13 +261,8 @@ class StorageUnit(
             InteractionMode.WITHDRAW_SINGLE -> {
                 if (cache.isEmpty()) return
 
-                val itemToGive = cache.itemStack!!.clone()
-                val amount = itemToGive.maxStackSize.coerceAtMost(cache.amount)
-                val item = itemToGive.edit { amount(amount) }
-                val leftover = pInv.addItem(item)
-
-                if (leftover.isEmpty()) {
-                    cache.amount -= amount
+                val transferred = StorageWithdrawal.transfer(cache, pInv, cache.itemStack!!.maxStackSize)
+                if (transferred > 0) {
                     menu.updateDisplay(cache)
                     menu.location.save(cache)
                 }
@@ -306,12 +301,9 @@ class StorageUnit(
                 // Then fill empty slots
                 while (cache.amount > 0) {
                     val amount = maxStackSize.coerceAtMost(cache.amount)
-                    val item = itemToGive.edit { amount(amount) }
-                    val leftover = pInv.addItem(item)
-                    if (leftover.isEmpty()) {
-                        cache.amount -= amount
-                    } else {
-                        // Inventory is full
+                    val transferred = StorageWithdrawal.transfer(cache, pInv, amount)
+                    if (transferred < amount) {
+                        // Inventory is full; any partial insertion has already been deducted.
                         break
                     }
                 }
