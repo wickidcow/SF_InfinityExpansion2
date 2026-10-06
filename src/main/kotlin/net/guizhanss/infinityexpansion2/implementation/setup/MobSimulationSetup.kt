@@ -20,6 +20,9 @@ import org.bukkit.NamespacedKey
 import org.bukkit.configuration.ConfigurationSection
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.MusicInstrumentMeta
+import org.bukkit.inventory.meta.PotionMeta
+import org.bukkit.potion.PotionType
+import java.util.Locale
 import java.util.logging.Level
 
 /**
@@ -189,6 +192,18 @@ internal object MobSimulationSetup {
             ) ?: return null
             val meta = item.itemMeta as? MusicInstrumentMeta ?: return null
             meta.instrument = instrument
+            item.itemMeta = meta
+        }
+
+        // Preserve vanilla potion identity for potion-capable drops such as tipped arrows.
+        // This lets modern skeleton variants produce real poison/slowness/weakness arrows.
+        val potionName = this["potion"] as? String
+        if (potionName != null) {
+            val meta = item.itemMeta as? PotionMeta ?: return null
+            val potionType = runCatching {
+                PotionType.valueOf(potionName.trim().uppercase(Locale.ROOT))
+            }.getOrNull() ?: return null
+            meta.basePotionType = potionType
             item.itemMeta = meta
         }
 
