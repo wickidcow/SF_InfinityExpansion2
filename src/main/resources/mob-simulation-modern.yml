@@ -609,7 +609,7 @@ evoker:
     ingredient:
       T:
         item: TOTEM_OF_UNDYING
-        amount: 4
+        amount: 1
       E:
         item: EMERALD_BLOCK
         amount: 32
