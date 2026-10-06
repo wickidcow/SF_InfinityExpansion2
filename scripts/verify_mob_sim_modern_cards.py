@@ -6,9 +6,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 MODERN = ROOT / "src/main/resources/mob-simulation-modern.yml"
 SETUP = ROOT / "src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/setup/MobSimulationSetup.kt"
+CONFIG_SERVICE = ROOT / "src/main/kotlin/net/guizhanss/infinityexpansion2/core/services/ConfigService.kt"
 
 modern = MODERN.read_text()
 setup = SETUP.read_text()
+config_service = CONFIG_SERVICE.read_text()
 
 required_cards = (
     "squid",
@@ -19,6 +21,8 @@ required_cards = (
     "parched",
     "nautilus",
     "evoker",
+    "cod",
+    "sulfur_cube",
 )
 
 missing = [card for card in required_cards if f"\n{card}:\n" not in "\n" + modern]
@@ -34,6 +38,10 @@ checks = {
     "Potion-capable items require PotionMeta": "item.itemMeta as? PotionMeta ?: return null" in setup,
     "Potion names are resolved through PotionType": "PotionType.valueOf" in setup,
     "Potion metadata is applied to the output item": "meta.basePotionType = potionType" in setup,
+    "Sulfur Cube simulation produces sulfur": "sulfur_cube:" in modern and "item: SULFUR" in modern,
+    "Cod simulation retains its basic vanilla loot": "cod:" in modern and "item: BONE_MEAL" in modern,
+    "Existing servers receive newly shipped cards": "mergeBundledModernMobSimulationCards(plugin)" in config_service,
+    "Existing card sections are never overwritten": "if (modernMobSimConfig.configuration.contains(id)) return@forEach" in config_service,
     "Deprecated PotionData API is not used": "PotionData" not in setup,
 }
 
