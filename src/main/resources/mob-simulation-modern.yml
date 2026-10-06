@@ -617,3 +617,56 @@ evoker:
         item: OMINOUS_BOTTLE
         amount: 8
 
+cod:
+  enabled: true
+  name: "Cod"
+  texture: IRON_CHESTPLATE
+  energy: 75
+  experience: 1
+  drops:
+    - item: COD
+      chance: 1
+    - item: BONE_MEAL
+      chance: 0.05
+  recipe:
+    pattern:
+      - "KCK"
+      - "WXW"
+      - "KCK"
+    ingredient:
+      K:
+        item: KELP
+        amount: 64
+      C:
+        item: COD
+        amount: 64
+      W:
+        item: WATER_BUCKET
+        amount: 1
+
+sulfur_cube:
+  enabled: true
+  name: "Sulfur Cube"
+  texture: IRON_CHESTPLATE
+  energy: 150
+  experience: 1
+  drops:
+    - item: SULFUR
+      amount: "1-2"
+      chance: 1
+  recipe:
+    pattern:
+      - "SBS"
+      - "LXL"
+      - "SBS"
+    ingredient:
+      S:
+        item: SULFUR
+        amount: 32
+      B:
+        item: SULFUR_CUBE_BUCKET
+        amount: 1
+      L:
+        item: SLIME_BLOCK
+        amount: 16
+
