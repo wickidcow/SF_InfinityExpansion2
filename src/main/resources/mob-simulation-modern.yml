@@ -3,6 +3,7 @@
 # servers receive new cards without their historical config being overwritten.
 # Define the same card id in mob-simulation.yml to override one of these defaults.
 # drop-mode: random-one selects exactly one configured drop per production cycle.
+# Optional potion metadata on potion-capable drops uses Bukkit PotionType names.
 # Card textures follow IE2's historical difficulty tiers:
 # iron = passive/low threat, diamond = hostile/tough, netherite = extreme/boss.
 
@@ -383,3 +384,236 @@ rabbit:
       F:
         item: RABBIT_FOOT
         amount: 8
+
+squid:
+  enabled: true
+  name: "Squid"
+  texture: IRON_CHESTPLATE
+  energy: 150
+  experience: 1
+  drops:
+    - item: INK_SAC
+      amount: "1-3"
+      chance: 1
+  recipe:
+    pattern:
+      - "IKI"
+      - "CXC"
+      - "IKI"
+    ingredient:
+      I:
+        item: INK_SAC
+        amount: 64
+      K:
+        item: KELP
+        amount: 64
+      C:
+        item: COD
+        amount: 32
+
+glow_squid:
+  enabled: true
+  name: "Glow Squid"
+  texture: IRON_CHESTPLATE
+  energy: 150
+  experience: 1
+  drops:
+    - item: GLOW_INK_SAC
+      amount: "1-3"
+      chance: 1
+  recipe:
+    pattern:
+      - "GSG"
+      - "SXS"
+      - "GSG"
+    ingredient:
+      G:
+        item: GLOW_INK_SAC
+        amount: 64
+      S:
+        item: SEA_LANTERN
+        amount: 16
+
+husk:
+  enabled: true
+  name: "Husk"
+  texture: DIAMOND_CHESTPLATE
+  energy: 300
+  experience: 2
+  drops:
+    - item: ROTTEN_FLESH
+      amount: "1-2"
+      chance: 1
+    - item: IRON_INGOT
+      chance: 0.025
+    - item: CARROT
+      chance: 0.025
+    - item: POTATO
+      chance: 0.025
+  recipe:
+    pattern:
+      - "SRS"
+      - "RXR"
+      - "SRS"
+    ingredient:
+      S:
+        item: SAND
+        amount: 64
+      R:
+        item: ROTTEN_FLESH
+        amount: 64
+
+stray:
+  enabled: true
+  name: "Stray"
+  texture: DIAMOND_CHESTPLATE
+  energy: 300
+  experience: 2
+  drops:
+    - item: BONE
+      amount: "1-2"
+      chance: 1
+    - item: ARROW
+      amount: "1-2"
+      chance: 1
+    - item: TIPPED_ARROW
+      potion: SLOWNESS
+      chance: 0.1
+  recipe:
+    pattern:
+      - "PAP"
+      - "BXB"
+      - "PAP"
+    ingredient:
+      P:
+        item: PACKED_ICE
+        amount: 32
+      A:
+        item: ARROW
+        amount: 64
+      B:
+        item: BONE
+        amount: 64
+
+bogged:
+  enabled: true
+  name: "Bogged"
+  texture: DIAMOND_CHESTPLATE
+  energy: 300
+  experience: 2
+  drops:
+    - item: BONE
+      amount: "1-2"
+      chance: 1
+    - item: ARROW
+      amount: "1-2"
+      chance: 1
+    - item: TIPPED_ARROW
+      potion: POISON
+      chance: 0.1
+  recipe:
+    pattern:
+      - "MAM"
+      - "PXP"
+      - "MBM"
+    ingredient:
+      M:
+        item: MOSS_BLOCK
+        amount: 64
+      A:
+        item: ARROW
+        amount: 64
+      P:
+        item: POISONOUS_POTATO
+        amount: 16
+      B:
+        item: BONE
+        amount: 64
+
+parched:
+  enabled: true
+  name: "Parched"
+  texture: DIAMOND_CHESTPLATE
+  energy: 300
+  experience: 2
+  drops:
+    - item: BONE
+      amount: "1-2"
+      chance: 1
+    - item: ARROW
+      amount: "1-2"
+      chance: 1
+    - item: TIPPED_ARROW
+      potion: WEAKNESS
+      chance: 0.1
+  recipe:
+    pattern:
+      - "RAR"
+      - "FXF"
+      - "RBR"
+    ingredient:
+      R:
+        item: RED_SAND
+        amount: 64
+      A:
+        item: ARROW
+        amount: 64
+      F:
+        item: FERMENTED_SPIDER_EYE
+        amount: 16
+      B:
+        item: BONE
+        amount: 64
+
+nautilus:
+  enabled: true
+  name: "Nautilus"
+  texture: IRON_CHESTPLATE
+  energy: 300
+  experience: 2
+  drops:
+    - item: NAUTILUS_SHELL
+      chance: 0.05
+  recipe:
+    pattern:
+      - "SPS"
+      - "FXF"
+      - "SPS"
+    ingredient:
+      S:
+        item: NAUTILUS_SHELL
+        amount: 8
+      P:
+        item: PUFFERFISH
+        amount: 32
+      F:
+        item: PRISMARINE_SHARD
+        amount: 64
+
+evoker:
+  enabled: true
+  name: "Evoker"
+  texture: DIAMOND_CHESTPLATE
+  energy: 1800
+  experience: 12
+  drops:
+    - item: TOTEM_OF_UNDYING
+      chance: 1
+    - item: EMERALD
+      chance: 0.5
+  recipe:
+    pattern:
+      - "TET"
+      - "OXO"
+      - "TET"
+    ingredient:
+      T:
+        item: TOTEM_OF_UNDYING
+        amount: 4
+      E:
+        item: EMERALD_BLOCK
+        amount: 32
+      O:
+        item: OMINOUS_BOTTLE
+        amount: 8
+
