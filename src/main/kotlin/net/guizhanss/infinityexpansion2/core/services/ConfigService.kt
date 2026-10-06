@@ -15,7 +15,10 @@ import net.guizhanss.infinityexpansion2.utils.bukkitext.getAsSerializable
 import net.guizhanss.infinityexpansion2.utils.bukkitext.getAsSerializableList
 import org.bukkit.World.Environment
 import org.bukkit.configuration.ConfigurationSection
+import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.enchantments.Enchantment
+import java.io.InputStreamReader
+import java.nio.charset.StandardCharsets
 
 class ConfigService(plugin: InfinityExpansion2) {
 
@@ -149,7 +152,46 @@ class ConfigService(plugin: InfinityExpansion2) {
             plugin.saveResource("machine-settings.yml", false)
         }
         reload()
+        mergeBundledModernMobSimulationCards(plugin)
         migrateModernMobSimulationTextures()
+    }
+
+    /**
+     * Merge only entirely missing modern card sections from the bundled defaults.
+     *
+     * Existing server values are never overwritten. Administrators can disable a shipped card
+     * with enabled: false; deleting the whole section intentionally causes the current shipped
+     * default to be restored on the next startup.
+     */
+    private fun mergeBundledModernMobSimulationCards(plugin: InfinityExpansion2) {
+        val defaults = plugin.getResource("mob-simulation-modern.yml")?.use { input ->
+            YamlConfiguration.loadConfiguration(InputStreamReader(input, StandardCharsets.UTF_8))
+        } ?: return
+
+        var changed = false
+        defaults.getKeys(false).forEach { id ->
+            if (modernMobSimConfig.configuration.contains(id)) return@forEach
+            val source = defaults.getConfigurationSection(id) ?: return@forEach
+            copySection(source, modernMobSimConfig.configuration, id)
+            changed = true
+        }
+
+        if (changed) {
+            modernMobSimConfig.save()
+            modernMobSimConfig.reload()
+        }
+    }
+
+    private fun copySection(source: ConfigurationSection, target: ConfigurationSection, targetPath: String) {
+        source.getKeys(false).forEach { key ->
+            val sourceSection = source.getConfigurationSection(key)
+            val path = "$targetPath.$key"
+            if (sourceSection != null) {
+                copySection(sourceSection, target, path)
+            } else {
+                target.set(path, source.get(key))
+            }
+        }
     }
 
     /**
