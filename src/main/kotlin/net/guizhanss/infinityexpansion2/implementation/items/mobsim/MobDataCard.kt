@@ -58,10 +58,16 @@ class MobDataCard(
         props.drops.forEachIndexed { index, (item, chance) ->
             val displayItem = item.clone()
             val amountRange = props.getDropAmountRange(index)
-            if (amountRange.first != amountRange.last) {
+            val damageRange = props.getDropDamageRange(index)
+            if (amountRange.first != amountRange.last || damageRange != null) {
                 val meta = displayItem.itemMeta
                 val lore = (meta.lore ?: emptyList()).toMutableList()
-                lore.add("${ChatColor.GRAY}Amount: ${amountRange.first}-${amountRange.last}")
+                if (amountRange.first != amountRange.last) {
+                    lore.add("${ChatColor.GRAY}Amount: ${amountRange.first}-${amountRange.last}")
+                }
+                if (damageRange != null) {
+                    lore.add("${ChatColor.GRAY}Damage: ${damageRange.first}-${damageRange.last}")
+                }
                 meta.lore = lore
                 displayItem.itemMeta = meta
             }

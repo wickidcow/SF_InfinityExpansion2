@@ -670,3 +670,1617 @@ sulfur_cube:
         item: SLIME_BLOCK
         amount: 16
 
+
+# Additional cards for SmartSpawner migration coverage.
+# Loot and base XP use the supplied SmartSpawner 1.6.6 settings as a reference.
+# Percent chances are fractions here; 0-N amounts become 1-N with the chance
+# multiplied by N/(N+1), preserving the probability of receiving each quantity.
+# Equipment damage is the damage value applied by the source configuration,
+# not remaining durability. See docs/SMARTSPAWNER_CARDS.md for details.
+
+allay:
+  enabled: true
+  name: "Allay"
+  texture: IRON_CHESTPLATE
+  energy: 150
+  experience: 0
+  drop-mode: independent
+  drops:
+    - item: LEATHER
+      amount: "1-1"
+      chance: 0.03
+    - item: BONE_MEAL
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: STRING
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: WHEAT
+      amount: "1-2"
+      chance: 0.03333333333333333
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: AMETHYST_SHARD
+        amount: 64
+      B:
+        item: NOTE_BLOCK
+        amount: 16
+      C:
+        item: LEATHER
+        amount: 64
+
+axolotl:
+  enabled: true
+  name: "Axolotl"
+  texture: IRON_CHESTPLATE
+  energy: 150
+  experience: 1
+  drop-mode: independent
+  drops:
+    - item: PRISMARINE_SHARD
+      amount: "1-2"
+      chance: 0.05
+    - item: INK_SAC
+      amount: "1-2"
+      chance: 0.04
+    - item: KELP
+      amount: "1-2"
+      chance: 0.05333333333333334
+    - item: SEAGRASS
+      amount: "1-2"
+      chance: 0.04666666666666667
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: PRISMARINE_SHARD
+        amount: 64
+      B:
+        item: TROPICAL_FISH
+        amount: 64
+      C:
+        item: MOSS_BLOCK
+        amount: 32
+
+bat:
+  enabled: true
+  name: "Bat"
+  texture: IRON_CHESTPLATE
+  energy: 75
+  experience: 0
+  drop-mode: independent
+  drops:
+    - item: LEATHER
+      amount: "1-1"
+      chance: 0.03
+    - item: BONE_MEAL
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: STRING
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: WHEAT
+      amount: "1-2"
+      chance: 0.03333333333333333
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: LEATHER
+        amount: 64
+      B:
+        item: COAL
+        amount: 64
+      C:
+        item: COBBLED_DEEPSLATE
+        amount: 64
+
+camel:
+  enabled: true
+  name: "Camel"
+  texture: IRON_CHESTPLATE
+  energy: 150
+  experience: 3
+  drop-mode: independent
+  drops:
+    - item: LEATHER
+      amount: "1-1"
+      chance: 0.03
+    - item: BONE_MEAL
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: STRING
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: WHEAT
+      amount: "1-2"
+      chance: 0.03333333333333333
+    - item: SADDLE
+      amount: "1-1"
+      chance: 0.02
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: SAND
+        amount: 64
+      B:
+        item: CACTUS
+        amount: 64
+      C:
+        item: SADDLE
+        amount: 1
+
+camel_husk:
+  enabled: true
+  name: "Camel Husk"
+  texture: DIAMOND_CHESTPLATE
+  energy: 300
+  experience: 3
+  drop-mode: independent
+  drops:
+    - item: ROTTEN_FLESH
+      amount: "2-3"
+      chance: 1.0
+    - item: BONE
+      amount: "1-2"
+      chance: 0.06666666666666667
+    - item: STRING
+      amount: "1-2"
+      chance: 0.05333333333333334
+    - item: IRON_NUGGET
+      amount: "1-3"
+      chance: 0.015
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: ROTTEN_FLESH
+        amount: 64
+      B:
+        item: CUT_SANDSTONE
+        amount: 64
+      C:
+        item: SADDLE
+        amount: 1
+
+cat:
+  enabled: true
+  name: "Cat"
+  texture: IRON_CHESTPLATE
+  energy: 75
+  experience: 1
+  drop-mode: independent
+  drops:
+    - item: STRING
+      amount: "1-2"
+      chance: 0.4444666666666667
+    - item: LEATHER
+      amount: "1-1"
+      chance: 0.03
+    - item: BONE_MEAL
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: WHEAT
+      amount: "1-2"
+      chance: 0.03333333333333333
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: STRING
+        amount: 64
+      B:
+        item: COD
+        amount: 64
+      C:
+        item: SALMON
+        amount: 64
+
+cave_spider:
+  enabled: true
+  name: "Cave Spider"
+  texture: DIAMOND_CHESTPLATE
+  energy: 300
+  experience: 5
+  drop-mode: independent
+  drops:
+    - item: SPIDER_EYE
+      amount: "1-1"
+      chance: 0.16665
+    - item: STRING
+      amount: "1-2"
+      chance: 0.4444666666666667
+    - item: BONE_MEAL
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: GUNPOWDER
+      amount: "1-1"
+      chance: 0.0075
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: COBWEB
+        amount: 16
+      B:
+        item: SPIDER_EYE
+        amount: 32
+      C:
+        item: FERMENTED_SPIDER_EYE
+        amount: 16
+
+copper_golem:
+  enabled: true
+  name: "Copper Golem"
+  texture: IRON_CHESTPLATE
+  energy: 150
+  experience: 0
+  drop-mode: independent
+  drops:
+    - item: COPPER_INGOT
+      amount: "1-3"
+      chance: 1.0
+    - item: IRON_NUGGET
+      amount: "1-4"
+      chance: 0.064
+    - item: REDSTONE
+      amount: "1-2"
+      chance: 0.04
+    - item: STONE
+      amount: "1-3"
+      chance: 0.075
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: COPPER_BLOCK
+        amount: 32
+      B:
+        item: PUMPKIN
+        amount: 16
+      C:
+        item: REDSTONE_BLOCK
+        amount: 16
+
+dolphin:
+  enabled: true
+  name: "Dolphin"
+  texture: IRON_CHESTPLATE
+  energy: 150
+  experience: 1
+  drop-mode: independent
+  drops:
+    - item: COD
+      amount: "1-1"
+      chance: 0.25
+    - item: PRISMARINE_SHARD
+      amount: "1-2"
+      chance: 0.05
+    - item: INK_SAC
+      amount: "1-2"
+      chance: 0.04
+    - item: KELP
+      amount: "1-2"
+      chance: 0.05333333333333334
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: COD
+        amount: 64
+      B:
+        item: PRISMARINE_SHARD
+        amount: 64
+      C:
+        item: NAUTILUS_SHELL
+        amount: 8
+
+donkey:
+  enabled: true
+  name: "Donkey"
+  texture: IRON_CHESTPLATE
+  energy: 75
+  experience: 1
+  drop-mode: independent
+  drops:
+    - item: LEATHER
+      amount: "1-2"
+      chance: 0.4444666666666667
+    - item: BONE_MEAL
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: STRING
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: WHEAT
+      amount: "1-2"
+      chance: 0.03333333333333333
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: LEATHER
+        amount: 64
+      B:
+        item: CHEST
+        amount: 16
+      C:
+        item: HAY_BLOCK
+        amount: 16
+
+elder_guardian:
+  enabled: true
+  name: "Elder Guardian"
+  texture: NETHERITE_CHESTPLATE
+  energy: 1800
+  experience: 10
+  drop-mode: independent
+  drops:
+    - item: PRISMARINE_SHARD
+      amount: "1-2"
+      chance: 0.4444666666666667
+    - item: PRISMARINE_CRYSTALS
+      amount: "1-1"
+      chance: 0.16665
+    - item: WET_SPONGE
+      amount: "1-1"
+      chance: 1.0
+    - item: TIDE_ARMOR_TRIM_SMITHING_TEMPLATE
+      amount: "1-1"
+      chance: 0.025
+    - item: COD
+      amount: "1-1"
+      chance: 0.25
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: SPONGE
+        amount: 8
+      B:
+        item: PRISMARINE_BRICKS
+        amount: 64
+      C:
+        item: HEART_OF_THE_SEA
+        amount: 1
+
+endermite:
+  enabled: true
+  name: "Endermite"
+  texture: DIAMOND_CHESTPLATE
+  energy: 300
+  experience: 3
+  drop-mode: independent
+  drops:
+    - item: STRING
+      amount: "1-2"
+      chance: 0.06666666666666667
+    - item: SPIDER_EYE
+      amount: "1-1"
+      chance: 0.03
+    - item: BONE_MEAL
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: GUNPOWDER
+      amount: "1-1"
+      chance: 0.0075
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: ENDER_PEARL
+        amount: 16
+      B:
+        item: STRING
+        amount: 64
+      C:
+        item: END_STONE
+        amount: 64
+
+fox:
+  enabled: true
+  name: "Fox"
+  texture: IRON_CHESTPLATE
+  energy: 150
+  experience: 1
+  drop-mode: independent
+  drops:
+    - item: EMERALD
+      amount: "1-1"
+      chance: 0.01
+    - item: RABBIT_FOOT
+      amount: "1-1"
+      chance: 0.02
+    - item: RABBIT_HIDE
+      amount: "1-1"
+      chance: 0.02
+    - item: EGG
+      amount: "1-1"
+      chance: 0.03
+    - item: WHEAT
+      amount: "1-1"
+      chance: 0.04
+    - item: LEATHER
+      amount: "1-1"
+      chance: 0.04
+    - item: FEATHER
+      amount: "1-1"
+      chance: 0.04
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: SWEET_BERRIES
+        amount: 64
+      B:
+        item: RABBIT_HIDE
+        amount: 64
+      C:
+        item: EMERALD
+        amount: 16
+
+happy_ghast:
+  enabled: true
+  name: "Happy Ghast"
+  texture: IRON_CHESTPLATE
+  energy: 300
+  experience: 3
+  drop-mode: independent
+  drops:
+    - item: GUNPOWDER
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: GLOWSTONE_DUST
+      amount: "1-3"
+      chance: 0.045
+    - item: QUARTZ
+      amount: "1-2"
+      chance: 0.03333333333333333
+    - item: MAGMA_CREAM
+      amount: "1-1"
+      chance: 0.01
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: SNOW_BLOCK
+        amount: 64
+      B:
+        item: WHITE_WOOL
+        amount: 64
+      C:
+        item: GHAST_TEAR
+        amount: 16
+
+horse:
+  enabled: true
+  name: "Horse"
+  texture: IRON_CHESTPLATE
+  energy: 150
+  experience: 3
+  drop-mode: independent
+  drops:
+    - item: LEATHER
+      amount: "1-2"
+      chance: 0.4444666666666667
+    - item: BONE_MEAL
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: STRING
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: WHEAT
+      amount: "1-2"
+      chance: 0.03333333333333333
+    - item: SADDLE
+      amount: "1-1"
+      chance: 0.02
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: LEATHER
+        amount: 64
+      B:
+        item: GOLDEN_CARROT
+        amount: 32
+      C:
+        item: SADDLE
+        amount: 1
+
+llama:
+  enabled: true
+  name: "Llama"
+  texture: IRON_CHESTPLATE
+  energy: 150
+  experience: 1
+  drop-mode: independent
+  drops:
+    - item: LEATHER
+      amount: "1-2"
+      chance: 0.4444666666666667
+    - item: BONE_MEAL
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: STRING
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: WHEAT
+      amount: "1-2"
+      chance: 0.03333333333333333
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: LEATHER
+        amount: 64
+      B:
+        item: HAY_BLOCK
+        amount: 32
+      C:
+        item: WHITE_CARPET
+        amount: 64
+
+mooshroom:
+  enabled: true
+  name: "Mooshroom"
+  texture: IRON_CHESTPLATE
+  energy: 150
+  experience: 1
+  drop-mode: independent
+  drops:
+    - item: LEATHER
+      amount: "1-2"
+      chance: 0.4444666666666667
+    - item: BEEF
+      amount: "1-3"
+      chance: 1.0
+    - item: BONE_MEAL
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: STRING
+      amount: "1-2"
+      chance: 0.02666666666666667
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: RED_MUSHROOM_BLOCK
+        amount: 32
+      B:
+        item: BROWN_MUSHROOM_BLOCK
+        amount: 32
+      C:
+        item: BEEF
+        amount: 64
+
+mule:
+  enabled: true
+  name: "Mule"
+  texture: IRON_CHESTPLATE
+  energy: 75
+  experience: 1
+  drop-mode: independent
+  drops:
+    - item: LEATHER
+      amount: "1-2"
+      chance: 0.4444666666666667
+    - item: BONE_MEAL
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: STRING
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: WHEAT
+      amount: "1-2"
+      chance: 0.03333333333333333
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: LEATHER
+        amount: 64
+      B:
+        item: CHEST
+        amount: 16
+      C:
+        item: SADDLE
+        amount: 1
+
+ocelot:
+  enabled: true
+  name: "Ocelot"
+  texture: IRON_CHESTPLATE
+  energy: 75
+  experience: 1
+  drop-mode: independent
+  drops:
+    - item: LEATHER
+      amount: "1-1"
+      chance: 0.03
+    - item: BONE_MEAL
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: STRING
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: WHEAT
+      amount: "1-2"
+      chance: 0.03333333333333333
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: COD
+        amount: 64
+      B:
+        item: TROPICAL_FISH
+        amount: 64
+      C:
+        item: JUNGLE_LEAVES
+        amount: 64
+
+panda:
+  enabled: true
+  name: "Panda"
+  texture: IRON_CHESTPLATE
+  energy: 150
+  experience: 1
+  drop-mode: independent
+  drops:
+    - item: BAMBOO
+      amount: "1-1"
+      chance: 1.0
+    - item: LEATHER
+      amount: "1-1"
+      chance: 0.03
+    - item: BONE_MEAL
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: STRING
+      amount: "1-2"
+      chance: 0.02666666666666667
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: BAMBOO_BLOCK
+        amount: 64
+      B:
+        item: CAKE
+        amount: 1
+      C:
+        item: SLIME_BALL
+        amount: 32
+
+parrot:
+  enabled: true
+  name: "Parrot"
+  texture: IRON_CHESTPLATE
+  energy: 150
+  experience: 1
+  drop-mode: independent
+  drops:
+    - item: FEATHER
+      amount: "1-2"
+      chance: 1.0
+    - item: LEATHER
+      amount: "1-1"
+      chance: 0.03
+    - item: BONE_MEAL
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: STRING
+      amount: "1-2"
+      chance: 0.02666666666666667
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: FEATHER
+        amount: 64
+      B:
+        item: MELON_SEEDS
+        amount: 64
+      C:
+        item: JUNGLE_SAPLING
+        amount: 16
+
+piglin:
+  enabled: true
+  name: "Piglin"
+  texture: DIAMOND_CHESTPLATE
+  energy: 300
+  experience: 5
+  drop-mode: independent
+  drops:
+    - item: CROSSBOW
+      amount: "1-1"
+      chance: 0.05
+      damage: "1-326"
+    - item: GOLDEN_SWORD
+      amount: "1-1"
+      chance: 0.085
+      damage: "1-32"
+    - item: GUNPOWDER
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: GLOWSTONE_DUST
+      amount: "1-3"
+      chance: 0.045
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: GOLD_INGOT
+        amount: 64
+      B:
+        item: CRIMSON_FUNGUS
+        amount: 32
+      C:
+        item: CROSSBOW
+        amount: 1
+
+piglin_brute:
+  enabled: true
+  name: "Piglin Brute"
+  texture: DIAMOND_CHESTPLATE
+  energy: 600
+  experience: 20
+  drop-mode: independent
+  drops:
+    - item: GOLDEN_AXE
+      amount: "1-1"
+      chance: 0.085
+      damage: "1-32"
+    - item: GUNPOWDER
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: GLOWSTONE_DUST
+      amount: "1-3"
+      chance: 0.045
+    - item: QUARTZ
+      amount: "1-2"
+      chance: 0.03333333333333333
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: GOLD_BLOCK
+        amount: 32
+      B:
+        item: BLACKSTONE
+        amount: 64
+      C:
+        item: GOLDEN_AXE
+        amount: 1
+
+pillager:
+  enabled: true
+  name: "Pillager"
+  texture: DIAMOND_CHESTPLATE
+  energy: 300
+  experience: 5
+  drop-mode: independent
+  drops:
+    - item: CROSSBOW
+      amount: "1-1"
+      chance: 0.05
+      damage: "1-326"
+    - item: ARROW
+      amount: "1-2"
+      chance: 0.4444666666666667
+    - item: EMERALD
+      amount: "1-1"
+      chance: 0.02
+    - item: IRON_NUGGET
+      amount: "1-3"
+      chance: 0.045
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: ARROW
+        amount: 64
+      B:
+        item: DARK_OAK_LOG
+        amount: 64
+      C:
+        item: CROSSBOW
+        amount: 1
+
+polar_bear:
+  enabled: true
+  name: "Polar Bear"
+  texture: IRON_CHESTPLATE
+  energy: 150
+  experience: 1
+  drop-mode: independent
+  drops:
+    - item: COD
+      amount: "1-2"
+      chance: 0.3333333333333333
+    - item: SALMON
+      amount: "1-2"
+      chance: 0.11113333333333333
+    - item: LEATHER
+      amount: "1-1"
+      chance: 0.03
+    - item: BONE_MEAL
+      amount: "1-2"
+      chance: 0.02666666666666667
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: PACKED_ICE
+        amount: 32
+      B:
+        item: COD
+        amount: 64
+      C:
+        item: SALMON
+        amount: 64
+
+pufferfish:
+  enabled: true
+  name: "Pufferfish"
+  texture: IRON_CHESTPLATE
+  energy: 75
+  experience: 3
+  drop-mode: independent
+  drops:
+    - item: PUFFERFISH
+      amount: "1-1"
+      chance: 1.0
+    - item: BONE_MEAL
+      amount: "1-1"
+      chance: 0.025
+    - item: PRISMARINE_SHARD
+      amount: "1-2"
+      chance: 0.05
+    - item: INK_SAC
+      amount: "1-2"
+      chance: 0.04
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: KELP
+        amount: 64
+      B:
+        item: PUFFERFISH
+        amount: 64
+      C:
+        item: WATER_BUCKET
+        amount: 1
+
+ravager:
+  enabled: true
+  name: "Ravager"
+  texture: DIAMOND_CHESTPLATE
+  energy: 1800
+  experience: 20
+  drop-mode: independent
+  drops:
+    - item: SADDLE
+      amount: "1-1"
+      chance: 1.0
+    - item: EMERALD
+      amount: "1-1"
+      chance: 0.02
+    - item: IRON_NUGGET
+      amount: "1-3"
+      chance: 0.045
+    - item: GOLD_NUGGET
+      amount: "1-3"
+      chance: 0.03
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: SADDLE
+        amount: 1
+      B:
+        item: EMERALD_BLOCK
+        amount: 16
+      C:
+        item: IRON_BLOCK
+        amount: 32
+
+salmon:
+  enabled: true
+  name: "Salmon"
+  texture: IRON_CHESTPLATE
+  energy: 75
+  experience: 1
+  drop-mode: independent
+  drops:
+    - item: SALMON
+      amount: "1-1"
+      chance: 1.0
+    - item: BONE_MEAL
+      amount: "1-1"
+      chance: 0.025
+    - item: PRISMARINE_SHARD
+      amount: "1-2"
+      chance: 0.05
+    - item: INK_SAC
+      amount: "1-2"
+      chance: 0.04
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: KELP
+        amount: 64
+      B:
+        item: SALMON
+        amount: 64
+      C:
+        item: WATER_BUCKET
+        amount: 1
+
+silverfish:
+  enabled: true
+  name: "Silverfish"
+  texture: DIAMOND_CHESTPLATE
+  energy: 300
+  experience: 5
+  drop-mode: independent
+  drops:
+    - item: STRING
+      amount: "1-2"
+      chance: 0.06666666666666667
+    - item: SPIDER_EYE
+      amount: "1-1"
+      chance: 0.03
+    - item: BONE_MEAL
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: GUNPOWDER
+      amount: "1-1"
+      chance: 0.0075
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: STONE_BRICKS
+        amount: 64
+      B:
+        item: STRING
+        amount: 64
+      C:
+        item: GRAVEL
+        amount: 64
+
+skeleton_horse:
+  enabled: true
+  name: "Skeleton Horse"
+  texture: IRON_CHESTPLATE
+  energy: 300
+  experience: 3
+  drop-mode: independent
+  drops:
+    - item: BONE
+      amount: "1-2"
+      chance: 0.4444666666666667
+    - item: STRING
+      amount: "1-2"
+      chance: 0.05333333333333334
+    - item: ROTTEN_FLESH
+      amount: "1-2"
+      chance: 0.13333333333333333
+    - item: IRON_NUGGET
+      amount: "1-3"
+      chance: 0.015
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: BONE_BLOCK
+        amount: 32
+      B:
+        item: LIGHTNING_ROD
+        amount: 4
+      C:
+        item: SADDLE
+        amount: 1
+
+snow_golem:
+  enabled: true
+  name: "Snow Golem"
+  texture: IRON_CHESTPLATE
+  energy: 150
+  experience: 0
+  drop-mode: independent
+  drops:
+    - item: SNOWBALL
+      amount: "1-15"
+      chance: 0.87890625
+    - item: IRON_NUGGET
+      amount: "1-4"
+      chance: 0.064
+    - item: COPPER_INGOT
+      amount: "1-1"
+      chance: 0.03
+    - item: REDSTONE
+      amount: "1-2"
+      chance: 0.04
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: SNOW_BLOCK
+        amount: 64
+      B:
+        item: CARVED_PUMPKIN
+        amount: 16
+      C:
+        item: IRON_NUGGET
+        amount: 64
+
+strider:
+  enabled: true
+  name: "Strider"
+  texture: IRON_CHESTPLATE
+  energy: 150
+  experience: 3
+  drop-mode: independent
+  drops:
+    - item: STRING
+      amount: "2-5"
+      chance: 1.0
+    - item: GUNPOWDER
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: GLOWSTONE_DUST
+      amount: "1-3"
+      chance: 0.045
+    - item: QUARTZ
+      amount: "1-2"
+      chance: 0.03333333333333333
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: STRING
+        amount: 64
+      B:
+        item: WARPED_FUNGUS
+        amount: 32
+      C:
+        item: SADDLE
+        amount: 1
+
+tadpole:
+  enabled: true
+  name: "Tadpole"
+  texture: IRON_CHESTPLATE
+  energy: 75
+  experience: 0
+  drop-mode: independent
+  drops:
+    - item: LEATHER
+      amount: "1-1"
+      chance: 0.03
+    - item: BONE_MEAL
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: STRING
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: WHEAT
+      amount: "1-2"
+      chance: 0.03333333333333333
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: SLIME_BALL
+        amount: 64
+      B:
+        item: SEAGRASS
+        amount: 64
+      C:
+        item: WATER_BUCKET
+        amount: 1
+
+trader_llama:
+  enabled: true
+  name: "Trader Llama"
+  texture: IRON_CHESTPLATE
+  energy: 150
+  experience: 1
+  drop-mode: independent
+  drops:
+    - item: LEATHER
+      amount: "1-2"
+      chance: 0.4444666666666667
+    - item: BONE_MEAL
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: STRING
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: WHEAT
+      amount: "1-2"
+      chance: 0.03333333333333333
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: LEATHER
+        amount: 64
+      B:
+        item: BLUE_CARPET
+        amount: 64
+      C:
+        item: EMERALD
+        amount: 32
+
+tropical_fish:
+  enabled: true
+  name: "Tropical Fish"
+  texture: IRON_CHESTPLATE
+  energy: 75
+  experience: 1
+  drop-mode: independent
+  drops:
+    - item: TROPICAL_FISH
+      amount: "1-1"
+      chance: 1.0
+    - item: BONE_MEAL
+      amount: "1-1"
+      chance: 0.025
+    - item: PRISMARINE_SHARD
+      amount: "1-2"
+      chance: 0.05
+    - item: INK_SAC
+      amount: "1-2"
+      chance: 0.04
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: KELP
+        amount: 64
+      B:
+        item: TROPICAL_FISH
+        amount: 64
+      C:
+        item: WATER_BUCKET
+        amount: 1
+
+turtle:
+  enabled: true
+  name: "Turtle"
+  texture: IRON_CHESTPLATE
+  energy: 150
+  experience: 1
+  drop-mode: independent
+  drops:
+    - item: SEAGRASS
+      amount: "1-2"
+      chance: 0.4444666666666667
+    - item: PRISMARINE_SHARD
+      amount: "1-2"
+      chance: 0.05
+    - item: INK_SAC
+      amount: "1-2"
+      chance: 0.04
+    - item: KELP
+      amount: "1-2"
+      chance: 0.05333333333333334
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: SEAGRASS
+        amount: 64
+      B:
+        item: TURTLE_SCUTE
+        amount: 16
+      C:
+        item: TURTLE_EGG
+        amount: 8
+
+vex:
+  enabled: true
+  name: "Vex"
+  texture: DIAMOND_CHESTPLATE
+  energy: 300
+  experience: 3
+  drop-mode: independent
+  drops:
+    - item: BONE
+      amount: "1-2"
+      chance: 0.06666666666666667
+    - item: STRING
+      amount: "1-2"
+      chance: 0.05333333333333334
+    - item: ROTTEN_FLESH
+      amount: "1-2"
+      chance: 0.13333333333333333
+    - item: IRON_NUGGET
+      amount: "1-3"
+      chance: 0.015
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: IRON_SWORD
+        amount: 1
+      B:
+        item: SOUL_SAND
+        amount: 32
+      C:
+        item: PHANTOM_MEMBRANE
+        amount: 16
+
+vindicator:
+  enabled: true
+  name: "Vindicator"
+  texture: DIAMOND_CHESTPLATE
+  energy: 600
+  experience: 5
+  drop-mode: independent
+  drops:
+    - item: EMERALD
+      amount: "1-1"
+      chance: 0.125
+    - item: IRON_AXE
+      amount: "1-1"
+      chance: 0.05
+      damage: "1-250"
+    - item: IRON_NUGGET
+      amount: "1-3"
+      chance: 0.045
+    - item: GOLD_NUGGET
+      amount: "1-3"
+      chance: 0.03
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: EMERALD
+        amount: 32
+      B:
+        item: DARK_OAK_LOG
+        amount: 64
+      C:
+        item: IRON_AXE
+        amount: 1
+
+wandering_trader:
+  enabled: true
+  name: "Wandering Trader"
+  texture: IRON_CHESTPLATE
+  energy: 150
+  experience: 0
+  drop-mode: independent
+  drops:
+    - item: LEATHER
+      amount: "1-1"
+      chance: 0.03
+    - item: BONE_MEAL
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: STRING
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: WHEAT
+      amount: "1-2"
+      chance: 0.03333333333333333
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: EMERALD
+        amount: 32
+      B:
+        item: LEAD
+        amount: 16
+      C:
+        item: BLUE_WOOL
+        amount: 64
+
+wolf:
+  enabled: true
+  name: "Wolf"
+  texture: IRON_CHESTPLATE
+  energy: 150
+  experience: 3
+  drop-mode: independent
+  drops:
+    - item: LEATHER
+      amount: "1-1"
+      chance: 0.03
+    - item: BONE_MEAL
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: STRING
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: WHEAT
+      amount: "1-2"
+      chance: 0.03333333333333333
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: BONE
+        amount: 64
+      B:
+        item: SPRUCE_LOG
+        amount: 64
+      C:
+        item: LEATHER
+        amount: 64
+
+zoglin:
+  enabled: true
+  name: "Zoglin"
+  texture: DIAMOND_CHESTPLATE
+  energy: 300
+  experience: 5
+  drop-mode: independent
+  drops:
+    - item: ROTTEN_FLESH
+      amount: "1-3"
+      chance: 1.0
+    - item: GUNPOWDER
+      amount: "1-2"
+      chance: 0.02666666666666667
+    - item: GLOWSTONE_DUST
+      amount: "1-3"
+      chance: 0.045
+    - item: QUARTZ
+      amount: "1-2"
+      chance: 0.03333333333333333
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: ROTTEN_FLESH
+        amount: 64
+      B:
+        item: OBSIDIAN
+        amount: 32
+      C:
+        item: CRIMSON_STEM
+        amount: 64
+
+zombie_horse:
+  enabled: true
+  name: "Zombie Horse"
+  texture: DIAMOND_CHESTPLATE
+  energy: 300
+  experience: 3
+  drop-mode: independent
+  drops:
+    - item: ROTTEN_FLESH
+      amount: "1-2"
+      chance: 0.4444666666666667
+    - item: BONE
+      amount: "1-2"
+      chance: 0.06666666666666667
+    - item: STRING
+      amount: "1-2"
+      chance: 0.05333333333333334
+    - item: IRON_NUGGET
+      amount: "1-3"
+      chance: 0.015
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: ROTTEN_FLESH
+        amount: 64
+      B:
+        item: HAY_BLOCK
+        amount: 32
+      C:
+        item: SADDLE
+        amount: 1
+
+zombie_nautilus:
+  enabled: true
+  name: "Zombie Nautilus"
+  texture: DIAMOND_CHESTPLATE
+  energy: 300
+  experience: 3
+  drop-mode: independent
+  drops:
+    - item: ROTTEN_FLESH
+      amount: "1-3"
+      chance: 0.5625
+    - item: BONE
+      amount: "1-2"
+      chance: 0.06666666666666667
+    - item: STRING
+      amount: "1-2"
+      chance: 0.05333333333333334
+    - item: IRON_NUGGET
+      amount: "1-3"
+      chance: 0.015
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: NAUTILUS_SHELL
+        amount: 8
+      B:
+        item: ROTTEN_FLESH
+        amount: 64
+      C:
+        item: PRISMARINE_BRICKS
+        amount: 32
+
+zombie_villager:
+  enabled: true
+  name: "Zombie Villager"
+  texture: DIAMOND_CHESTPLATE
+  energy: 300
+  experience: 5
+  drop-mode: independent
+  drops:
+    - item: ROTTEN_FLESH
+      amount: "1-2"
+      chance: 0.4444666666666667
+    - item: IRON_INGOT
+      amount: "1-1"
+      chance: 0.00415
+    - item: CARROT
+      amount: "1-1"
+      chance: 0.00415
+    - item: POTATO
+      amount: "1-1"
+      chance: 0.00415
+  recipe:
+    pattern:
+      - "ABA"
+      - "CXC"
+      - "ABA"
+    ingredient:
+      A:
+        item: ROTTEN_FLESH
+        amount: 64
+      B:
+        item: GOLDEN_APPLE
+        amount: 8
+      C:
+        item: FERMENTED_SPIDER_EYE
+        amount: 16

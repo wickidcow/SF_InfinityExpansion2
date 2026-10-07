@@ -32,3 +32,20 @@ The example above produces between 1 and 5 porkchops whenever the chance roll su
 When stacked Mob Data Cards are enabled, IE2 keeps the existing stacked-card behavior: it rolls one amount for the production event and then applies the card-stack multiplier.
 
 Recipe ingredient `amount` values are unchanged and remain fixed numeric amounts; random ranges apply only to entries under `drops`.
+
+## Equipment damage
+
+Equipment drops can optionally set a fixed damage value or an inclusive damage range:
+
+```yaml
+drops:
+  - item: IRON_AXE
+    chance: 0.05
+    damage: "1-250"
+```
+
+`damage` means durability already used: `0` is undamaged. It does not mean remaining durability. The example retains the behavior of SmartSpawner 1.6.6's field named `durability`, which sets Bukkit item damage directly.
+
+Each successful production event rolls the configured damage on a fresh clone of the drop. Amount rolls, card-stack multiplication, and existing metadata are preserved. Cards supplied through the addon API and drops without `damage` keep their existing item metadata. The guide displays the configured damage range.
+
+The item must be damageable, and the range must be nonnegative, ordered, and no higher than its maximum damage (including an explicitly configured item maximum). Invalid values cause that card to remain unregistered rather than silently producing different equipment. Damage ranges apply to drops only; crafting ingredients still use their normal fixed items.

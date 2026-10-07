@@ -1,3 +1,12 @@
+## v2.0.12 - SmartSpawner Mob Data Card coverage
+
+- Add 44 native Mob Data Cards for the previously unsupported mob types in the supplied SmartSpawner configuration, including Dolphin, Zoglin, Vindicator, Zombie Horse, Tropical Fish, Elder Guardian, Wandering Trader, and Salmon.
+- Include the previously merged Stray, Evoker, and other modern-card additions in the published JAR. The shipped roster now covers all 87 source mob types plus Sulfur Cube.
+- Preserve the supplied new mobs' loot items and base XP, translating SmartSpawner percentages and zero-inclusive amount ranges into equivalent per-mob independent drop probabilities.
+- Support optional fixed or inclusive random equipment damage on drops, preserving SmartSpawner 1.6.6 worn-weapon behavior. Keep the MobDataCardProps public constructor and existing addon/card output behavior unchanged.
+- Add survival-obtainable infuser recipes and the existing armor difficulty icons. Preserve all previous card definitions and administrator overrides; merge only entirely absent modern card sections on startup.
+- Add runtime regression tests for card coverage, material resolution, recipe ambiguity, all 182 new loot distributions, equipment damage, metadata preservation, and invalid-input rejection.
+
 ## v2.0.11 - Storage withdrawal and existing-item safety
 
 - Deducts the actual number of items accepted by a player's inventory during Storage Unit withdrawals, including partial insertions into nearly full inventories.
