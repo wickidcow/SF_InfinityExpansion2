@@ -18,6 +18,8 @@ import net.guizhanss.infinityexpansion2.core.items.attributes.EnergyTickingConsu
 import net.guizhanss.infinityexpansion2.core.items.attributes.InformationalRecipeDisplayItem
 import net.guizhanss.infinityexpansion2.implementation.IEItems
 import net.guizhanss.infinityexpansion2.implementation.guide.IEItemGroups
+import net.guizhanss.infinityexpansion2.implementation.guide.MobDataCardGuideGroup
+import net.guizhanss.infinityexpansion2.implementation.guide.MobDataCardGuideKey
 import net.guizhanss.infinityexpansion2.implementation.recipes.IERecipeTypes
 import net.guizhanss.infinityexpansion2.utils.constant.Keys
 import net.guizhanss.infinityexpansion2.utils.items.GuiItems
@@ -43,6 +45,11 @@ class MobDataCard(
 
     override val wikiUrl = "mob-simulation/card"
 
+    internal var guideGroup: MobDataCardGuideGroup? = null
+
+    internal fun guideSortKey(): MobDataCardGuideKey? =
+        if (props.id.isBlank()) null else MobDataCardGuideKey.of(props.id, props.name, guideGroup)
+
     override fun postRegister() {
         super.postRegister()
 
@@ -58,10 +65,16 @@ class MobDataCard(
         props.drops.forEachIndexed { index, (item, chance) ->
             val displayItem = item.clone()
             val amountRange = props.getDropAmountRange(index)
-            if (amountRange.first != amountRange.last) {
+            val damageRange = props.getDropDamageRange(index)
+            if (amountRange.first != amountRange.last || damageRange != null) {
                 val meta = displayItem.itemMeta
                 val lore = (meta.lore ?: emptyList()).toMutableList()
-                lore.add("${ChatColor.GRAY}Amount: ${amountRange.first}-${amountRange.last}")
+                if (amountRange.first != amountRange.last) {
+                    lore.add("${ChatColor.GRAY}Amount: ${amountRange.first}-${amountRange.last}")
+                }
+                if (damageRange != null) {
+                    lore.add("${ChatColor.GRAY}Damage: ${damageRange.first}-${damageRange.last}")
+                }
                 meta.lore = lore
                 displayItem.itemMeta = meta
             }

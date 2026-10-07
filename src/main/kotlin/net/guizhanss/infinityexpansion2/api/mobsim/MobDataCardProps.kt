@@ -3,6 +3,7 @@ package net.guizhanss.infinityexpansion2.api.mobsim
 import io.github.thebusybiscuit.slimefun4.libraries.dough.collections.RandomizedSet
 import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
+import org.bukkit.inventory.meta.Damageable
 import java.util.Objects
 import kotlin.random.Random
 
@@ -23,6 +24,7 @@ data class MobDataCardProps(
     // internally, while cards registered by other addons continue to use their ItemStack amount.
     private val dropSet = RandomizedSet<Int>()
     private var dropAmountRanges: List<IntRange> = drops.map { (item, _) -> item.amount..item.amount }
+    private var dropDamageRanges: List<IntRange?> = drops.map { null }
 
     init {
         drops.forEachIndexed { index, (_, chance) ->
@@ -38,6 +40,20 @@ data class MobDataCardProps(
         dropAmountRanges = ranges.toList()
     }
 
+    internal fun configureDropDamageRanges(ranges: List<IntRange?>) {
+        require(ranges.size == drops.size) { "Drop damage range count must match drop count" }
+        ranges.forEachIndexed { index, range ->
+            if (range != null) {
+                require(range.first >= 0 && range.last >= range.first) { "Drop damage ranges must be nonnegative" }
+                val item = drops[index].first
+                val meta = item.itemMeta as? Damageable
+                val maximum = if (meta?.hasMaxDamage() == true) meta.maxDamage else item.type.maxDurability.toInt()
+                require(meta != null && maximum > 0 && range.last <= maximum) { "Drop damage range exceeds item durability" }
+            }
+        }
+        dropDamageRanges = ranges.toList()
+    }
+
     internal fun getDrop(index: Int): ItemStack {
         val item = drops[index].first.clone()
         val range = dropAmountRanges.getOrElse(index) { item.amount..item.amount }
@@ -45,6 +61,15 @@ data class MobDataCardProps(
             range.first
         } else {
             Random.nextLong(range.first.toLong(), range.last.toLong() + 1L).toInt()
+        }
+        dropDamageRanges.getOrNull(index)?.let { damageRange ->
+            val meta = item.itemMeta as Damageable
+            meta.damage = if (damageRange.first == damageRange.last) {
+                damageRange.first
+            } else {
+                Random.nextLong(damageRange.first.toLong(), damageRange.last.toLong() + 1L).toInt()
+            }
+            item.itemMeta = meta
         }
         return item
     }
@@ -54,6 +79,8 @@ data class MobDataCardProps(
             val amount = drops[index].first.amount
             amount..amount
         }
+
+    internal fun getDropDamageRange(index: Int): IntRange? = dropDamageRanges.getOrNull(index)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

@@ -11,6 +11,8 @@ import net.guizhanss.infinityexpansion2.api.InfinityExpansion2API
 import net.guizhanss.infinityexpansion2.api.mobsim.MobDataCardProps
 import net.guizhanss.infinityexpansion2.core.debug.DebugCase
 import net.guizhanss.infinityexpansion2.implementation.IEItems
+import net.guizhanss.infinityexpansion2.implementation.guide.MobDataCardGuideGroups
+import net.guizhanss.infinityexpansion2.implementation.items.mobsim.MobDataCard
 import net.guizhanss.infinityexpansion2.utils.Debug
 import net.guizhanss.infinityexpansion2.utils.items.toItemStack
 import org.bukkit.ChatColor
@@ -19,6 +21,7 @@ import org.bukkit.MusicInstrument
 import org.bukkit.NamespacedKey
 import org.bukkit.configuration.ConfigurationSection
 import org.bukkit.inventory.ItemStack
+import org.bukkit.inventory.meta.Damageable
 import org.bukkit.inventory.meta.MusicInstrumentMeta
 import org.bukkit.inventory.meta.PotionMeta
 import org.bukkit.potion.PotionType
@@ -168,8 +171,19 @@ internal object MobSimulationSetup {
             // Config-backed cards attach their amount ranges after construction.
             val props = MobDataCardProps(key, name, texture, energy, experience, drops, recipe).apply {
                 configureDropAmountRanges(configuredDrops.map { it.amountRange })
+                configureDropDamageRanges(configuredDrops.map { it.damageRange })
             }
             InfinityExpansion2API.registerMobDataCard(props, InfinityExpansion2.instance)
+            val configuredGuideGroup = section.getString("guide-group")
+            val guideGroup = MobDataCardGuideGroups.parse(configuredGuideGroup)
+            if (configuredGuideGroup != null && guideGroup == null) {
+                InfinityExpansion2.log(
+                    Level.WARNING,
+                    "Unknown guide-group '$configuredGuideGroup' for $key; using the default guide group. " +
+                        "Expected friendly, passive, or aggressive."
+                )
+            }
+            MobDataCard.getMobDataCard(key)?.guideGroup = guideGroup
             registeredCards += key
             if (randomOne) randomOneCards += key
         }
@@ -212,11 +226,40 @@ internal object MobSimulationSetup {
 
     private fun ConfigurationSection?.getAsItem() = this?.getValues(false)?.getAsItem()
 
-    private fun Map<*, *>.getAsConfiguredDrop(): ConfiguredDrop? {
+    internal fun Map<*, *>.getAsConfiguredDrop(): ConfiguredDrop? {
         val amountRange = parseDropAmount(this["amount"]) ?: return null
         val item = getAsItem(amountRange.first) ?: return null
         val chance = (this["chance"] as? Number)?.toDouble() ?: 1.0
-        return ConfiguredDrop(item, chance, amountRange)
+        val damageRange = if (containsKey("damage")) {
+            val range = parseDropDamage(this["damage"]) ?: return null
+            val meta = item.itemMeta as? Damageable ?: return null
+            val maximum = if (meta.hasMaxDamage()) meta.maxDamage else item.type.maxDurability.toInt()
+            if (maximum <= 0 || range.last > maximum) return null
+            range
+        } else {
+            null
+        }
+        return ConfiguredDrop(item, chance, amountRange, damageRange)
+    }
+
+    private fun parseDropDamage(value: Any?): IntRange? {
+        val text = when (value) {
+            is Number -> {
+                val damage = value.toLong()
+                if (value.toDouble() != damage.toDouble()) return null
+                damage.toString()
+            }
+            is String -> value.trim()
+            else -> return null
+        }
+        text.toLongOrNull()?.let { damage ->
+            return if (damage in 0..Int.MAX_VALUE.toLong()) damage.toInt()..damage.toInt() else null
+        }
+        val match = DROP_AMOUNT_RANGE.matchEntire(text) ?: return null
+        val minimum = match.groupValues[1].toLongOrNull() ?: return null
+        val maximum = match.groupValues[2].toLongOrNull() ?: return null
+        if (minimum !in 0..Int.MAX_VALUE.toLong() || maximum !in minimum..Int.MAX_VALUE.toLong()) return null
+        return minimum.toInt()..maximum.toInt()
     }
 
     private fun parseDropAmount(value: Any?): IntRange? {
@@ -250,10 +293,11 @@ internal object MobSimulationSetup {
         return minimum.toInt()..maximum.toInt()
     }
 
-    private data class ConfiguredDrop(
+    internal data class ConfiguredDrop(
         val item: ItemStack,
         val chance: Double,
         val amountRange: IntRange,
+        val damageRange: IntRange?,
     )
 
     private val DROP_AMOUNT_RANGE = Regex("""(\d+)\s*-\s*(\d+)""")
