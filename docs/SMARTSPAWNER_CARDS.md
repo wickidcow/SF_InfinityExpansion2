@@ -33,6 +33,51 @@ Doctor plan shows either as an empty chamber, check that the updated IE2 addon
 loaded successfully and that the corresponding card remains enabled. These new
 defaults do not replace existing Stray, Evoker, or other card settings.
 
+## Guide order
+
+Mob Data Cards appear in **Friendly, Passive, Aggressive** order. Cards within
+each group sort alphabetically by their displayed mob name. The empty card,
+Infuser, chambers and other non-card entries keep their existing guide positions.
+These are navigation groups chosen for this guide. They describe helpful mobs,
+companions, other animals and combat-oriented mobs; they do not promise that
+every Friendly or Passive mob will never retaliate.
+
+The complete bundled roster uses these defaults:
+
+| Guide group | Bundled card keys |
+| --- | --- |
+| Friendly (27) | `allay`, `axolotl`, `bee`, `camel`, `camel_husk`, `cat`, `copper_golem`, `dolphin`, `donkey`, `happy_ghast`, `horse`, `iron_golem`, `llama`, `mule`, `nautilus`, `parrot`, `skeleton_horse`, `sniffer`, `snow_golem`, `strider`, `sulfur_cube`, `trader_llama`, `villager`, `wandering_trader`, `wolf`, `zombie_horse`, `zombie_nautilus` |
+| Passive (22) | `armadillo`, `bat`, `chicken`, `cod`, `cow`, `fox`, `frog`, `glow_squid`, `goat`, `mooshroom`, `ocelot`, `panda`, `pig`, `polar_bear`, `pufferfish`, `rabbit`, `salmon`, `sheep`, `squid`, `tadpole`, `tropical_fish`, `turtle` |
+| Aggressive (39) | `blaze`, `bogged`, `breeze`, `cave_spider`, `creaking`, `creeper`, `drowned`, `elder_guardian`, `ender_dragon`, `enderman`, `endermite`, `evoker`, `ghast`, `guardian`, `hoglin`, `husk`, `magma_cube`, `parched`, `phantom`, `piglin`, `piglin_brute`, `pillager`, `ravager`, `shulker`, `silverfish`, `skeleton`, `slime`, `spider`, `stray`, `vex`, `vindicator`, `warden`, `witch`, `wither`, `wither_skeleton`, `zoglin`, `zombie`, `zombie_villager`, `zombified_piglin` |
+
+Friendly includes the helpful aquatic mobs, Bee, Sniffer and Sulfur Cube, plus
+companions and dedicated mounts. Camel Husk, Zombie Horse and Zombie Nautilus
+join the other mounts because the mounts themselves can become companions.
+Farm animals such as Pig and wild animals such as Fox, Goat and Polar Bear appear
+under Passive. Enderman, Piglin and the raiders appear under Aggressive.
+
+DynaTech's separately registered `dynatech_vex` and fallback `dynatech_phantom`
+cards also sort under Aggressive, using their displayed names, Vex and Phantom.
+These integrations keep their own card IDs. Unknown addon or custom card IDs
+default to Aggressive, the last group. Disabled cards and cards unavailable on a
+server's Minecraft version remain absent; these counts describe the bundled
+definitions rather than the number loaded on every server.
+
+To choose a different group for a configured card, add this optional field inside
+its existing complete section in `mob-simulation.yml` or
+`mob-simulation-modern.yml`:
+
+```yaml
+guide-group: passive
+```
+
+Accepted values are `friendly`, `passive` and `aggressive`, ignoring surrounding
+spaces and letter case. Omitting the field uses the built-in grouping. The
+classification also works with existing customized sections that predate this
+field; those sections do not need to be rewritten for the default order to apply.
+This setting changes guide order only. Card IDs, recipes, artwork, energy, XP and
+drops keep their configured values.
+
 ## Drop chance and amount conversion
 
 SmartSpawner expresses each loot chance as a percentage and permits amount ranges

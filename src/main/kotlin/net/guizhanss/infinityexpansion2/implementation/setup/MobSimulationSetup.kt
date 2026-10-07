@@ -11,6 +11,8 @@ import net.guizhanss.infinityexpansion2.api.InfinityExpansion2API
 import net.guizhanss.infinityexpansion2.api.mobsim.MobDataCardProps
 import net.guizhanss.infinityexpansion2.core.debug.DebugCase
 import net.guizhanss.infinityexpansion2.implementation.IEItems
+import net.guizhanss.infinityexpansion2.implementation.guide.MobDataCardGuideGroups
+import net.guizhanss.infinityexpansion2.implementation.items.mobsim.MobDataCard
 import net.guizhanss.infinityexpansion2.utils.Debug
 import net.guizhanss.infinityexpansion2.utils.items.toItemStack
 import org.bukkit.ChatColor
@@ -172,6 +174,16 @@ internal object MobSimulationSetup {
                 configureDropDamageRanges(configuredDrops.map { it.damageRange })
             }
             InfinityExpansion2API.registerMobDataCard(props, InfinityExpansion2.instance)
+            val configuredGuideGroup = section.getString("guide-group")
+            val guideGroup = MobDataCardGuideGroups.parse(configuredGuideGroup)
+            if (configuredGuideGroup != null && guideGroup == null) {
+                InfinityExpansion2.log(
+                    Level.WARNING,
+                    "Unknown guide-group '$configuredGuideGroup' for $key; using the default guide group. " +
+                        "Expected friendly, passive, or aggressive."
+                )
+            }
+            MobDataCard.getMobDataCard(key)?.guideGroup = guideGroup
             registeredCards += key
             if (randomOne) randomOneCards += key
         }

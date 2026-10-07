@@ -162,14 +162,41 @@ class SmartSpawnerCardsTest {
     fun damageLimitsHonorAnExplicitMaximumOnCustomItems() {
         val item = ItemStack(Material.IRON_AXE)
         val meta = item.itemMeta as Damageable
+        meta.setMaxDamage(100)
+        item.itemMeta = meta
+        val original = item.clone()
+        IERegistry.itemMapping["CUSTOM_AXE"] = item
+        val parsed = requireNotNull(parse(mapOf("item" to "CUSTOM_AXE", "damage" to "50-100")))
+        val props = props(parsed.item)
+        props.configureDropDamageRanges(listOf(100..100))
+        val result = props.getDrop(0).itemMeta as Damageable
+        assertEquals(100, result.damage)
+        assertEquals(100, result.maxDamage)
+        assertEquals(original, item)
+        assertNull(parse(mapOf("item" to "CUSTOM_AXE", "damage" to "0-101")))
+        assertThrows(IllegalArgumentException::class.java) { props.configureDropDamageRanges(listOf(101..101)) }
+    }
+
+    @Test
+    fun raisedCustomMaximumIsAcceptedByTheParserAndRangeValidation() {
+        val item = ItemStack(Material.IRON_AXE)
+        val meta = item.itemMeta as Damageable
         meta.setMaxDamage(400)
         item.itemMeta = meta
         IERegistry.itemMapping["CUSTOM_AXE"] = item
         val parsed = requireNotNull(parse(mapOf("item" to "CUSTOM_AXE", "damage" to "250-400")))
+        assertEquals(250..400, parsed.damageRange)
+        assertEquals(400, (parsed.item.itemMeta as Damageable).maxDamage)
         val props = props(parsed.item)
         props.configureDropDamageRanges(listOf(400..400))
-        assertEquals(400, (props.getDrop(0).itemMeta as Damageable).damage)
+        assertEquals(400..400, props.getDropDamageRange(0))
         assertNull(parse(mapOf("item" to "CUSTOM_AXE", "damage" to "0-401")))
+        assertThrows(IllegalArgumentException::class.java) { props.configureDropDamageRanges(listOf(401..401)) }
+        // MockBukkit 4.110.0 ItemStackMock.setItemMeta routes through setDurability,
+        // which incorrectly clamps against Material.maxDurability instead of the custom
+        // maximum. Exercise real output above with a lower custom limit, and exercise
+        // raised limits here before that mock-only clamp. Paper applies both components.
+        // https://github.com/MockBukkit/MockBukkit/blob/v4.110.0/src/main/java/org/mockbukkit/mockbukkit/inventory/ItemStackMock.java
     }
 
     private fun parse(values: Map<*, *>): MobSimulationSetup.ConfiguredDrop? {

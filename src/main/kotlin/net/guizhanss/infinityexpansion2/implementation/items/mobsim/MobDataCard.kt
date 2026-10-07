@@ -18,6 +18,8 @@ import net.guizhanss.infinityexpansion2.core.items.attributes.EnergyTickingConsu
 import net.guizhanss.infinityexpansion2.core.items.attributes.InformationalRecipeDisplayItem
 import net.guizhanss.infinityexpansion2.implementation.IEItems
 import net.guizhanss.infinityexpansion2.implementation.guide.IEItemGroups
+import net.guizhanss.infinityexpansion2.implementation.guide.MobDataCardGuideGroup
+import net.guizhanss.infinityexpansion2.implementation.guide.MobDataCardGuideKey
 import net.guizhanss.infinityexpansion2.implementation.recipes.IERecipeTypes
 import net.guizhanss.infinityexpansion2.utils.constant.Keys
 import net.guizhanss.infinityexpansion2.utils.items.GuiItems
@@ -42,6 +44,11 @@ class MobDataCard(
     EnergyTickingConsumer, InformationalRecipeDisplayItem, DistinctiveItem, CustomWikiItem {
 
     override val wikiUrl = "mob-simulation/card"
+
+    internal var guideGroup: MobDataCardGuideGroup? = null
+
+    internal fun guideSortKey(): MobDataCardGuideKey? =
+        if (props.id.isBlank()) null else MobDataCardGuideKey.of(props.id, props.name, guideGroup)
 
     override fun postRegister() {
         super.postRegister()

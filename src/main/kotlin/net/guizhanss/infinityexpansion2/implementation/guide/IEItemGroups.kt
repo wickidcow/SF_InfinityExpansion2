@@ -5,6 +5,7 @@ import net.guizhanss.guizhanlib.kt.slimefun.items.builder.asMaterialType
 import net.guizhanss.guizhanlib.kt.slimefun.items.toItem
 import net.guizhanss.infinityexpansion2.InfinityExpansion2
 import net.guizhanss.infinityexpansion2.implementation.guide.groups.MainGroup
+import net.guizhanss.infinityexpansion2.implementation.guide.groups.MobSimulationGroup
 import net.guizhanss.infinityexpansion2.implementation.guide.groups.SubGroup
 import net.guizhanss.infinityexpansion2.utils.bukkitext.ie2Key
 import org.bukkit.Material
@@ -27,7 +28,14 @@ object IEItemGroups {
     val GEAR = createSubGroup("gear", Material.DIAMOND_CHESTPLATE.asMaterialType())
     val MACHINES = createSubGroup("machines", Material.LOOM.asMaterialType())
     val GENERATORS = createSubGroup("generators", Material.BLAST_FURNACE.asMaterialType())
-    val MOB_SIMULATION = createSubGroup("mob_simulation", Material.BEACON.asMaterialType())
+    // Keep the public getter's SubGroup descriptor unchanged for existing addons.
+    val MOB_SIMULATION: SubGroup = MobSimulationGroup(
+        ie2Key("mob_simulation"),
+        InfinityExpansion2.localization.getItemGroupItem(
+            Material.BEACON.asMaterialType(),
+            "mob_simulation"
+        ).toItem()
+    )
     val STORAGE = createSubGroup("storage", Material.BEEHIVE.asMaterialType())
     val HIDDEN = createSubGroup("hidden", Material.BARRIER.asMaterialType())
 

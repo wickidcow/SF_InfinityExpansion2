@@ -5,6 +5,7 @@
 - Preserve the supplied new mobs' loot items and base XP, translating SmartSpawner percentages and zero-inclusive amount ranges into equivalent per-mob independent drop probabilities.
 - Support optional fixed or inclusive random equipment damage on drops, preserving SmartSpawner 1.6.6 worn-weapon behavior. Keep the MobDataCardProps public constructor and existing addon/card output behavior unchanged.
 - Add survival-obtainable infuser recipes and the existing armor difficulty icons. Preserve all previous card definitions and administrator overrides; merge only entirely absent modern card sections on startup.
+- Organize guide data cards as Friendly, Passive, then Aggressive, alphabetically within each group. Include existing cards and DynaTech integrations, preserve utility positions and the live group list, and support optional per-card `guide-group` overrides.
 - Add runtime regression tests for card coverage, material resolution, recipe ambiguity, all 182 new loot distributions, equipment damage, metadata preservation, and invalid-input rejection.
 
 ## v2.0.11 - Storage withdrawal and existing-item safety
