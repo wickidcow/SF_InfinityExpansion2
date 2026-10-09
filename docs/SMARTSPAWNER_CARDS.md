@@ -23,7 +23,7 @@ item ID is `IE_MOB_DATA_CARD_` followed by its uppercase key, for example
 | Aquatic mobs (9) | `axolotl`, `dolphin`, `elder_guardian`, `pufferfish`, `salmon`, `tadpole`, `tropical_fish`, `turtle`, `zombie_nautilus` |
 | Golems and other riding mobs (6) | `copper_golem`, `happy_ghast`, `skeleton_horse`, `snow_golem`, `strider`, `zombie_horse` |
 | Traders and raiders (7) | `piglin`, `piglin_brute`, `pillager`, `ravager`, `trader_llama`, `vindicator`, `wandering_trader` |
-| Other hostile mobs (7) | `camel_husk`, `cave_spider`, `endermite`, `silverfish`, `vex`, `zoglin`, `zombie_villager` |
+| Additional undead and cave mobs (7) | `camel_husk`, `cave_spider`, `endermite`, `silverfish`, `vex`, `zoglin`, `zombie_villager` |
 
 The native Vex card uses `IE_MOB_DATA_CARD_VEX`. DynaTech's separately named card,
 `IE_MOB_DATA_CARD_DYNATECH_VEX`, keeps its existing identity and integration.
@@ -33,50 +33,136 @@ Doctor plan shows either as an empty chamber, check that the updated IE2 addon
 loaded successfully and that the corresponding card remains enabled. These new
 defaults do not replace existing Stray, Evoker, or other card settings.
 
-## Guide order
+## Slimefun guide categories
 
-Mob Data Cards appear in **Friendly, Passive, Aggressive** order. Cards within
-each group sort alphabetically by their displayed mob name. The empty card,
-Infuser, chambers and other non-card entries keep their existing guide positions.
-These are navigation groups chosen for this guide. They describe helpful mobs,
-companions, other animals and combat-oriented mobs; they do not promise that
-every Friendly or Passive mob will never retaliate.
+Open Mob Simulation in the Slimefun guide to choose **All Mobs**, **Passive Mobs**,
+**Neutral Mobs**, **Hostile Mobs**, or **Boss Mobs**. The default order is alphabetical
+by the displayed mob name. You can instead follow the order of the card sections
+in your configuration files. All Mobs combines every type in the selected order;
+it never groups cards by type. The empty card, Infuser, chambers, and other machine
+entries remain available on the main Mob Simulation page.
 
-The complete bundled roster uses these defaults:
+### Configure sorting and category visibility
 
-| Guide group | Bundled card keys |
+In `config.yml`, locate the existing `mob-simulation:` block and add or update only
+the following `guide:` subsection. Keep the two-space indentation shown: `guide`
+is a sibling of `output-interval`, `allow-stacked-card`, `charge-card-energy`,
+`exp-multiplier`, and `legacy-output`. Preserve your current values for all those
+existing settings.
+
+```yaml
+  guide:
+    sort-order: alphabetical
+    categories:
+      all: true
+      passive: true
+      neutral: true
+      hostile: true
+      boss: true
+```
+
+The full sorting key is `mob-simulation.guide.sort-order`:
+
+| Value | Guide order |
 | --- | --- |
-| Friendly (27) | `allay`, `axolotl`, `bee`, `camel`, `camel_husk`, `cat`, `copper_golem`, `dolphin`, `donkey`, `happy_ghast`, `horse`, `iron_golem`, `llama`, `mule`, `nautilus`, `parrot`, `skeleton_horse`, `sniffer`, `snow_golem`, `strider`, `sulfur_cube`, `trader_llama`, `villager`, `wandering_trader`, `wolf`, `zombie_horse`, `zombie_nautilus` |
-| Passive (22) | `armadillo`, `bat`, `chicken`, `cod`, `cow`, `fox`, `frog`, `glow_squid`, `goat`, `mooshroom`, `ocelot`, `panda`, `pig`, `polar_bear`, `pufferfish`, `rabbit`, `salmon`, `sheep`, `squid`, `tadpole`, `tropical_fish`, `turtle` |
-| Aggressive (39) | `blaze`, `bogged`, `breeze`, `cave_spider`, `creaking`, `creeper`, `drowned`, `elder_guardian`, `ender_dragon`, `enderman`, `endermite`, `evoker`, `ghast`, `guardian`, `hoglin`, `husk`, `magma_cube`, `parched`, `phantom`, `piglin`, `piglin_brute`, `pillager`, `ravager`, `shulker`, `silverfish`, `skeleton`, `slime`, `spider`, `stray`, `vex`, `vindicator`, `warden`, `witch`, `wither`, `wither_skeleton`, `zoglin`, `zombie`, `zombie_villager`, `zombified_piglin` |
+| `alphabetical` | Default. Sort all enabled cards by their displayed mob names, ignoring letter case and color/format codes for comparison. Equal names use normalized card IDs as a stable tie-breaker. The displayed names and colors remain unchanged. |
+| `config` | Follow top-level card order in `mob-simulation.yml`, then non-overridden entries in `mob-simulation-modern.yml`. The alias `yaml` selects the same order. |
 
-Friendly includes the helpful aquatic mobs, Bee, Sniffer and Sulfur Cube, plus
-companions and dedicated mounts. Camel Husk, Zombie Horse and Zombie Nautilus
-join the other mounts because the mounts themselves can become companions.
-Farm animals such as Pig and wild animals such as Fox, Goat and Polar Bear appear
-under Passive. Enderman, Piglin and the raiders appear under Aggressive.
+To restore your configuration order, change only `sort-order: alphabetical` to
+`sort-order: config`, then restart the server. Every key in `mob-simulation.yml`
+takes precedence over the same key in the modern file, including historical
+entries with `enabled: false`. A disabled historical definition therefore keeps
+the modern definition disabled too; it does not fall through to the bundled card.
+Only registered, enabled cards appear in the resulting guide sequence.
+
+In `config` mode, addon cards without a configured position are appended after
+the configured cards, sorted by normalized card ID. Their order is independent
+of when the addon registers them. Each type category filters the same combined
+sequence and preserves its relative order. For example, the Passive list keeps
+the Passive cards in the order they appear in All Mobs.
+
+The guide reconstructs configuration order from the card sections, so switching
+from alphabetical to `config` restores your YAML order even after the guide was
+previously sorted alphabetically. It does not rely on the current guide list's
+order. Sorting changes the presentation only; card names, colors, textures, IDs,
+recipes, and stacking behavior remain unchanged.
+
+A `false` category value hides only that selector. All Mobs continues to include
+all registered, enabled cards even when their type selector is hidden. Disabling
+all five selectors leaves the machines and empty cards visible. To disable an
+individual card itself, use its existing `enabled: false` setting in the card
+configuration. Apply sorting, category, and card configuration changes with a
+server restart.
+
+### Default mob categories
+
+The bundled definitions contain **88 native cards**: 38 Passive, 16 Neutral,
+30 Hostile, and 4 Boss. All Mobs lists all 88 when they are available and enabled.
+Disabled cards and cards unavailable on the server's Minecraft version remain
+absent, so the counts describe the shipped definitions rather than every server's
+loaded roster.
+
+| Guide category | Default card material | Bundled card keys |
+| --- | --- | --- |
+| Passive (38) | Iron chestplate | `allay`, `armadillo`, `axolotl`, `bat`, `camel`, `camel_husk`, `cat`, `chicken`, `cod`, `copper_golem`, `cow`, `donkey`, `fox`, `frog`, `glow_squid`, `happy_ghast`, `horse`, `mooshroom`, `mule`, `ocelot`, `parrot`, `pig`, `pufferfish`, `rabbit`, `salmon`, `sheep`, `skeleton_horse`, `sniffer`, `snow_golem`, `squid`, `strider`, `sulfur_cube`, `tadpole`, `tropical_fish`, `turtle`, `villager`, `wandering_trader`, `zombie_horse` |
+| Neutral (16) | Copper chestplate | `bee`, `cave_spider`, `dolphin`, `enderman`, `goat`, `iron_golem`, `llama`, `nautilus`, `panda`, `piglin`, `polar_bear`, `spider`, `trader_llama`, `wolf`, `zombie_nautilus`, `zombified_piglin` |
+| Hostile (30) | Diamond chestplate | `blaze`, `bogged`, `breeze`, `creaking`, `creeper`, `drowned`, `endermite`, `evoker`, `ghast`, `guardian`, `hoglin`, `husk`, `magma_cube`, `parched`, `phantom`, `piglin_brute`, `pillager`, `ravager`, `shulker`, `silverfish`, `skeleton`, `slime`, `stray`, `vex`, `vindicator`, `witch`, `wither_skeleton`, `zoglin`, `zombie`, `zombie_villager` |
+| Boss (4) | Netherite chestplate | `elder_guardian`, `ender_dragon`, `warden`, `wither` |
+
+Categories use the mobs' behavior toward players. Neutral includes retaliating
+and conditionally aggressive mobs such as Bee, Iron Golem, Enderman, Spider, and
+Piglin. Fox, Axolotl, Snow Golem, and Pufferfish remain Passive. Boss is a practical
+guide tier including Ender Dragon, Wither, Warden, and Elder Guardian.
+
+Nautilus and Zombie Nautilus are Neutral; the zombie mount is hostile only while
+ridden by a hostile mob, as documented in the [Java 1.21.11 release notes](https://www.minecraft.net/en-us/article/minecraft-java-edition-1-21-11).
+Camel Husk and Zombie Horse are Passive mounts, even when their riders are
+hostile; see Mojang's [Camel Husk introduction](https://www.minecraft.net/en-us/article/more-mobs-from-mounts-of-mayhem)
+and [Mounts of Mayhem overview](https://www.minecraft.net/en-us/article/unveiling-mounts-of-mayhem).
+Sulfur Cube is also Passive, as described in the [official Chaos Cubed announcement](https://www.nintendo.com/us/whatsnew/chaos-cubed-drop-is-now-available-for-minecraft-on-nintendo-switch/).
 
 DynaTech's separately registered `dynatech_vex` and fallback `dynatech_phantom`
-cards also sort under Aggressive, using their displayed names, Vex and Phantom.
-These integrations keep their own card IDs. Unknown addon or custom card IDs
-default to Aggressive, the last group. Disabled cards and cards unavailable on a
-server's Minecraft version remain absent; these counts describe the bundled
-definitions rather than the number loaded on every server.
+cards appear under Hostile and All Mobs. Alphabetical mode sorts them by their
+displayed names, Vex and Phantom; `config` mode places unconfigured addon cards
+after configured cards in normalized card-ID order. These integrations retain
+their own IDs and add to the native counts. Unknown addon or custom card IDs
+default to Hostile.
 
-To choose a different group for a configured card, add this optional field inside
-its existing complete section in `mob-simulation.yml` or
-`mob-simulation-modern.yml`:
+### Change an individual card's category
+
+Add the optional field below inside that card's existing complete section in
+`mob-simulation.yml` or `mob-simulation-modern.yml`:
 
 ```yaml
 guide-group: passive
 ```
 
-Accepted values are `friendly`, `passive` and `aggressive`, ignoring surrounding
-spaces and letter case. Omitting the field uses the built-in grouping. The
-classification also works with existing customized sections that predate this
-field; those sections do not need to be rewritten for the default order to apply.
-This setting changes guide order only. Card IDs, recipes, artwork, energy, XP and
-drops keep their configured values.
+Accepted values are `passive`, `neutral`, `hostile`, and `boss`. The aliases
+`friendly` -> `passive`, `aggressive` -> `hostile`, and `bosses` -> `boss` are also
+accepted. Values ignore surrounding spaces and letter case. Omitting the field
+uses the built-in classification, including for older customized sections that
+predate the field. Changing a category preserves the card's explicitly configured
+texture, name, and colors. Restart the server after changing a category.
+
+### Card materials, custom appearance, and existing items
+
+The bundled default materials are iron chestplates for Passive, copper for Neutral,
+diamond for Hostile, and netherite for Boss cards. A card definition without a
+`texture` field also uses its category's default material. These defaults apply to
+the actual newly created Mob Data Card item, as well as its guide icon.
+
+Every explicitly configured `texture` is preserved, including chestplates of any
+material, spawn eggs, player heads, and other custom textures. Your configured
+names and colors are also preserved. Choosing a different category or sort order
+does not replace that appearance. Existing card sections keep their configured
+textures; the bundled chestplate values are used when an entirely new default
+section is added, or the category fallback applies when a texture is absent.
+
+Existing physical cards already stored in inventories, containers, or chambers
+retain their material and persistent Slimefun identity, and continue to work.
+This feature does not automatically rewrite those saved stacks or the existing
+card configuration files. Newly created cards use the loaded template. Card IDs,
+recipes, drops, energy, XP, and stacking behavior remain the same.
 
 ## Drop chance and amount conversion
 
@@ -134,10 +220,11 @@ including equipment that is almost or entirely worn out.
 The original source's optional `potion_type` corresponds to IE2's existing
 `potion` field. None of these 44 missing mob definitions contains a potion drop;
 the already bundled skeleton-variant cards retain their existing potion metadata.
-The source's head textures are menu artwork, not loot metadata. Card icons follow
-the established armor tiers instead.
+The source's head textures are menu artwork, not loot metadata. New bundled card
+icons use the chestplate defaults described above; explicitly configured textures
+remain unchanged.
 
-## Recipes, icons and existing settings
+## Recipes and existing settings
 
 Each new recipe uses the Mob Data Infuser and the following pattern:
 
@@ -153,12 +240,10 @@ four `A` slots, two `B` slots and two `C` slots. Recipes use survival-obtainable
 materials and do not require spawn eggs. The costs follow the existing card
 recipes, with higher investment for rare drops and powerful mobs.
 
-Iron chestplate icons identify the passive and lower-threat cards. Diamond
-chestplates identify hostile or tougher cards; the Elder Guardian uses a netherite
-chestplate. These are guide icons and do not add equipment drops. Card energy
-values follow the existing tiers: 75-300 for passive or utility cards, 300-600 for
-most hostile cards, and 1800 for the Elder Guardian and Ravager. These costs have
-not been measured against a particular server economy.
+The guide categories and card materials do not rebalance recipe or energy costs.
+Card energy values keep the existing tiers: 75-300 for many animal or utility
+cards, 300-600 for most hostile cards, and 1800 for the Elder Guardian and Ravager.
+These costs have not been measured against a particular server economy.
 
 Existing historical and modern card sections are preserved. On startup, IE2
 merges only entirely missing modern sections from its bundled defaults. An

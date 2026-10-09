@@ -101,8 +101,62 @@ resource-synthesizer:
         amount: 64
 
 # Mob simulation options
-# Customize all data cards in mob-simulation.yml
+# Customize individual data cards in mob-simulation.yml and mob-simulation-modern.yml.
+# When updating an older config, add the guide: block below inside your existing
+# mob-simulation: section. Keep the other settings in that section.
 mob-simulation:
+
+  # Slimefun Guide selections: All / Passive / Neutral / Hostile / Boss.
+  # Restart the server after changing guide settings or either card configuration file.
+  guide:
+    # Card ordering options (values are case-insensitive):
+    #   alphabetical = Default. Sort A-Z by the visible mob name from each card's name: field.
+    #                  Ignore color/format codes only when comparing; keep the displayed colors.
+    #   config       = Follow your top-to-bottom YAML card section order.
+    #   yaml         = Alias for config; the behavior is identical.
+    # To restore your own arrangement, change the line below to: sort-order: config
+    # To return to A-Z, change it back to: sort-order: alphabetical
+    #
+    # In config/yaml mode, the combined order is:
+    #   1. mob-simulation.yml entries in their configured order.
+    #   2. mob-simulation-modern.yml entries in their configured order, excluding overrides.
+    #   3. Addon cards without a configured position, sorted by card ID (ignoring letter case).
+    # A matching ID in mob-simulation.yml takes precedence even when enabled: false.
+    # The historical section overrides the whole matching modern definition, not individual fields.
+    # Move whole card sections, including their recipes/drops; keep their existing card keys.
+    # All uses one combined list without category grouping. Each type filters that same list
+    # and keeps the relative order of its cards. Switching back restores the YAML sequence
+    # even if the guide was previously alphabetized.
+    # A missing setting uses alphabetical; an invalid value logs a warning and uses alphabetical.
+    sort-order: alphabetical
+
+    # Set each selection independently: true = show its guide button; false = hide it.
+    # Every selection defaults to true, including when its setting is missing.
+    # Hiding a type does not remove its cards from All or stop existing simulation chambers.
+    # Hiding all five selections leaves the chambers, infuser and empty cards available.
+    # To disable an actual card and its recipe, use enabled: false in that card's own section
+    # in mob-simulation.yml or mob-simulation-modern.yml. That is separate from these buttons.
+    categories:
+      # All available cards across every mob type, using sort-order above.
+      all: true
+      # Passive mob cards; default category style is IRON_CHESTPLATE.
+      passive: true
+      # Neutral mob cards; default category style is COPPER_CHESTPLATE.
+      neutral: true
+      # Hostile mob cards; default category style is DIAMOND_CHESTPLATE.
+      hostile: true
+      # Boss mob cards; default category style is NETHERITE_CHESTPLATE.
+      boss: true
+
+  # Individual card customization belongs inside that card's existing section in
+  # mob-simulation.yml or mob-simulation-modern.yml, not inside the guide: block above.
+  #   name: "&aCow"             Colors the mob label in the card description; used for A-Z sorting.
+  #   guide-group: passive     Options: passive, neutral, hostile, boss. Omit for the built-in group.
+  #   texture: IRON_CHESTPLATE  Sets that card's item material/texture; keep any custom value you use.
+  # Existing explicit textures always win, even when guide-group or sort-order changes.
+  # To use the category's default chestplate, omit only that card's texture: field.
+  # Existing saved cards are not rewritten. See both card files' comments for examples,
+  # accepted category aliases, and details about preserving customized definitions.
 
   # The amount of runs required to output once (affected by tick rate)
   # Range: 1 to 3600

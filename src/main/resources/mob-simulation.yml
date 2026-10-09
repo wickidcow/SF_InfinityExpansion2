@@ -1,5 +1,48 @@
-# This file holds config for all mob simulation cards.
-# Check the wiki for more information:
+# Historical and custom Mob Simulation card definitions.
+# Restart the server after editing this file or the guide settings in config.yml.
+#
+# GUIDE ORDER - set mob-simulation.guide.sort-order in config.yml:
+#   alphabetical = Default. A-Z by the visible name: text; colors are ignored only for comparison.
+#   config       = Your top-to-bottom card section order. Use this to restore a custom arrangement.
+#   yaml         = Alias for config.
+# Values ignore letter case. A missing or invalid value falls back to alphabetical.
+# In config/yaml mode, this file comes first, followed by mob-simulation-modern.yml entries
+# whose keys are not defined here. Definitions here win even when enabled: false.
+# Each historical section overrides the whole matching modern definition, not individual fields.
+# Registered addon cards without a configured position follow in card-ID order, ignoring case.
+# Move the ENTIRE card section, including its recipe and drops, to change its position.
+# Keep existing card keys (for example cow:) unchanged and avoid duplicate keys in this file.
+# All is one combined sequence without type grouping; each type filters it and keeps its order.
+# Switching back to config restores this sequence even after the guide was alphabetized.
+#
+# GUIDE VISIBILITY - edit mob-simulation.guide.categories in config.yml:
+#   all, passive, neutral, hostile, boss: true shows the selection; false hides it.
+# All five default to true. Hidden type selections still have their cards listed in All.
+# These switches do not disable cards or chambers. Hiding all five keeps the machines/empty cards.
+# To disable an individual card and its recipe instead, set enabled: false inside that card below.
+#
+# CARD CUSTOMIZATION - edit fields inside the existing complete card section, for example cow:
+#   name: "&aCow"
+#   guide-group: passive
+#   texture: IRON_CHESTPLATE
+#   enabled: true
+# Keep the rest of the card's fields, including recipe, drops, energy and experience.
+# name: colors the mob label in the card description and supplies the name used for A-Z sorting.
+# Quote names containing color codes. Sorting preserves the actual configured text and colors.
+# guide-group: accepts passive, neutral, hostile or boss (case-insensitive).
+# Also accepted: friendly = passive, aggressive = hostile, bosses = boss.
+# Omit guide-group: to use the built-in category. Invalid values log a warning and use that default.
+# Unknown custom card keys default to hostile. All is a combined view, not a guide-group value.
+#
+# CATEGORY MATERIAL DEFAULTS:
+#   passive = IRON_CHESTPLATE       neutral = COPPER_CHESTPLATE
+#   hostile = DIAMOND_CHESTPLATE    boss = NETHERITE_CHESTPLATE
+# Every explicit texture: value is preserved, including custom chestplates, heads and spawn eggs.
+# Changing guide-group: or sorting never replaces that configured texture.
+# To use the category default for newly created cards, omit only the card's texture: field.
+# Bundled texture values also supply these defaults for new card definitions.
+# Existing saved cards are not rewritten by these guide settings.
+# More details: docs/SMARTSPAWNER_CARDS.md.
 
 cow:
   enabled: true
@@ -149,7 +192,7 @@ pig:
 bee:
   enabled: true
   name: "Bee"
-  texture: IRON_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 150
   experience: 1
   drops:
@@ -171,7 +214,7 @@ bee:
 slime:
   enabled: true
   name: "Slime"
-  texture: IRON_CHESTPLATE
+  texture: DIAMOND_CHESTPLATE
   energy: 150
   experience: 1
   drops:
@@ -193,7 +236,7 @@ slime:
 magma_cube:
   enabled: true
   name: "Magma Cube"
-  texture: IRON_CHESTPLATE
+  texture: DIAMOND_CHESTPLATE
   energy: 150
   experience: 1
   drops:
@@ -218,7 +261,7 @@ magma_cube:
 ghast:
   enabled: true
   name: "Ghast"
-  texture: IRON_CHESTPLATE
+  texture: DIAMOND_CHESTPLATE
   energy: 300
   experience: 2
   drops:
@@ -305,7 +348,7 @@ zombie:
 spider:
   enabled: true
   name: "Spider"
-  texture: DIAMOND_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 300
   experience: 2
   drops:
@@ -416,7 +459,7 @@ wither_skeleton:
 enderman:
   enabled: true
   name: "Enderman"
-  texture: DIAMOND_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 600
   experience: 4
   drops:
@@ -469,7 +512,7 @@ guardian:
 iron_golem:
   enabled: true
   name: "Iron Golem"
-  texture: DIAMOND_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 600
   experience: 4
   drops:

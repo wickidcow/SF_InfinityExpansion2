@@ -9,7 +9,7 @@ internal data class MobDataCardGuideKey(
     val id: String,
 ) : Comparable<MobDataCardGuideKey> {
     override fun compareTo(other: MobDataCardGuideKey): Int =
-        compareValuesBy(this, other, { it.group.ordinal }, { it.name }, { it.id })
+        compareValuesBy(this, other, { it.name }, { it.id })
 
     companion object {
         private val colors = Regex("(?i)(?:[&§]x(?:[&§][0-9a-f]){6}|[&§]#[0-9a-f]{6}|[&§][0-9a-fk-or])")
@@ -34,18 +34,25 @@ internal data class MobDataCardGuideKey(
 internal class MobDataCardGuideOrder<T : Any>(private val keyOf: (T) -> MobDataCardGuideKey?) {
     private var lastItems: List<T> = emptyList()
     private var lastKeys: List<MobDataCardGuideKey?> = emptyList()
+    private var lastOrdering: MobDataCardGuideOrdering? = null
 
     @Synchronized
-    fun order(items: MutableList<T>): MutableList<T> {
+    fun order(
+        items: MutableList<T>,
+        ordering: MobDataCardGuideOrdering = MobDataCardGuideOrdering(),
+    ): MutableList<T> {
+        // Snapshot the sequence so mutating a caller's list also invalidates the cache.
+        val currentOrdering = ordering.copy(configuredIds = ordering.configuredIds.toList())
         val keys = items.map(keyOf)
-        if (items.size == lastItems.size && keys == lastKeys &&
+        if (currentOrdering == lastOrdering && items.size == lastItems.size && keys == lastKeys &&
             items.indices.all { items[it] === lastItems[it] }) {
             return items
         }
 
+        val comparator = currentOrdering.comparator
         val cards = items.indices.mapNotNull { index ->
             keys[index]?.let { key -> items[index] to key }
-        }.sortedBy { it.second }.iterator()
+        }.sortedWith { first, second -> comparator.compare(first.second, second.second) }.iterator()
 
         items.indices.forEach { index ->
             if (keys[index] != null) items[index] = cards.next().first
@@ -53,6 +60,7 @@ internal class MobDataCardGuideOrder<T : Any>(private val keyOf: (T) -> MobDataC
 
         lastItems = items.toList()
         lastKeys = lastItems.map(keyOf)
+        lastOrdering = currentOrdering
         return items
     }
 }

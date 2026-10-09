@@ -49,7 +49,7 @@ class SmartSpawnerCardsTest {
             assertEquals("independent", card.getString("drop-mode"), id)
             assertEquals(reference.getInt("$entity.experience"), card.getInt("experience"), id)
             assertTrue(card.getInt("energy") > 0, id)
-            assertTrue(card.getString("texture") in setOf("IRON_CHESTPLATE", "DIAMOND_CHESTPLATE", "NETHERITE_CHESTPLATE"), id)
+            assertTrue(card.getString("texture") in setOf("IRON_CHESTPLATE", "COPPER_CHESTPLATE", "DIAMOND_CHESTPLATE", "NETHERITE_CHESTPLATE"), id)
 
             val pattern = card.getStringList("recipe.pattern")
             assertEquals(3, pattern.size, id)

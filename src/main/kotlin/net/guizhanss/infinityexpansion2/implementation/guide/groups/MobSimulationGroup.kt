@@ -1,6 +1,7 @@
 package net.guizhanss.infinityexpansion2.implementation.guide.groups
 
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem
+import net.guizhanss.infinityexpansion2.InfinityExpansion2
 import net.guizhanss.infinityexpansion2.implementation.guide.MobDataCardGuideOrder
 import net.guizhanss.infinityexpansion2.implementation.items.mobsim.MobDataCard
 import org.bukkit.NamespacedKey
@@ -11,7 +12,8 @@ internal class MobSimulationGroup(key: NamespacedKey, item: ItemStack) : SubGrou
     private val order = MobDataCardGuideOrder<SlimefunItem> { (it as? MobDataCard)?.guideSortKey() }
 
     @Synchronized
-    override fun getItems(): MutableList<SlimefunItem> = order.order(super.getItems())
+    override fun getItems(): MutableList<SlimefunItem> =
+        order.order(super.getItems(), InfinityExpansion2.configService.mobSimGuideOrdering())
 
     @Synchronized
     override fun add(item: SlimefunItem) = super.add(item)

@@ -11,6 +11,7 @@ import net.guizhanss.infinityexpansion2.api.InfinityExpansion2API
 import net.guizhanss.infinityexpansion2.api.mobsim.MobDataCardProps
 import net.guizhanss.infinityexpansion2.core.debug.DebugCase
 import net.guizhanss.infinityexpansion2.implementation.IEItems
+import net.guizhanss.infinityexpansion2.implementation.guide.MobDataCardAppearance
 import net.guizhanss.infinityexpansion2.implementation.guide.MobDataCardGuideGroups
 import net.guizhanss.infinityexpansion2.implementation.items.mobsim.MobDataCard
 import net.guizhanss.infinityexpansion2.utils.Debug
@@ -53,12 +54,17 @@ internal object MobSimulationSetup {
         }
 
         loadConfig(InfinityExpansion2.configService.mobSimConfig, finalPass)
-        loadConfig(InfinityExpansion2.configService.modernMobSimConfig, finalPass)
+        loadConfig(
+            InfinityExpansion2.configService.modernMobSimConfig,
+            finalPass,
+            InfinityExpansion2.configService.mobSimConfig.keys,
+        )
     }
 
-    private fun loadConfig(cfg: Config, finalPass: Boolean) {
+    private fun loadConfig(cfg: Config, finalPass: Boolean, overriddenIds: Set<String> = emptySet()) {
         cfg.keys.forEach cfgKey@{ key ->
-            if (key in registeredCards) return@cfgKey
+            // Historical/custom sections also take precedence when disabled or awaiting a later addon.
+            if (key in registeredCards || key in overriddenIds) return@cfgKey
 
             val section = cfg.configuration.getConfigurationSection(key) ?: return@cfgKey
 
@@ -70,7 +76,20 @@ internal object MobSimulationSetup {
 
             // load data
             val name = section.getString("name", "${ChatColor.BLUE}${StringUtil.humanize(key)}")!!
-            val texture = section.getString("texture", "IRON_CHESTPLATE")!!.toItemStack()
+            val configuredGuideGroup = section.getString("guide-group")
+            val guideGroup = MobDataCardGuideGroups.parse(configuredGuideGroup)
+            if (configuredGuideGroup != null && guideGroup == null) {
+                InfinityExpansion2.log(
+                    Level.WARNING,
+                    "Unknown guide-group '$configuredGuideGroup' for $key; using the default guide group. " +
+                        "Expected passive, neutral, hostile, or boss."
+                )
+            }
+            val group = guideGroup ?: MobDataCardGuideGroups.defaultGroup(key)
+            val texture = MobDataCardAppearance.texture(
+                section.getString("texture")?.toItemStack(),
+                group,
+            )
             val energy = section.getInt("energy", 75).coerceIn(0, 1_000_000)
             val experience = section.getInt("experience").coerceIn(0, Int.MAX_VALUE)
             val dropMode = section.getString("drop-mode", "independent")!!.lowercase()
@@ -174,16 +193,10 @@ internal object MobSimulationSetup {
                 configureDropDamageRanges(configuredDrops.map { it.damageRange })
             }
             InfinityExpansion2API.registerMobDataCard(props, InfinityExpansion2.instance)
-            val configuredGuideGroup = section.getString("guide-group")
-            val guideGroup = MobDataCardGuideGroups.parse(configuredGuideGroup)
-            if (configuredGuideGroup != null && guideGroup == null) {
-                InfinityExpansion2.log(
-                    Level.WARNING,
-                    "Unknown guide-group '$configuredGuideGroup' for $key; using the default guide group. " +
-                        "Expected friendly, passive, or aggressive."
-                )
+            MobDataCard.getMobDataCard(key)?.let { card ->
+                // A late config pass must not change metadata on a card another addon already owns.
+                if (card.addon === InfinityExpansion2.instance) card.guideGroup = guideGroup
             }
-            MobDataCard.getMobDataCard(key)?.guideGroup = guideGroup
             registeredCards += key
             if (randomOne) randomOneCards += key
         }

@@ -11,6 +11,9 @@ import net.guizhanss.guizhanlib.kt.slimefun.config.migration.configMigrations
 import net.guizhanss.infinityexpansion2.InfinityExpansion2
 import net.guizhanss.infinityexpansion2.core.config.QuarryPool
 import net.guizhanss.infinityexpansion2.core.config.ResourceSynthesizerRecipe
+import net.guizhanss.infinityexpansion2.implementation.guide.MobDataCardGuideCategory
+import net.guizhanss.infinityexpansion2.implementation.guide.MobDataCardGuideOrdering
+import net.guizhanss.infinityexpansion2.implementation.guide.MobDataCardGuideSortMode
 import net.guizhanss.infinityexpansion2.utils.bukkitext.getAsSerializable
 import net.guizhanss.infinityexpansion2.utils.bukkitext.getAsSerializableList
 import org.bukkit.World.Environment
@@ -19,6 +22,7 @@ import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.enchantments.Enchantment
 import java.io.InputStreamReader
 import java.nio.charset.StandardCharsets
+import java.util.logging.Level
 
 class ConfigService(plugin: InfinityExpansion2) {
 
@@ -51,6 +55,8 @@ class ConfigService(plugin: InfinityExpansion2) {
     lateinit var mobSimChargeCardEnergy: ConfigField<Boolean>
     lateinit var mobSimExpMultiplier: ConfigField<Double>
     lateinit var mobSimLegacyOutput: ConfigField<Boolean>
+    internal lateinit var mobSimGuideCategories: ConfigField<Set<MobDataCardGuideCategory>>
+    internal lateinit var mobSimGuideSortMode: ConfigField<MobDataCardGuideSortMode>
 
     // storage options
     lateinit var storageEnableSigns: ConfigField<Boolean>
@@ -105,6 +111,19 @@ class ConfigService(plugin: InfinityExpansion2) {
         mobSimChargeCardEnergy = boolean("mob-simulation.charge-card-energy", false)
         mobSimExpMultiplier = double("mob-simulation.exp-multiplier", 1.0, 0.0, 1000.0)
         mobSimLegacyOutput = boolean("mob-simulation.legacy-output", false)
+        mobSimGuideCategories = custom {
+            MobDataCardGuideCategory.enabledIn(it.getConfigurationSection("mob-simulation.guide.categories"))
+        }
+        mobSimGuideSortMode = custom {
+            val value = it.getString("mob-simulation.guide.sort-order", "alphabetical")
+            MobDataCardGuideSortMode.parse(value) ?: run {
+                InfinityExpansion2.log(
+                    Level.WARNING,
+                    "Unknown mob-simulation.guide.sort-order '$value'; expected alphabetical or config. Using alphabetical."
+                )
+                MobDataCardGuideSortMode.ALPHABETICAL
+            }
+        }
         storageEnableSigns = boolean("storage.enable-signs", false)
         storageSignUpdateInterval = int("storage.sign-update-interval", 20, 1, 3600)
         storageEnableHolograms = boolean("storage.enable-holograms", false)
@@ -153,8 +172,13 @@ class ConfigService(plugin: InfinityExpansion2) {
         }
         reload()
         mergeBundledModernMobSimulationCards(plugin)
-        migrateModernMobSimulationTextures()
+        // Explicit card names and textures remain authoritative, including older spawn-egg artwork.
     }
+
+    internal fun mobSimGuideOrdering() = MobDataCardGuideOrdering(
+        mobSimGuideSortMode.value,
+        MobDataCardGuideOrdering.configuredSequence(mobSimConfig.configuration, modernMobSimConfig.configuration),
+    )
 
     /**
      * Merge only entirely missing modern card sections from the bundled defaults.
@@ -191,42 +215,6 @@ class ConfigService(plugin: InfinityExpansion2) {
             } else {
                 target.set(path, source.get(key))
             }
-        }
-    }
-
-    /**
-     * The first Legacy modern-card release used spawn eggs as card textures. Preserve arbitrary
-     * administrator texture choices, but upgrade the exact shipped spawn-egg defaults to IE2's
-     * historical armor-based difficulty language.
-     */
-    private fun migrateModernMobSimulationTextures() {
-        val textureMigrations = mapOf(
-            "goat" to ("GOAT_SPAWN_EGG" to "IRON_CHESTPLATE"),
-            "frog" to ("FROG_SPAWN_EGG" to "IRON_CHESTPLATE"),
-            "sniffer" to ("SNIFFER_SPAWN_EGG" to "IRON_CHESTPLATE"),
-            "armadillo" to ("ARMADILLO_SPAWN_EGG" to "IRON_CHESTPLATE"),
-            "breeze" to ("BREEZE_SPAWN_EGG" to "DIAMOND_CHESTPLATE"),
-            "warden" to ("WARDEN_SPAWN_EGG" to "NETHERITE_CHESTPLATE"),
-            "creaking" to ("CREAKING_SPAWN_EGG" to "DIAMOND_CHESTPLATE"),
-            "shulker" to ("SHULKER_SPAWN_EGG" to "DIAMOND_CHESTPLATE"),
-            "phantom" to ("PHANTOM_SPAWN_EGG" to "DIAMOND_CHESTPLATE"),
-            "drowned" to ("DROWNED_SPAWN_EGG" to "DIAMOND_CHESTPLATE"),
-            "hoglin" to ("HOGLIN_SPAWN_EGG" to "DIAMOND_CHESTPLATE"),
-            "zombified_piglin" to ("ZOMBIFIED_PIGLIN_SPAWN_EGG" to "DIAMOND_CHESTPLATE"),
-            "rabbit" to ("RABBIT_SPAWN_EGG" to "IRON_CHESTPLATE")
-        )
-
-        var changed = false
-        textureMigrations.forEach { (id, textures) ->
-            val path = "$id.texture"
-            if (modernMobSimConfig.configuration.getString(path) == textures.first) {
-                modernMobSimConfig.configuration.set(path, textures.second)
-                changed = true
-            }
-        }
-
-        if (changed) {
-            modernMobSimConfig.save()
         }
     }
 

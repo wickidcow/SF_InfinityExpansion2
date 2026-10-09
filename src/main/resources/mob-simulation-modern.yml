@@ -1,16 +1,58 @@
 # Slimefun Legacy modern Mob Simulation defaults.
 # This file is intentionally separate from mob-simulation.yml so existing customized
 # servers receive new cards without their historical config being overwritten.
-# Define the same card id in mob-simulation.yml to override one of these defaults.
 # drop-mode: random-one selects exactly one configured drop per production cycle.
 # Optional potion metadata on potion-capable drops uses Bukkit PotionType names.
-# Card textures follow IE2's historical difficulty tiers:
-# iron = passive/low threat, diamond = hostile/tough, netherite = extreme/boss.
+# Restart the server after editing this file or the guide settings in config.yml.
+#
+# GUIDE ORDER - set mob-simulation.guide.sort-order in config.yml:
+#   alphabetical = Default. A-Z by the visible name: text; colors are ignored only for comparison.
+#   config       = Your top-to-bottom card section order. Use this to restore a custom arrangement.
+#   yaml         = Alias for config.
+# Values ignore letter case. A missing or invalid value falls back to alphabetical.
+# In config/yaml mode, mob-simulation.yml comes first, followed by non-overridden entries here.
+# Historical definitions override matching keys here even when enabled: false.
+# Each historical section overrides the whole matching modern definition, not individual fields.
+# Registered addon cards without a configured position follow in card-ID order, ignoring case.
+# Move the ENTIRE card section, including its recipe and drops, to change its position.
+# Keep existing card keys (for example goat:) unchanged and avoid duplicate keys in this file.
+# All is one combined sequence without type grouping; each type filters it and keeps its order.
+# Switching back to config restores this sequence even after the guide was alphabetized.
+#
+# GUIDE VISIBILITY - edit mob-simulation.guide.categories in config.yml:
+#   all, passive, neutral, hostile, boss: true shows the selection; false hides it.
+# All five default to true. Hidden type selections still have their cards listed in All.
+# These switches do not disable cards or chambers. Hiding all five keeps the machines/empty cards.
+# To disable an individual card and its recipe instead, set enabled: false inside that card below.
+# Keep disabled sections: deleting a whole bundled section restores its defaults on the next startup.
+#
+# CARD CUSTOMIZATION - edit fields inside the existing complete card section, for example goat:
+#   name: "&aGoat"
+#   guide-group: neutral
+#   texture: COPPER_CHESTPLATE
+#   enabled: true
+# Keep the rest of the card's fields, including recipe, drops, energy and experience.
+# name: colors the mob label in the card description and supplies the name used for A-Z sorting.
+# Quote names containing color codes. Sorting preserves the actual configured text and colors.
+# guide-group: accepts passive, neutral, hostile or boss (case-insensitive).
+# Also accepted: friendly = passive, aggressive = hostile, bosses = boss.
+# Omit guide-group: to use the built-in category. Invalid values log a warning and use that default.
+# Unknown custom card keys default to hostile. All is a combined view, not a guide-group value.
+#
+# CATEGORY MATERIAL DEFAULTS:
+#   passive = IRON_CHESTPLATE       neutral = COPPER_CHESTPLATE
+#   hostile = DIAMOND_CHESTPLATE    boss = NETHERITE_CHESTPLATE
+# Every explicit texture: value is preserved, including custom chestplates, heads and spawn eggs.
+# Changing guide-group: or sorting never replaces that configured texture.
+# To use the category default for newly created cards, omit only the card's texture: field.
+# Bundled texture values also supply these defaults for new card definitions.
+# Existing saved cards are not rewritten by these guide settings.
+# More details: docs/SMARTSPAWNER_CARDS.md.
 
 goat:
   enabled: true
   name: "Goat"
-  texture: IRON_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 300
   experience: 2
   drop-mode: random-one
@@ -327,7 +369,7 @@ hoglin:
 zombified_piglin:
   enabled: true
   name: "Zombified Piglin"
-  texture: DIAMOND_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 300
   experience: 2
   drops:
@@ -568,7 +610,7 @@ parched:
 nautilus:
   enabled: true
   name: "Nautilus"
-  texture: IRON_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 300
   experience: 2
   drops:
@@ -828,7 +870,7 @@ camel:
 camel_husk:
   enabled: true
   name: "Camel Husk"
-  texture: DIAMOND_CHESTPLATE
+  texture: IRON_CHESTPLATE
   energy: 300
   experience: 3
   drop-mode: independent
@@ -900,7 +942,7 @@ cat:
 cave_spider:
   enabled: true
   name: "Cave Spider"
-  texture: DIAMOND_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 300
   experience: 5
   drop-mode: independent
@@ -972,7 +1014,7 @@ copper_golem:
 dolphin:
   enabled: true
   name: "Dolphin"
-  texture: IRON_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 150
   experience: 1
   drop-mode: independent
@@ -1239,7 +1281,7 @@ horse:
 llama:
   enabled: true
   name: "Llama"
-  texture: IRON_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 150
   experience: 1
   drop-mode: independent
@@ -1383,7 +1425,7 @@ ocelot:
 panda:
   enabled: true
   name: "Panda"
-  texture: IRON_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 150
   experience: 1
   drop-mode: independent
@@ -1455,7 +1497,7 @@ parrot:
 piglin:
   enabled: true
   name: "Piglin"
-  texture: DIAMOND_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 300
   experience: 5
   drop-mode: independent
@@ -1567,7 +1609,7 @@ pillager:
 polar_bear:
   enabled: true
   name: "Polar Bear"
-  texture: IRON_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 150
   experience: 1
   drop-mode: independent
@@ -1891,7 +1933,7 @@ tadpole:
 trader_llama:
   enabled: true
   name: "Trader Llama"
-  texture: IRON_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 150
   experience: 1
   drop-mode: independent
@@ -2108,7 +2150,7 @@ wandering_trader:
 wolf:
   enabled: true
   name: "Wolf"
-  texture: IRON_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 150
   experience: 3
   drop-mode: independent
@@ -2180,7 +2222,7 @@ zoglin:
 zombie_horse:
   enabled: true
   name: "Zombie Horse"
-  texture: DIAMOND_CHESTPLATE
+  texture: IRON_CHESTPLATE
   energy: 300
   experience: 3
   drop-mode: independent
@@ -2216,7 +2258,7 @@ zombie_horse:
 zombie_nautilus:
   enabled: true
   name: "Zombie Nautilus"
-  texture: DIAMOND_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 300
   experience: 3
   drop-mode: independent
