@@ -101,8 +101,26 @@ resource-synthesizer:
         amount: 64
 
 # Mob simulation options
-# Customize all data cards in mob-simulation.yml
+# Customize individual data cards in mob-simulation.yml and mob-simulation-modern.yml.
 mob-simulation:
+
+  # Slimefun Guide category selection. Apply configuration changes with a server restart.
+  guide:
+    # alphabetical: compare visible mob names without color/format codes (the default).
+    # config: follow mob-simulation.yml, then non-overridden mob-simulation-modern.yml entries.
+    # Unconfigured addon cards follow those entries in stable card-ID order.
+    # Each type category filters the same sequence; All never groups cards by type.
+    sort-order: alphabetical
+
+    # Each flag hides only its guide button. All Mobs still includes every enabled card.
+    # To disable an actual card and its recipe, set enabled: false in that card's section.
+    # Disabling every button leaves the chambers, infuser and empty cards available.
+    categories:
+      all: true
+      passive: true
+      neutral: true
+      hostile: true
+      boss: true
 
   # The amount of runs required to output once (affected by tick rate)
   # Range: 1 to 3600

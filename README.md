@@ -20,6 +20,8 @@ InfinityExpansion2 is a large end-game Slimefun addon centered around advanced r
 
 This fork additionally focuses on helping existing servers move from **InfinityExpansion v1 (IE1)** to **InfinityExpansion2 (IE2)** without casually abandoning old item/block data.
 
+Browse Mob Data Cards through **All Mobs / Passive / Neutral / Hostile / Boss** in the Slimefun guide. Choose alphabetical order (the default) or restore your card-file order with `mob-simulation.guide.sort-order: config`; `yaml` is also accepted. Every category can be shown or hidden independently, and explicit textures, names, and colors are preserved. See [guide sorting, categories, and card materials](docs/SMARTSPAWNER_CARDS.md#slimefun-guide-categories) for the settings to merge into your existing configuration, then restart the server.
+
 ## 🔄 IE1 → IE2 migration support
 
 The maintained fork adds:

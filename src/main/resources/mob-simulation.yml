@@ -1,5 +1,16 @@
-# This file holds config for all mob simulation cards.
-# Check the wiki for more information:
+# Historical and custom Mob Simulation card definitions.
+# Guide categories: All Mobs, Passive, Neutral, Hostile, and Boss Mobs.
+# Set mob-simulation.guide.sort-order in config.yml to alphabetical (default)
+# or config (alias: yaml) to follow card section order. All never groups by type.
+# In config mode, this file comes first, then non-overridden modern entries.
+# Historical definitions override modern ones even when enabled: false.
+# Unconfigured addon cards follow in stable card-ID order; type lists filter that order.
+# Explicit textures, names, and colors are always preserved.
+# Bundled defaults, or cards without texture: passive = iron, neutral = copper,
+# hostile = diamond, boss = netherite chestplate.
+# Optional guide-group: passive|neutral|hostile|boss overrides the category.
+# Show or hide each selector with mob-simulation.guide.categories in config.yml.
+# Restart the server after changing settings. See docs/SMARTSPAWNER_CARDS.md.
 
 cow:
   enabled: true
@@ -149,7 +160,7 @@ pig:
 bee:
   enabled: true
   name: "Bee"
-  texture: IRON_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 150
   experience: 1
   drops:
@@ -171,7 +182,7 @@ bee:
 slime:
   enabled: true
   name: "Slime"
-  texture: IRON_CHESTPLATE
+  texture: DIAMOND_CHESTPLATE
   energy: 150
   experience: 1
   drops:
@@ -193,7 +204,7 @@ slime:
 magma_cube:
   enabled: true
   name: "Magma Cube"
-  texture: IRON_CHESTPLATE
+  texture: DIAMOND_CHESTPLATE
   energy: 150
   experience: 1
   drops:
@@ -218,7 +229,7 @@ magma_cube:
 ghast:
   enabled: true
   name: "Ghast"
-  texture: IRON_CHESTPLATE
+  texture: DIAMOND_CHESTPLATE
   energy: 300
   experience: 2
   drops:
@@ -305,7 +316,7 @@ zombie:
 spider:
   enabled: true
   name: "Spider"
-  texture: DIAMOND_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 300
   experience: 2
   drops:
@@ -416,7 +427,7 @@ wither_skeleton:
 enderman:
   enabled: true
   name: "Enderman"
-  texture: DIAMOND_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 600
   experience: 4
   drops:
@@ -469,7 +480,7 @@ guardian:
 iron_golem:
   enabled: true
   name: "Iron Golem"
-  texture: DIAMOND_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 600
   experience: 4
   drops:

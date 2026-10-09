@@ -1,3 +1,14 @@
+## v2.0.13 - Mob Data Card guide categories and ordering
+
+- Add Slimefun guide selectors for All Mobs, Passive Mobs, Neutral Mobs, Hostile Mobs, and Boss Mobs. All Mobs combines all registered, enabled cards without grouping them by type; each type filters the same sequence.
+- Add `mob-simulation.guide.sort-order`: `alphabetical` is the default and compares displayed names without changing names or colors; `config` restores YAML section order, with `yaml` accepted as an alias.
+- Reconstruct configuration order from `mob-simulation.yml` first, followed by non-overridden `mob-simulation-modern.yml` entries, so changing back from alphabetical restores the configured sequence. Historical entries retain precedence even when disabled. In config mode, unconfigured addon cards follow in normalized card-ID order, independent of registration timing.
+- Classify all 88 native cards as 38 Passive, 16 Neutral, 30 Hostile, and 4 Boss, with known DynaTech cards included under Hostile. The practical Boss tier contains Ender Dragon, Wither, Warden, and Elder Guardian.
+- Use iron, copper, diamond, and netherite chestplates for bundled Passive, Neutral, Hostile, and Boss defaults respectively, and when a card has no `texture` field. Always preserve explicitly configured textures, names, and colors, including custom chestplates, spawn eggs, and player heads.
+- Add independent `mob-simulation.guide.categories` toggles. Hiding a type selector leaves its cards in All Mobs; hiding every selector leaves machines and empty cards visible.
+- Extend per-card `guide-group` values to `passive`, `neutral`, `hostile`, and `boss`, preserving `friendly`, `aggressive`, and `bosses` aliases. Configuration changes take effect after a restart.
+- Keep all card IDs, recipes, drop metadata, energy, XP, enabled settings, and stacking behavior intact. Existing physical cards retain their persistent identities and appearance; no automatic inventory or saved-card rewrite is performed.
+
 ## v2.0.12 - SmartSpawner Mob Data Card coverage
 
 - Add 44 native Mob Data Cards for the previously unsupported mob types in the supplied SmartSpawner configuration, including Dolphin, Zoglin, Vindicator, Zombie Horse, Tropical Fish, Elder Guardian, Wandering Trader, and Salmon.

@@ -1,91 +1,100 @@
 package net.guizhanss.infinityexpansion2.implementation.guide
 
+import org.bukkit.Material
 import java.util.Locale
 
-/** The guide's navigation order, rather than Minecraft's entity classifications. */
-internal enum class MobDataCardGuideGroup {
-    FRIENDLY,
-    PASSIVE,
-    AGGRESSIVE
+/** Default guide categories and the material used by each category's data cards. */
+internal enum class MobDataCardGuideGroup(
+    val configKey: String,
+    val displayName: String,
+    val material: Material,
+) {
+    PASSIVE("passive", "Passive Mobs", Material.IRON_CHESTPLATE),
+    NEUTRAL("neutral", "Neutral Mobs", Material.COPPER_CHESTPLATE),
+    HOSTILE("hostile", "Hostile Mobs", Material.DIAMOND_CHESTPLATE),
+    BOSS("boss", "Boss Mobs", Material.NETHERITE_CHESTPLATE),
 }
 
 /**
  * Groups every bundled card and the known DynaTech integrations for guide display.
  *
- * Friendly includes helpful mobs, companions and dedicated mounts. Passive holds
- * the other animals, including wild animals that can retaliate. Aggressive holds
- * combat-oriented mobs and is the fallback for unclassified addon cards.
+ * Neutral includes mobs that retaliate or become aggressive under particular
+ * conditions, including spiders and piglins. Mounts are grouped
+ * by their own behavior without a hostile rider. Boss is a practical guide tier
+ * that also includes the Warden and Elder Guardian. Unknown addon cards default
+ * to Hostile until their category is explicitly configured.
  */
 internal object MobDataCardGuideGroups {
     private val groupsById: Map<String, MobDataCardGuideGroup> = buildMap {
         listOf(
             "allay",
+            "armadillo",
             "axolotl",
-            "bee",
+            "bat",
             "camel",
             "camel_husk",
             "cat",
-            "copper_golem",
-            "dolphin",
-            "donkey",
-            "happy_ghast",
-            "horse",
-            "iron_golem",
-            "llama",
-            "mule",
-            "nautilus",
-            "parrot",
-            "skeleton_horse",
-            "sniffer",
-            "snow_golem",
-            "strider",
-            "sulfur_cube",
-            "trader_llama",
-            "villager",
-            "wandering_trader",
-            "wolf",
-            "zombie_horse",
-            "zombie_nautilus"
-        ).forEach { put(it, MobDataCardGuideGroup.FRIENDLY) }
-
-        listOf(
-            "armadillo",
-            "bat",
             "chicken",
             "cod",
+            "copper_golem",
             "cow",
+            "donkey",
             "fox",
             "frog",
             "glow_squid",
-            "goat",
+            "happy_ghast",
+            "horse",
             "mooshroom",
+            "mule",
             "ocelot",
-            "panda",
+            "parrot",
             "pig",
-            "polar_bear",
             "pufferfish",
             "rabbit",
             "salmon",
             "sheep",
+            "skeleton_horse",
+            "sniffer",
+            "snow_golem",
             "squid",
+            "strider",
+            "sulfur_cube",
             "tadpole",
             "tropical_fish",
-            "turtle"
+            "turtle",
+            "villager",
+            "wandering_trader",
+            "zombie_horse"
         ).forEach { put(it, MobDataCardGuideGroup.PASSIVE) }
+
+        listOf(
+            "bee",
+            "cave_spider",
+            "dolphin",
+            "enderman",
+            "goat",
+            "iron_golem",
+            "llama",
+            "nautilus",
+            "panda",
+            "piglin",
+            "polar_bear",
+            "spider",
+            "trader_llama",
+            "wolf",
+            "zombie_nautilus",
+            "zombified_piglin"
+        ).forEach { put(it, MobDataCardGuideGroup.NEUTRAL) }
 
         listOf(
             "blaze",
             "bogged",
             "breeze",
-            "cave_spider",
             "creaking",
             "creeper",
             "drowned",
             "dynatech_phantom",
             "dynatech_vex",
-            "elder_guardian",
-            "ender_dragon",
-            "enderman",
             "endermite",
             "evoker",
             "ghast",
@@ -95,7 +104,6 @@ internal object MobDataCardGuideGroups {
             "magma_cube",
             "parched",
             "phantom",
-            "piglin",
             "piglin_brute",
             "pillager",
             "ravager",
@@ -103,30 +111,34 @@ internal object MobDataCardGuideGroups {
             "silverfish",
             "skeleton",
             "slime",
-            "spider",
             "stray",
             "vex",
             "vindicator",
-            "warden",
             "witch",
-            "wither",
             "wither_skeleton",
             "zoglin",
             "zombie",
-            "zombie_villager",
-            "zombified_piglin"
-        ).forEach { put(it, MobDataCardGuideGroup.AGGRESSIVE) }
+            "zombie_villager"
+        ).forEach { put(it, MobDataCardGuideGroup.HOSTILE) }
+
+        listOf(
+            "elder_guardian",
+            "ender_dragon",
+            "warden",
+            "wither"
+        ).forEach { put(it, MobDataCardGuideGroup.BOSS) }
     }
 
     internal val knownIds: Set<String> = groupsById.keys
 
     fun defaultGroup(id: String): MobDataCardGuideGroup =
-        groupsById[id.trim().lowercase(Locale.ROOT)] ?: MobDataCardGuideGroup.AGGRESSIVE
+        groupsById[id.trim().lowercase(Locale.ROOT)] ?: MobDataCardGuideGroup.HOSTILE
 
     fun parse(value: String?): MobDataCardGuideGroup? = when (value?.trim()?.lowercase(Locale.ROOT)) {
-        "friendly" -> MobDataCardGuideGroup.FRIENDLY
-        "passive" -> MobDataCardGuideGroup.PASSIVE
-        "aggressive" -> MobDataCardGuideGroup.AGGRESSIVE
+        "passive", "friendly" -> MobDataCardGuideGroup.PASSIVE
+        "neutral" -> MobDataCardGuideGroup.NEUTRAL
+        "hostile", "aggressive" -> MobDataCardGuideGroup.HOSTILE
+        "boss", "bosses" -> MobDataCardGuideGroup.BOSS
         else -> null
     }
 }

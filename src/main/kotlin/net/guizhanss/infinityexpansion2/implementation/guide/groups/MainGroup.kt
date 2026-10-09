@@ -28,7 +28,8 @@ class MainGroup(
                 override fun getItem(p: Player, profile: PlayerProfile) = it.getItem(p)
 
                 override fun onClick(p: Player, profile: PlayerProfile, mode: SlimefunGuideMode, action: ClickAction) {
-                    SlimefunGuide.openItemGroup(profile, DisplaySubGroup(it), mode, 1)
+                    val display = if (it is MobSimulationGroup) MobSimulationGuide(it) else DisplaySubGroup(it)
+                    SlimefunGuide.openItemGroup(profile, display, mode, 1)
                 }
             }
         }.toTypedArray())

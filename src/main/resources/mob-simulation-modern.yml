@@ -1,16 +1,25 @@
 # Slimefun Legacy modern Mob Simulation defaults.
 # This file is intentionally separate from mob-simulation.yml so existing customized
 # servers receive new cards without their historical config being overwritten.
-# Define the same card id in mob-simulation.yml to override one of these defaults.
+# Historical definitions override the same modern card ID even when enabled: false.
 # drop-mode: random-one selects exactly one configured drop per production cycle.
 # Optional potion metadata on potion-capable drops uses Bukkit PotionType names.
-# Card textures follow IE2's historical difficulty tiers:
-# iron = passive/low threat, diamond = hostile/tough, netherite = extreme/boss.
+# Guide categories: All Mobs, Passive, Neutral, Hostile, and Boss Mobs.
+# Set mob-simulation.guide.sort-order in config.yml to alphabetical (default)
+# or config (alias: yaml) to follow historical entries, then non-overridden entries here.
+# All never groups by type. Each type list preserves its order from the combined list.
+# In config mode, unconfigured addon cards follow in stable card-ID order.
+# Explicit textures, names, and colors are always preserved.
+# Bundled defaults, or cards without texture: passive = iron, neutral = copper,
+# hostile = diamond, boss = netherite chestplate.
+# Optional guide-group: passive|neutral|hostile|boss overrides the category.
+# Show or hide each selector with mob-simulation.guide.categories in config.yml.
+# Restart the server after changing settings. See docs/SMARTSPAWNER_CARDS.md.
 
 goat:
   enabled: true
   name: "Goat"
-  texture: IRON_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 300
   experience: 2
   drop-mode: random-one
@@ -327,7 +336,7 @@ hoglin:
 zombified_piglin:
   enabled: true
   name: "Zombified Piglin"
-  texture: DIAMOND_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 300
   experience: 2
   drops:
@@ -568,7 +577,7 @@ parched:
 nautilus:
   enabled: true
   name: "Nautilus"
-  texture: IRON_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 300
   experience: 2
   drops:
@@ -828,7 +837,7 @@ camel:
 camel_husk:
   enabled: true
   name: "Camel Husk"
-  texture: DIAMOND_CHESTPLATE
+  texture: IRON_CHESTPLATE
   energy: 300
   experience: 3
   drop-mode: independent
@@ -900,7 +909,7 @@ cat:
 cave_spider:
   enabled: true
   name: "Cave Spider"
-  texture: DIAMOND_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 300
   experience: 5
   drop-mode: independent
@@ -972,7 +981,7 @@ copper_golem:
 dolphin:
   enabled: true
   name: "Dolphin"
-  texture: IRON_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 150
   experience: 1
   drop-mode: independent
@@ -1239,7 +1248,7 @@ horse:
 llama:
   enabled: true
   name: "Llama"
-  texture: IRON_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 150
   experience: 1
   drop-mode: independent
@@ -1383,7 +1392,7 @@ ocelot:
 panda:
   enabled: true
   name: "Panda"
-  texture: IRON_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 150
   experience: 1
   drop-mode: independent
@@ -1455,7 +1464,7 @@ parrot:
 piglin:
   enabled: true
   name: "Piglin"
-  texture: DIAMOND_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 300
   experience: 5
   drop-mode: independent
@@ -1567,7 +1576,7 @@ pillager:
 polar_bear:
   enabled: true
   name: "Polar Bear"
-  texture: IRON_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 150
   experience: 1
   drop-mode: independent
@@ -1891,7 +1900,7 @@ tadpole:
 trader_llama:
   enabled: true
   name: "Trader Llama"
-  texture: IRON_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 150
   experience: 1
   drop-mode: independent
@@ -2108,7 +2117,7 @@ wandering_trader:
 wolf:
   enabled: true
   name: "Wolf"
-  texture: IRON_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 150
   experience: 3
   drop-mode: independent
@@ -2180,7 +2189,7 @@ zoglin:
 zombie_horse:
   enabled: true
   name: "Zombie Horse"
-  texture: DIAMOND_CHESTPLATE
+  texture: IRON_CHESTPLATE
   energy: 300
   experience: 3
   drop-mode: independent
@@ -2216,7 +2225,7 @@ zombie_horse:
 zombie_nautilus:
   enabled: true
   name: "Zombie Nautilus"
-  texture: DIAMOND_CHESTPLATE
+  texture: COPPER_CHESTPLATE
   energy: 300
   experience: 3
   drop-mode: independent
