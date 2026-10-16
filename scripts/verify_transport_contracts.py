@@ -35,6 +35,18 @@ def main() -> None:
         "cache.isEmpty() || (cache.matches(item) && isSimilar(item, menu.getItemInSlot(outputSlots[0])))",
     ], "IE2 StorageUnit empty-Cargo seeding")
 
+    ticking_machine = read(root / "src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/items/machines/abstracts/AbstractTickingMachine.kt")
+    ticking_action = read(root / "src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/items/machines/abstracts/AbstractTickingActionMachine.kt")
+    strainer_base = read(root / "src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/items/tools/StrainerBase.kt")
+    for label, source in (
+        ("IE2 ticking inventory machines", ticking_machine),
+        ("IE2 ticking action machines", ticking_action),
+        ("IE2 strainer", strainer_base),
+    ):
+        checks += require(source, [
+            "override fun isSync() = true",
+        ], f"{label} synchronized BlockMenu mutation")
+
     growing = read(root / "src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/items/machines/GrowingMachine.kt")
     checks += require(growing, [
         "InvUtils.fitAll(menu.toInventory(), generated, *outputSlots)",
