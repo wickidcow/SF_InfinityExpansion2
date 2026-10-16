@@ -43,13 +43,6 @@ class StrainerBase(
         addItemSetting(tickRateSetting)
     }
 
-    /**
-     * GuizhanLib 2.5.0 defaults TickingMenuBlock to asynchronous execution.
-     * This machine mutates BlockMenu inventories and item durability, so keep the complete
-     * transaction on Slimefun's synchronized server-thread ticker.
-     */
-    override fun isSync() = true
-
     override fun setup(preset: BlockMenuPreset) {
         LAYOUT.setupPreset(preset)
     }
