@@ -40,13 +40,6 @@ abstract class AbstractTickingActionMachine(
         addItemSetting(tickRateSetting, energyPerUseSetting)
     }
 
-    /**
-     * GuizhanLib 2.5.0 defaults TickingMenuBlock to asynchronous execution.
-     * This machine mutates BlockMenu inventories and energy state, so keep the complete
-     * transaction on Slimefun's synchronized server-thread ticker.
-     */
-    override fun isSync() = true
-
     override fun getCustomTickRate() = tickRateSetting.value
 
     override fun getEnergyConsumptionPerAction() = energyPerUseSetting.value
