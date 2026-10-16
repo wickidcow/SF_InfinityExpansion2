@@ -1,3 +1,12 @@
+## v2.0.14 - Synchronized HopperMachine producer transactions
+
+- Run the HopperMachine converter family on Slimefun's synchronized ticker instead of inheriting GuizhanLib 2.5.0's asynchronous TickingMenuBlock default.
+- Fix the Infinity Dust Extractor producer race with Networks: its short input-consume and output-insert transaction can no longer change the source slot concurrently with a synchronized Networks deposit.
+- Keep heavier AbstractTickingMachine, AbstractTickingActionMachine, Quarry/Growing-style machines, and Strainer scheduling unchanged to avoid an unnecessary main-thread TPS regression.
+- Retain Networks 1.0.57's source-snapshot and compensation protection as the cross-plugin safety net.
+- Preserve all recipes, tick-rate settings, energy costs, output amounts, item IDs, storage formats, transport slots, and migration behavior.
+- Dedicated cross-plugin validation with Networks 1.0.57 passed 140 real Dust Extractor/Networks transfer cases on Purpur 1.21.11 and 140 on Paper 26.3; released IE2 2.0.13 was the required asynchronous negative control.
+
 ## v2.0.13 - Mob Data Card guide categories and ordering
 
 - Add Slimefun guide selectors for All Mobs, Passive Mobs, Neutral Mobs, Hostile Mobs, and Boss Mobs. All Mobs combines all registered, enabled cards without grouping them by type; each type filters the same sequence.

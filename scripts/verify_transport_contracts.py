@@ -35,6 +35,11 @@ def main() -> None:
         "cache.isEmpty() || (cache.matches(item) && isSimilar(item, menu.getItemInSlot(outputSlots[0])))",
     ], "IE2 StorageUnit empty-Cargo seeding")
 
+    hopper_machine = read(root / "src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/items/machines/abstracts/HopperMachine.kt")
+    checks += require(hopper_machine, [
+        "override fun isSync() = true",
+    ], "IE2 HopperMachine synchronized producer transaction")
+
     growing = read(root / "src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/items/machines/GrowingMachine.kt")
     checks += require(growing, [
         "InvUtils.fitAll(menu.toInventory(), generated, *outputSlots)",
