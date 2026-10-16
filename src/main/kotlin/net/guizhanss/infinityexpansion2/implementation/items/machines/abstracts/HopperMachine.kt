@@ -34,6 +34,14 @@ open class HopperMachine(
 
     val recipes: Recipes get() = _recipes
 
+    /**
+     * GuizhanLib 2.5.0 defaults TickingMenuBlock to asynchronous execution.
+     * Hopper machines consume and produce inventory items in one short transaction. Keep that
+     * transaction synchronized so Networks cannot observe the source slot halfway through an
+     * Infinity Dust Extractor (or other HopperMachine) output mutation.
+     */
+    override fun isSync() = true
+
     fun addRecipe(input: RecipeInput, output: RecipeOutput) {
         require(output.isNotEmpty()) { "Recipe output cannot be empty" }
         check(state == ItemState.UNREGISTERED) { "Cannot add recipes after the machine has been registered" }
