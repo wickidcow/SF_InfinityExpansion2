@@ -83,9 +83,11 @@ class StorageUnit(
         preset.addMenuClickHandler(ITEM_SLOT, ChestMenuUtils.getEmptyClickHandler())
     }
 
-    override fun getInputSlots() = LAYOUT.inputSlots
+    // Networks discovers these no-argument methods through the public JVM API.
+    // Kotlin otherwise inherits MenuBlock's protected visibility silently.
+    public override fun getInputSlots() = LAYOUT.inputSlots
 
-    override fun getOutputSlots() = LAYOUT.outputSlots
+    public override fun getOutputSlots() = LAYOUT.outputSlots
 
     val caches: Map<BlockPosition, StorageCache>
         get() = _caches
