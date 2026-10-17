@@ -35,6 +35,7 @@ import net.guizhanss.infinityexpansion2.core.persistent.PersistentStorageCacheTy
 import net.guizhanss.infinityexpansion2.utils.Debug
 import net.guizhanss.infinityexpansion2.utils.bukkitext.ie2Key
 import net.guizhanss.infinityexpansion2.utils.items.isSimilar
+import net.guizhanss.infinityexpansion2.utils.items.isDisplayItem
 import net.guizhanss.infinityexpansion2.utils.items.removeDisplayItem
 import net.guizhanss.infinityexpansion2.utils.items.toDisplayItem
 import net.guizhanss.infinityexpansion2.utils.tags.IETag
@@ -115,6 +116,9 @@ class StorageUnit(
         }
 
         val cache = _caches[menu.position] ?: addCache(menu)
+        // ITEM_SLOT is also the existing persisted template, not only a GUI icon.
+        // Initialize it even when nobody has opened this menu.
+        menu.persistTemplate(cache)
         menu.updateDisplay(cache)
     }
 
@@ -122,6 +126,7 @@ class StorageUnit(
         val cache = _caches[(menu as BlockMenu).position]
         return if (
             cache != null &&
+            !cache.hasUnassignedItems() &&
             !item.isBlacklisted() &&
             (cache.isEmpty() || (cache.matches(item) && isSimilar(item, menu.getItemInSlot(outputSlots[0]))))
         ) {
@@ -138,6 +143,7 @@ class StorageUnit(
         }
 
         val cache = _caches[menu.position] ?: return
+        if (cache.hasUnassignedItems()) return
 
         menu.updateDisplay(cache)
 
@@ -180,9 +186,17 @@ class StorageUnit(
 
         b.location.save(cache)
         _caches[BlockPosition(b)] = cache
+        // Some cores initialize the menu before the placement callback; others
+        // schedule it afterwards. Cover both without opening or repainting the GUI.
+        b.getBlockMenu()?.persistTemplate(cache)
     }
 
     override fun onBreak(e: BlockBreakEvent, menu: BlockMenu) {
+        if (_caches[menu.position]?.hasUnassignedItems() == true) {
+            e.isCancelled = true
+            e.player.sendMessage("[InfinityExpansion2] This storage has an unverified item identity. Ask an administrator to inspect it.")
+            return
+        }
         val loc = menu.location
         val dropLocation = loc.clone().add(0.5, 0.5, 0.5)
 
@@ -231,6 +245,12 @@ class StorageUnit(
      */
     private fun interaction(menu: BlockMenu, p: Player, mode: InteractionMode) {
         val cache = _caches[menu.position] ?: return
+        // A surviving count is not proof of what item it represented. Do not
+        // relabel that balance using an arbitrary output stack or player deposit.
+        if (cache.hasUnassignedItems()) {
+            p.sendMessage("[InfinityExpansion2] This storage has an unverified item identity. Ask an administrator to inspect it.")
+            return
+        }
         val pInv = p.inventory
 
         if (!INTERACTION_COOLDOWN.check(p.uniqueId)) {
@@ -332,6 +352,13 @@ class StorageUnit(
 
         val cache = createCache(item, menu, amount, voidExcess)
         Debug.log(DebugCase.STORAGE_UNIT, "created cache at $loc: $cache")
+        if (cache.hasUnassignedItems()) {
+            // Report once per cache load, not on every ticker or transfer attempt.
+            InfinityExpansion2.instance.logger.severe(
+                "Storage Unit at $loc retains ${cache.amount} item(s) without a saved item identity. " +
+                    "Input, interaction and player-break operations are blocked. Preserve the storage and backups for inspection; no replacement type was inferred."
+            )
+        }
 
         _caches[menu.position] = cache
         return cache
@@ -394,12 +421,12 @@ class StorageUnit(
             "storage_deposit"
         )
         private val ACTION_WITHDRAW_SINGLE_ITEM = InfinityExpansion2.localization.getGuiItem(
-            // https://minecraft-heads.com/custom-heads/head/106285-elevator-arrow-button-up-red
+            // https://minecraft-heads.com/custom-heads/head/106285-elevator-arrow-up-red
             "a979cca43315030d76fa4112e0e6b809a4f463872cc1787c86659917fd94e8a0".asMaterialType(),
             "storage_withdraw_single"
         )
         private val ACTION_WITHDRAW_ALL_ITEM = InfinityExpansion2.localization.getGuiItem(
-            // https://minecraft-heads.com/custom-heads/head/106283-elevator-arrow-button-up-green
+            // https://minecraft-heads.com/custom-heads/head/106283-elevator-arrow-up-green
             "5fa1c6c7ead75a04585395f63135dc96fa078fb920484699ef8e564e142d64cb".asMaterialType(),
             "storage_withdraw_all"
         )
@@ -449,11 +476,14 @@ class StorageUnit(
          * Return the amount of items that should be consumed
          */
         fun BlockMenu.inputItem(cache: StorageCache, item: ItemStack, amount: Int = item.amount): Int {
-            if (item.isBlacklisted()) return 0
+            if (item.isBlacklisted() || cache.hasUnassignedItems()) return 0
             Debug.log(DebugCase.STORAGE_UNIT, "storage unit input attempt with item: $item, cache: $cache")
 
             if (cache.isEmpty()) {
                 cache.itemStack = item.edit { amount(1) }
+                // Persist the existing template slot before crediting a new
+                // balance. This must not depend on a player opening the GUI.
+                persistTemplate(cache)
                 val leftover = cache.increaseAmount(amount)
                 Debug.log(DebugCase.STORAGE_UNIT, "empty cache, updated: $cache, leftover: $leftover")
                 location.save(cache)
@@ -492,6 +522,33 @@ class StorageUnit(
             cache.amount -= decreaseAmount
             location.save(cache)
             return item
+        }
+
+        /**
+         * Keep the historical persisted template slot current, independently
+         * of optional GUI rendering. Called on assignment/initialization only,
+         * not every idle tick. Unchanged templates avoid repeat menu writes.
+         */
+        private fun BlockMenu.persistTemplate(cache: StorageCache) {
+            val template = cache.itemStack ?: return
+            if (template.isAir()) return
+            val existing = getItemInSlot(ITEM_SLOT)
+            // Display markers contain a random byte. Compare decoded identity
+            // before encoding, so that randomness cannot force redundant writes.
+            if (!existing.isAir() && existing.amount == 1 && existing.isDisplayItem() &&
+                existing.removeDisplayItem().isSimilar(template)) return
+
+            val encoded = StorageTemplatePersistence.snapshot(template).toDisplayItem()
+            encoded.amount = 1
+            check(encoded.removeDisplayItem().isSimilar(template)) {
+                "Storage template display encoding changed the stored item identity"
+            }
+            StorageTemplatePersistence.update(
+                encoded,
+                { getItemInSlot(ITEM_SLOT) },
+                { replaceExistingItem(ITEM_SLOT, it) },
+                { markDirty() }
+            )
         }
 
         /**

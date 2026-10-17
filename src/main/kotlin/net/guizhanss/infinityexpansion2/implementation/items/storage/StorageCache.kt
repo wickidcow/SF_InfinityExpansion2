@@ -37,6 +37,9 @@ class StorageCache(
 
     fun isEmpty() = amount == 0 || itemStack.isAir()
 
+    /** A positive legacy balance without its identity is not empty, seedable storage. */
+    fun hasUnassignedItems() = amount > 0 && itemStack.isAir()
+
     /**
      * Check if the current [ItemStack] matches the storage unit
      */
