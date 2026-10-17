@@ -30,6 +30,7 @@ def main() -> None:
 
     storage = read(root / "src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/items/storage/StorageUnit.kt")
     checks += require(storage, [
+        "override fun isSynchronized() = true",
         "override fun getInputSlots(menu: DirtyChestMenu, item: ItemStack): IntArray",
         "!item.isBlacklisted() &&",
         "cache.isEmpty() || (cache.matches(item) && isSimilar(item, menu.getItemInSlot(outputSlots[0])))",

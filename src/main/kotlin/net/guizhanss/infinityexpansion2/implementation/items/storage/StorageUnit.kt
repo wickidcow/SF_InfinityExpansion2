@@ -60,7 +60,12 @@ class StorageUnit(
 
     init {
         addItemHandler(object : BlockTicker() {
-            override fun isSynchronized() = false
+            // The mutable StorageCache and BlockMenu are also accessed by
+            // player actions, Cargo and Networks on the server thread. Running
+            // this producer asynchronously can race withdrawals/deposits and
+            // expose the same output twice. Keep item movement on the owner
+            // thread; this does not change storage data or recipe behavior.
+            override fun isSynchronized() = true
 
             override fun tick(b: Block, item: SlimefunItem, data: Config) {
                 tick(b)
