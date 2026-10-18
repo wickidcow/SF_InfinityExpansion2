@@ -147,13 +147,18 @@ class StorageUnit(
 
         menu.updateDisplay(cache)
 
-        // input item
-        val inputItem = menu.getItemInSlot(inputSlots[0])
-        if (!inputItem.isAir()) {
-            val inputConsumption = menu.inputItem(cache, inputItem)
-            if (inputConsumption > 0) {
-                menu.consumeItem(inputSlots[0], inputConsumption)
-                menu.markDirty()
+        // Debit the authoritative physical input slot before crediting storage.
+        val inputSlot = inputSlots[0]
+        val inputItem = menu.getItemInSlot(inputSlot)
+        if (!inputItem.isAir() && !inputItem.isBlacklisted()) {
+            val consumed = StorageInputReceipt.transfer(
+                cache,
+                { menu.getItemInSlot(inputSlot) },
+                { remainder -> menu.replaceExistingItem(inputSlot, remainder ?: ItemStack(Material.AIR)) },
+                { menu.markDirty() },
+                { requested -> menu.inputItem(cache, requested) }
+            )
+            if (consumed > 0) {
                 menu.updateDisplay(cache)
             }
         }
@@ -272,16 +277,22 @@ class StorageUnit(
                     cache.itemStack = outputItem.edit { amount(1) }
                 }
 
-                for (item in pInv.storageContents) {
-                    if (item.isAir() || item.isBlacklisted()) continue
+                // storageContents may contain detached items. Use real player slot
+                // setters and post-write reads instead of mutating getter results.
+                for (slot in pInv.storageContents.indices) {
+                    val source = pInv.getItem(slot) ?: continue
+                    if (source.isBlacklisted() || !cache.matches(source)) continue
 
-                    if (cache.matches(item)) {
-                        val consumed = menu.inputItem(cache, item)
-                        if (consumed > 0) {
-                            item.amount -= consumed
-                            menu.updateDisplay(cache)
-                            menu.location.save(cache)
-                        }
+                    val consumed = StorageInputReceipt.transfer(
+                        cache,
+                        { pInv.getItem(slot) },
+                        { remainder -> pInv.setItem(slot, remainder) },
+                        { },
+                        { requested -> menu.inputItem(cache, requested) }
+                    )
+                    if (consumed > 0) {
+                        menu.updateDisplay(cache)
+                        menu.location.save(cache)
                     }
                 }
             }
