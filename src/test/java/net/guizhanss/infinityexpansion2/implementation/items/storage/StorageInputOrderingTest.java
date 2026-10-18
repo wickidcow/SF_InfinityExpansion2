@@ -49,7 +49,7 @@ class StorageInputOrderingTest {
 
     @Test
     void tickerInputCannotCreditCacheBeforeMenuSlotDebitIsVerified() throws Exception {
-        String ticker = section("// input item", "// output item");
+        String ticker = section("private fun tick(b: Block) {", "// output item");
         assertTrue(ticker.contains("StorageInputReceipt.transfer"),
             "Ticker must verify actual input-menu slot debit, not credit storage then call consumeItem");
         assertFalse(ticker.contains("menu.inputItem(cache, inputItem)"),
