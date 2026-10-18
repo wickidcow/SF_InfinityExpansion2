@@ -126,7 +126,7 @@ class StorageUnit(
         val cache = _caches[(menu as BlockMenu).position]
         return if (
             cache != null &&
-            !cache.hasUnassignedItems() &&
+            !cache.hasUnassignedItems() && !cache.hasBlockedTransfer() &&
             !item.isBlacklisted() &&
             (cache.isEmpty() || (cache.matches(item) && isSimilar(item, menu.getItemInSlot(outputSlots[0]))))
         ) {
@@ -143,7 +143,7 @@ class StorageUnit(
         }
 
         val cache = _caches[menu.position] ?: return
-        if (cache.hasUnassignedItems()) return
+        if (cache.hasUnassignedItems() || cache.hasBlockedTransfer()) return
 
         menu.updateDisplay(cache)
 
@@ -192,9 +192,9 @@ class StorageUnit(
     }
 
     override fun onBreak(e: BlockBreakEvent, menu: BlockMenu) {
-        if (_caches[menu.position]?.hasUnassignedItems() == true) {
+        if (_caches[menu.position]?.let { it.hasUnassignedItems() || it.hasBlockedTransfer() } == true) {
             e.isCancelled = true
-            e.player.sendMessage("[InfinityExpansion2] This storage has an unverified item identity. Ask an administrator to inspect it.")
+            e.player.sendMessage("[InfinityExpansion2] This storage has an unverified item identity or transfer. Ask an administrator to inspect it.")
             return
         }
         val loc = menu.location
@@ -235,6 +235,7 @@ class StorageUnit(
 
     private fun toggleVoid(menu: BlockMenu) {
         val cache = _caches[menu.position] ?: return
+        if (cache.hasBlockedTransfer()) return
         cache.voidExcess = !cache.voidExcess
         menu.updateDisplay(cache)
         menu.location.save(cache)
@@ -247,8 +248,8 @@ class StorageUnit(
         val cache = _caches[menu.position] ?: return
         // A surviving count is not proof of what item it represented. Do not
         // relabel that balance using an arbitrary output stack or player deposit.
-        if (cache.hasUnassignedItems()) {
-            p.sendMessage("[InfinityExpansion2] This storage has an unverified item identity. Ask an administrator to inspect it.")
+        if (cache.hasUnassignedItems() || cache.hasBlockedTransfer()) {
+            p.sendMessage("[InfinityExpansion2] This storage has an unverified item identity or transfer. Ask an administrator to inspect it.")
             return
         }
         val pInv = p.inventory
@@ -285,59 +286,29 @@ class StorageUnit(
                 }
             }
 
-            InteractionMode.WITHDRAW_SINGLE -> {
-                if (cache.isEmpty()) return
+            InteractionMode.WITHDRAW_SINGLE -> withdrawToPlayer(menu, cache, p, false)
+            InteractionMode.WITHDRAW_ALL -> withdrawToPlayer(menu, cache, p, true)
+        }
+    }
 
-                val transferred = StorageWithdrawal.transfer(cache, pInv, cache.itemStack!!.maxStackSize)
-                if (transferred > 0) {
-                    menu.updateDisplay(cache)
-                    menu.location.save(cache)
-                }
-            }
-
-            InteractionMode.WITHDRAW_ALL -> {
-                if (cache.isEmpty()) return
-
-                val itemToGive = cache.itemStack!!.clone()
-                val maxStackSize = itemToGive.maxStackSize
-
-                val emptySlots = pInv.storageContents.count { it.isAir() }
-                val partialSlots = pInv.storageContents.filter {
-                    !it.isAir() &&
-                        it.amount < it.maxStackSize &&
-                        cache.matches(it)
-                }.sumOf { it!!.maxStackSize - it.amount }
-
-                val possibleAmount = (emptySlots * maxStackSize + partialSlots)
-                    .coerceAtMost(cache.amount)
-
-                if (possibleAmount <= 0) return
-
-                // First fill existing stacks
-                for (slot in 0 until pInv.size) {
-                    val invItem = pInv.getItem(slot) ?: continue
-                    if (!invItem.isAir() && cache.matches(invItem) && invItem.amount < invItem.maxStackSize) {
-                        val canAdd = invItem.maxStackSize - invItem.amount
-                        val toAdd = canAdd.coerceAtMost(cache.amount)
-                        invItem.amount += toAdd
-                        cache.amount -= toAdd
-                        if (cache.amount <= 0) break
-                    }
-                }
-
-                // Then fill empty slots
-                while (cache.amount > 0) {
-                    val amount = maxStackSize.coerceAtMost(cache.amount)
-                    val transferred = StorageWithdrawal.transfer(cache, pInv, amount)
-                    if (transferred < amount) {
-                        // Inventory is full; any partial insertion has already been deducted.
-                        break
-                    }
-                }
-
-                menu.updateDisplay(cache)
+    private fun withdrawToPlayer(menu: BlockMenu, cache: StorageCache, player: Player, all: Boolean) {
+        try {
+            val persist = Runnable { menu.location.save(cache) }
+            if (all) StorageWithdrawal.transferAll(cache, player.inventory, persist)
+            else StorageWithdrawal.transfer(cache, player.inventory, cache.itemStack?.maxStackSize ?: 0, persist)
+            if (!cache.hasBlockedTransfer()) menu.updateDisplay(cache)
+        } catch (failure: IllegalStateException) {
+            // Also save a conservative reservation when the destination threw. Never let a
+            // clean reload restore a balance which might already exist in player inventory.
+            try {
                 menu.location.save(cache)
+            } catch (saveFailure: RuntimeException) {
+                failure.addSuppressed(saveFailure)
             }
+            InfinityExpansion2.instance.logger.log(java.util.logging.Level.SEVERE,
+                "Unverified player withdrawal at ${menu.location}; storage is blocked. Preserve logs and " +
+                    "inspect the stored/player balances before restarting. No automatic item refund was made.", failure)
+            player.sendMessage("[InfinityExpansion2] This storage transfer could not be verified. Ask an administrator to inspect it.")
         }
     }
 
@@ -476,7 +447,7 @@ class StorageUnit(
          * Return the amount of items that should be consumed
          */
         fun BlockMenu.inputItem(cache: StorageCache, item: ItemStack, amount: Int = item.amount): Int {
-            if (item.isBlacklisted() || cache.hasUnassignedItems()) return 0
+            if (item.isBlacklisted() || cache.hasUnassignedItems() || cache.hasBlockedTransfer()) return 0
             Debug.log(DebugCase.STORAGE_UNIT, "storage unit input attempt with item: $item, cache: $cache")
 
             if (cache.isEmpty()) {
@@ -505,7 +476,7 @@ class StorageUnit(
          * A full [ItemStack] is expected.
          */
         fun BlockMenu.outputItem(cache: StorageCache): ItemStack? {
-            if (cache.isEmpty()) return null
+            if (cache.hasBlockedTransfer() || cache.isEmpty()) return null
             return outputItem(cache, cache.itemStack!!.maxStackSize)
         }
 
@@ -515,7 +486,7 @@ class StorageUnit(
          * Custom amount is expected, but only a single [ItemStack] is returned.
          */
         fun BlockMenu.outputItem(cache: StorageCache, amount: Int): ItemStack? {
-            if (cache.isEmpty()) return null
+            if (cache.hasBlockedTransfer() || cache.isEmpty()) return null
 
             val decreaseAmount = amount.coerceAtMost(cache.amount)
             val item = cache.itemStack!!.edit { amount(decreaseAmount) }

@@ -16,6 +16,28 @@ class StorageCache(
     var voidExcess: Boolean,
 ) {
 
+    // Runtime circuit breaker only; the existing persisted item/count format is unchanged.
+    @Volatile private var withdrawalActive = false
+    @Volatile private var transferUnverified = false
+
+    fun hasBlockedTransfer() = withdrawalActive || transferUnverified
+
+    @Synchronized
+    internal fun beginWithdrawal(): Boolean {
+        if (hasBlockedTransfer()) return false
+        withdrawalActive = true
+        return true
+    }
+
+    @Synchronized
+    internal fun finishWithdrawal() {
+        withdrawalActive = false
+    }
+
+    internal fun blockUnverifiedTransfer() {
+        transferUnverified = true
+    }
+
     private var _meta: ItemMeta? = null
     private var metaCached: Boolean = false
 
@@ -56,6 +78,7 @@ class StorageCache(
      * Returns leftover amount.
      */
     fun increaseAmount(amount: Int): Int {
+        if (hasBlockedTransfer()) return amount
         val newAmount: Long = this.amount.toLong() + amount.toLong()
         if (newAmount > limit) {
             this.amount = limit
