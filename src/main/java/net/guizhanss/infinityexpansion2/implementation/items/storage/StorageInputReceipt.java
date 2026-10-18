@@ -1,9 +1,6 @@
 package net.guizhanss.infinityexpansion2.implementation.items.storage;
 
-import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -16,9 +13,6 @@ import org.bukkit.inventory.ItemStack;
  * No slot reference or item snapshot is retained after this operation.
  */
 public final class StorageInputReceipt {
-    private static final Set<StorageCache> ACTIVE =
-        Collections.newSetFromMap(new IdentityHashMap<>());
-
     private StorageInputReceipt() {
     }
 
@@ -34,14 +28,16 @@ public final class StorageInputReceipt {
         Objects.requireNonNull(afterDebit, "afterDebit");
         Objects.requireNonNull(credit, "credit");
 
-        synchronized (ACTIVE) {
-            if (!ACTIVE.add(cache)) {
-                throw new IllegalStateException("Recursive IE2 storage input into the same cache");
-            }
-        }
+        if (!cache.beginInputReceipt()) return 0;
+        final int balanceAtEntry = cache.getAmount();
+        final boolean voidAtEntry = cache.getVoidExcess();
+        final ItemStack templateAtEntry = detached(cache.getItemStack());
+        boolean sourceMayHaveChanged = false;
         try {
             if (cache.hasUnassignedItems()) return 0;
+            sourceMayHaveChanged = true; // A source getter may invoke a plugin callback.
             ItemStack original = detached(sourceReader.get());
+            requirePrecreditState(cache, balanceAtEntry, voidAtEntry, templateAtEntry);
             if (original == null || original.getAmount() <= 0) return 0;
             if (!cache.isEmpty() && !cache.matches(original)) return 0;
 
@@ -67,32 +63,53 @@ public final class StorageInputReceipt {
             // by getStorageContents(), getItemInSlot(), or another getter.
             sourceWriter.accept(detached(expectedRemainder));
             requireSlot(expectedRemainder, sourceReader.get());
-
-            // A menu dirty callback may alter a slot; verify it as well before credit.
+            requirePrecreditState(cache, balanceAtEntry, voidAtEntry, templateAtEntry);
             afterDebit.run();
             requireSlot(expectedRemainder, sourceReader.get());
-            if (cache.getAmount() != before) {
-                throw new IllegalStateException("Storage cache changed during source debit");
-            }
+            requirePrecreditState(cache, balanceAtEntry, voidAtEntry, templateAtEntry);
 
             ItemStack offered = original.clone();
             offered.setAmount(planned);
+            cache.authorizeInputCredit(offered, planned);
             Integer acknowledged = credit.apply(offered);
-            if (acknowledged == null || acknowledged != planned) {
-                throw new IllegalStateException("Storage did not acknowledge the exact debited input");
+            if (acknowledged == null || acknowledged != planned || !cache.wasInputCreditConsumed()) {
+                throw new IllegalStateException("Storage did not acknowledge one exact debited input");
             }
 
             // Recheck after template persistence and block-storage callbacks.
             requireSlot(expectedRemainder, sourceReader.get());
             long expectedBalance = Math.min((long) limit, (long) before + planned);
-            if (cache.getAmount() != expectedBalance || !cache.matches(original)) {
-                throw new IllegalStateException("Storage balance/identity changed during input credit");
+            if (cache.getAmount() != expectedBalance || !cache.matches(original)
+                || cache.getVoidExcess() != voidAtEntry) {
+                throw new IllegalStateException("Storage balance/identity/void policy changed during input credit");
+            }
+            if (templateAtEntry != null) {
+                requireTemplate(templateAtEntry, cache.getItemStack());
             }
             return planned;
-        } finally {
-            synchronized (ACTIVE) {
-                ACTIVE.remove(cache);
+        } catch (RuntimeException | LinkageError failure) {
+            if (sourceMayHaveChanged) {
+                cache.quarantineFailedInput(balanceAtEntry);
             }
+            throw failure;
+        } finally {
+            cache.finishInputReceipt();
+        }
+    }
+
+    private static void requirePrecreditState(
+        StorageCache cache, int balance, boolean voidExcess, ItemStack template) {
+        if (cache.getAmount() != balance || cache.getVoidExcess() != voidExcess) {
+            throw new IllegalStateException("IE2 cached balance or void-excess policy changed during input debit");
+        }
+        requireTemplate(template, cache.getItemStack());
+    }
+
+    private static void requireTemplate(ItemStack expected, ItemStack current) {
+        if (expected == null && (current == null || current.getType().isAir())) return;
+        if (expected == null || current == null || current.getType().isAir()
+            || expected.getAmount() != current.getAmount() || !expected.isSimilar(current)) {
+            throw new IllegalStateException("IE2 storage template identity changed during input transaction");
         }
     }
 

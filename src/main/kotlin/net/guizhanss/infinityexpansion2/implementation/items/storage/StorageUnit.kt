@@ -151,13 +151,18 @@ class StorageUnit(
         val inputSlot = inputSlots[0]
         val inputItem = menu.getItemInSlot(inputSlot)
         if (!inputItem.isAir() && !inputItem.isBlacklisted()) {
-            val consumed = StorageInputReceipt.transfer(
-                cache,
-                { menu.getItemInSlot(inputSlot) },
-                { remainder -> menu.replaceExistingItem(inputSlot, remainder ?: ItemStack(Material.AIR)) },
-                { menu.markDirty() },
-                { requested -> menu.inputItem(cache, requested) }
-            )
+            val consumed = try {
+                StorageInputReceipt.transfer(
+                    cache,
+                    { menu.getItemInSlot(inputSlot) },
+                    { remainder -> menu.replaceExistingItem(inputSlot, remainder ?: ItemStack(Material.AIR)) },
+                    { menu.markDirty() },
+                    { requested -> menu.inputItem(cache, requested) }
+                )
+            } catch (failure: RuntimeException) {
+                holdFailedInput(menu, cache, failure)
+                return // Stop the output phase after an uncertain input debit.
+            }
             if (consumed > 0) {
                 menu.updateDisplay(cache)
             }
@@ -283,13 +288,19 @@ class StorageUnit(
                     val source = pInv.getItem(slot) ?: continue
                     if (source.isBlacklisted() || !cache.matches(source)) continue
 
-                    val consumed = StorageInputReceipt.transfer(
-                        cache,
-                        { pInv.getItem(slot) },
-                        { remainder -> pInv.setItem(slot, remainder) },
-                        { },
-                        { requested -> menu.inputItem(cache, requested) }
-                    )
+                    val consumed = try {
+                        StorageInputReceipt.transfer(
+                            cache,
+                            { pInv.getItem(slot) },
+                            { remainder -> pInv.setItem(slot, remainder) },
+                            { },
+                            { requested -> menu.inputItem(cache, requested) }
+                        )
+                    } catch (failure: RuntimeException) {
+                        holdFailedInput(menu, cache, failure)
+                        p.sendMessage("[InfinityExpansion2] This storage input could not be verified. Ask an administrator to inspect it.")
+                        return // Stop player slot processing after an incident.
+                    }
                     if (consumed > 0) {
                         menu.updateDisplay(cache)
                         menu.location.save(cache)
@@ -300,6 +311,19 @@ class StorageUnit(
             InteractionMode.WITHDRAW_SINGLE -> withdrawToPlayer(menu, cache, p, false)
             InteractionMode.WITHDRAW_ALL -> withdrawToPlayer(menu, cache, p, true)
         }
+    }
+
+    private fun holdFailedInput(menu: BlockMenu, cache: StorageCache, failure: RuntimeException) {
+        cache.blockUnverifiedTransfer()
+        try {
+            menu.location.save(cache)
+        } catch (saveFailure: RuntimeException) {
+            failure.addSuppressed(saveFailure)
+        }
+        InfinityExpansion2.instance.logger.log(java.util.logging.Level.SEVERE,
+            "Unverified storage input at ${menu.location}; storage blocked. " +
+                "Preserve logs and source inventory for administrator reconciliation before restarting.",
+            failure)
     }
 
     private fun withdrawToPlayer(menu: BlockMenu, cache: StorageCache, player: Player, all: Boolean) {
@@ -458,7 +482,9 @@ class StorageUnit(
          * Return the amount of items that should be consumed
          */
         fun BlockMenu.inputItem(cache: StorageCache, item: ItemStack, amount: Int = item.amount): Int {
-            if (item.isBlacklisted() || cache.hasUnassignedItems() || cache.hasBlockedTransfer()) return 0
+            val ownedInput = cache.permitsInputCredit(item, amount)
+            if (item.isBlacklisted() || cache.hasUnassignedItems() ||
+                (cache.hasBlockedTransfer() && !ownedInput)) return 0
             Debug.log(DebugCase.STORAGE_UNIT, "storage unit input attempt with item: $item, cache: $cache")
 
             if (cache.isEmpty()) {
@@ -497,7 +523,7 @@ class StorageUnit(
          * Custom amount is expected, but only a single [ItemStack] is returned.
          */
         fun BlockMenu.outputItem(cache: StorageCache, amount: Int): ItemStack? {
-            if (cache.hasBlockedTransfer() || cache.isEmpty()) return null
+            if (amount <= 0 || cache.hasBlockedTransfer() || cache.isEmpty()) return null
 
             val decreaseAmount = amount.coerceAtMost(cache.amount)
             val item = cache.itemStack!!.edit { amount(decreaseAmount) }
