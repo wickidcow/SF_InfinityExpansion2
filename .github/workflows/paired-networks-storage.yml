@@ -1,0 +1,123 @@
+name: Paired IE2 withdrawal and Networks storage repair
+
+on:
+  push:
+    branches: [security/player-withdrawal-conservation-20261018]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: paired-networks-storage-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NETWORKS_HEAD: 23c9b23aa82ace043be584f8eb6e83a05eebf94b
+  CORE_HEAD: 36d665f1ec47ce3f05b1be092051ed0b1a1f53ff
+
+jobs:
+  paired-storage:
+    name: IE2 candidate plus Networks 101 / Purpur conservation and restart
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out exact IE2 candidate
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Check out pinned Networks withdrawal repair
+        uses: actions/checkout@v6
+        with:
+          repository: wickidcow/SF_NetworksExp
+          ref: ${{ env.NETWORKS_HEAD }}
+          path: .ci/networks
+          persist-credentials: false
+      - name: Check out pinned Slimefun core
+        uses: actions/checkout@v6
+        with:
+          repository: wickidcow/Slimefun-Legacy
+          ref: ${{ env.CORE_HEAD }}
+          path: .ci/core
+          persist-credentials: false
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Set up Java 25 toolchain and runtime
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: gradle
+      - name: Record source pins and retain every source safety gate
+        run: |
+          set -euo pipefail
+          echo "IE2_HEAD=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          test "$(git -C .ci/networks rev-parse HEAD)" = "$NETWORKS_HEAD"
+          test "$(git -C .ci/core rev-parse HEAD)" = "$CORE_HEAD"
+          python3 scripts/verify_legacy_migration.py
+          python3 scripts/verify_doctor_bridge_safety.py
+          python3 scripts/verify_mob_sim_drop_ranges.py
+          python3 scripts/verify_mob_sim_input_filtering.py
+          python3 scripts/verify_mob_sim_modern_cards.py
+          python3 scripts/verify_transport_contracts.py --slimefun .ci/core --networks .ci/networks
+          python3 .ci/networks/scripts/verify_legacy_compatibility.py
+      - name: Build and publish exact core API locally
+        working-directory: .ci/core
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          python3 scripts/verify_legacy.py .
+          ./gradlew spotlessApply --no-daemon
+          git diff --binary > "$GITHUB_WORKSPACE/paired-core-formatting.patch"
+          ./gradlew clean build publishToMavenLocal -PprojectVersion=ALBION-SNAPSHOT --no-daemon
+      - name: Locate the core used by both candidates
+        run: |
+          set -euo pipefail
+          CORE_JAR=$(python3 .ci/networks/scripts/find_slimefun_jar.py .ci/core)
+          test -s "$CORE_JAR"
+          echo "CORE_JAR=$CORE_JAR" >> "$GITHUB_ENV"
+          sha256sum "$CORE_JAR"
+      - name: Build and test exact IE2 candidate
+        run: |
+          chmod +x gradlew
+          ./gradlew clean build --no-daemon -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT \
+            -PtargetJvm=21 -PbuildVersion=2.0.14 \
+            -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+      - name: Build and test exact Networks candidate
+        working-directory: .ci/networks
+        run: |
+          set -euo pipefail
+          bash scripts/download_jeg.sh
+          chmod +x gradlew
+          ./gradlew clean build --no-daemon -PslimefunCoreJar="$CORE_JAR" \
+            -PjegJar="$PWD/.ci/jeg/SF_JustEnoughGuide2.1.67.jar" -PstrictDeprecation=true
+          python3 scripts/verify_java21_bytecode.py build/libs/SF_Networks1.0.59.jar
+          python3 scripts/verify_universal_jar.py build/libs/SF_Networks1.0.59.jar 1.0.59
+      - name: Run real topology and item conservation across two JVMs
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --retry 2 --max-time 240 \
+            https://api.purpurmc.org/v2/purpur/1.21.11/2568/download --output .ci/purpur.jar
+          python3 .ci/networks/scripts/paired_ie2_storage_probe.py "$CORE_JAR" \
+            .ci/networks/build/libs/SF_Networks1.0.59.jar build/libs/SF_InfinityExpansion2.0.14.jar \
+            .ci/purpur.jar build/paired-networks-storage
+      - name: Retain source, binary and test evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ie2-withdrawal-paired-networks-evidence
+          include-hidden-files: true
+          path: |
+            paired-core-formatting.patch
+            build/paired-networks-storage/inputs.json
+            build/paired-networks-storage/patch.log
+            build/paired-networks-storage/*-console.log
+            build/paired-networks-storage/*-result.txt
+            build/test-results/test/TEST-*.xml
+            .ci/networks/build/test-results/test/TEST-*.xml
+            .ci/core/build/test-results/test/TEST-*.xml
+          if-no-files-found: warn
+          retention-days: 14
