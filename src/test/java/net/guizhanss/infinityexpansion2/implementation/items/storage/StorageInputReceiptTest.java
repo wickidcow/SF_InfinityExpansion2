@@ -142,6 +142,36 @@ class StorageInputReceiptTest {
         assertEquals(1, cache.getAmount());
     }
 
+    @Test
+    void templateSnapshotFailureMustReleaseOwnershipBeforeTouchingPhysicalSource() {
+        var failOnce = new java.util.concurrent.atomic.AtomicBoolean(true);
+        var readCalls = new AtomicInteger();
+        ItemStack template = new ItemStack(Material.DIAMOND) {
+            @Override
+            public ItemStack clone() {
+                if (failOnce.getAndSet(false)) {
+                    throw new IllegalStateException("synthetic template snapshot failure");
+                }
+                return super.clone();
+            }
+        };
+        cache = new StorageCache(template, 0, 1000, false);
+
+        assertThrows(IllegalStateException.class, () ->
+            StorageInputReceipt.transfer(cache, () -> {
+                readCalls.incrementAndGet();
+                return readCopy();
+            }, physical::set, () -> {}, this::credit));
+
+        assertEquals(0, readCalls.get(), "Template preflight failed before any source read");
+        assertEquals(8, physical.get().getAmount(), "Physical source must remain untouched");
+        assertEquals(0, cache.getAmount());
+        assertFalse(cache.hasBlockedTransfer(), "A pre-debit snapshot exception must release the input guard");
+        assertEquals(8, transfer(physical::set, () -> {}), "A later clean transaction should proceed");
+        assertNull(physical.get());
+        assertEquals(8, cache.getAmount());
+    }
+
     private int transfer(java.util.function.Consumer<ItemStack> writer, Runnable afterWrite) {
         return StorageInputReceipt.transfer(cache, this::readCopy, writer, afterWrite, this::credit);
     }
