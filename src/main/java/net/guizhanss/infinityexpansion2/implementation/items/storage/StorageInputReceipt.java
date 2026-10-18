@@ -79,7 +79,11 @@ public final class StorageInputReceipt {
             // Recheck after template persistence and block-storage callbacks.
             requireSlot(expectedRemainder, sourceReader.get());
             long expectedBalance = Math.min((long) limit, (long) before + planned);
+            // The cache's memoized ItemMeta can be stale after a callback mutates
+            // the live ItemStack in place. Compare the actual template too.
+            ItemStack storedTemplate = cache.getItemStack();
             if (cache.getAmount() != expectedBalance || !cache.matches(original)
+                || storedTemplate == null || !storedTemplate.isSimilar(original)
                 || cache.getVoidExcess() != voidAtEntry) {
                 throw new IllegalStateException("Storage balance/identity/void policy changed during input credit");
             }
