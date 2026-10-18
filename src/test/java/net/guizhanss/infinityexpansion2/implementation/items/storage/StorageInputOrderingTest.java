@@ -8,6 +8,9 @@ import java.nio.file.Path;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+import org.mockbukkit.mockbukkit.MockBukkit;
 
 /**
  * Test-first source contract for the current IE2 storage input paths.
@@ -17,6 +20,12 @@ import org.junit.jupiter.api.Test;
  * successful live-player exploit replay.
  */
 class StorageInputOrderingTest {
+    @BeforeEach
+    void setUp() { MockBukkit.mock(); }
+
+    @AfterEach
+    void tearDown() { MockBukkit.unmock(); }
+
     private static final Path SOURCE = Path.of(
         "src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/items/storage/StorageUnit.kt");
 
