@@ -134,9 +134,12 @@ class StorageInputReceiptTest {
         physical.set(null);
         assertEquals(0, transfer(physical::set, () -> {}));
         assertEquals(0, cache.getAmount());
+        // A genuinely empty cache may accept a new item type by design.
+        // Rejection applies when a positive diamond balance already exists.
+        cache = new StorageCache(new ItemStack(Material.DIAMOND), 1, 1000, false);
         physical.set(new ItemStack(Material.EMERALD, 8));
         assertEquals(0, transfer(physical::set, () -> {}));
-        assertEquals(0, cache.getAmount());
+        assertEquals(1, cache.getAmount());
     }
 
     private int transfer(java.util.function.Consumer<ItemStack> writer, Runnable afterWrite) {
