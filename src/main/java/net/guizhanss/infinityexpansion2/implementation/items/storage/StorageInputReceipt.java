@@ -29,11 +29,16 @@ public final class StorageInputReceipt {
         Objects.requireNonNull(credit, "credit");
 
         if (!cache.beginInputReceipt()) return 0;
-        final int balanceAtEntry = cache.getAmount();
-        final boolean voidAtEntry = cache.getVoidExcess();
-        final ItemStack templateAtEntry = detached(cache.getItemStack());
+
+        int balanceAtEntry = 0;
+        boolean balanceCaptured = false;
         boolean sourceMayHaveChanged = false;
         try {
+            balanceAtEntry = cache.getAmount();
+            balanceCaptured = true;
+            final boolean voidAtEntry = cache.getVoidExcess();
+            final ItemStack templateAtEntry = detached(cache.getItemStack());
+
             if (cache.hasUnassignedItems()) return 0;
             sourceMayHaveChanged = true; // A source getter may invoke a plugin callback.
             ItemStack original = detached(sourceReader.get());
@@ -92,7 +97,7 @@ public final class StorageInputReceipt {
             }
             return planned;
         } catch (RuntimeException | LinkageError failure) {
-            if (sourceMayHaveChanged) {
+            if (sourceMayHaveChanged && balanceCaptured) {
                 cache.quarantineFailedInput(balanceAtEntry);
             }
             throw failure;
