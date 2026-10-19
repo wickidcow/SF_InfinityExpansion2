@@ -1,6 +1,7 @@
 package net.guizhanss.infinityexpansion2.core.migration
 
 import net.guizhanss.infinityexpansion2.InfinityExpansion2
+import net.guizhanss.infinityexpansion2.core.scheduling.IEScheduler
 import org.bukkit.plugin.ServicePriority
 import java.lang.reflect.Proxy
 import java.util.logging.Level
@@ -23,10 +24,17 @@ object LegacyMigrationProviderBridge {
     private var registered = false
 
     fun register(plugin: InfinityExpansion2) {
+        if (registered || !InfinityExpansion2.configService.migrationEnabled.value) return
+        if (IEScheduler.isFolia) {
+            InfinityExpansion2.log(
+                Level.INFO,
+                "Folia detected: skipping global IE1 migration providers; automatic migration remains region-owned."
+            )
+            return
+        }
+
         // Offer the exact placed-block lane first when the running Slimefun Legacy exposes it.
         LegacyBlockMigrationProviderBridge.register(plugin)
-
-        if (registered || !InfinityExpansion2.configService.migrationEnabled.value) return
 
         val slimefun = plugin.server.pluginManager.getPlugin("Slimefun") ?: return
         val loader = slimefun.javaClass.classLoader
