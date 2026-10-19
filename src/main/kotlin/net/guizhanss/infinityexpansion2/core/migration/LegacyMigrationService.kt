@@ -4,6 +4,7 @@ import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem
 import io.github.thebusybiscuit.slimefun4.implementation.Slimefun
 import me.mrCookieSlime.Slimefun.api.inventory.BlockMenu
 import net.guizhanss.infinityexpansion2.InfinityExpansion2
+import net.guizhanss.infinityexpansion2.core.scheduling.IEScheduler
 import org.bukkit.Chunk
 import org.bukkit.Location
 import org.bukkit.block.Container
@@ -23,9 +24,9 @@ import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.InventoryHolder
 import org.bukkit.inventory.ItemStack
 import java.lang.reflect.Field
-import java.util.ArrayDeque
-import java.util.HashSet
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.logging.Level
 
@@ -73,9 +74,9 @@ class LegacyMigrationService(private val plugin: InfinityExpansion2) : Listener 
      */
     private data class QueuedChunk(val worldId: UUID, val x: Int, val z: Int)
 
-    private val pendingChunks = ArrayDeque<QueuedChunk>()
-    private val queuedChunkKeys = HashSet<QueuedChunk>()
-    private val scannedThisSession = HashSet<QueuedChunk>()
+    private val pendingChunks = ConcurrentLinkedQueue<QueuedChunk>()
+    private val queuedChunkKeys: MutableSet<QueuedChunk> = ConcurrentHashMap.newKeySet()
+    private val scannedThisSession: MutableSet<QueuedChunk> = ConcurrentHashMap.newKeySet()
 
     @Volatile
     var aliasesInstalled: SlimefunCompatibilityBridge.AliasResult =
@@ -87,12 +88,7 @@ class LegacyMigrationService(private val plugin: InfinityExpansion2) : Listener 
 
         // Keep automatic migration bounded. Four chunks/second is intentionally conservative:
         // aliases make waiting safe, while TPS remains far more important than migration speed.
-        plugin.server.scheduler.runTaskTimer(
-            plugin,
-            Runnable { processNextQueuedChunk() },
-            AUTO_QUEUE_PERIOD_TICKS,
-            AUTO_QUEUE_PERIOD_TICKS
-        )
+        IEScheduler.repeat(AUTO_QUEUE_PERIOD_TICKS, Runnable { processNextQueuedChunk() })
     }
 
     fun installStartupAliases() {
@@ -119,6 +115,9 @@ class LegacyMigrationService(private val plugin: InfinityExpansion2) : Listener 
     }
 
     fun scanLoaded(migrate: Boolean): MigrationStats {
+        check(!IEScheduler.isFolia) {
+            "Global IE2 Doctor scans are unavailable on Folia; use automatic region-owned migration as chunks load."
+        }
         if (migrate && !migrationInProgress.compareAndSet(false, true)) return MigrationStats()
         return try {
             val stats = MigrationStats()
@@ -476,7 +475,7 @@ class LegacyMigrationService(private val plugin: InfinityExpansion2) : Listener 
     private fun queueChunk(chunk: Chunk) {
         val key = QueuedChunk(chunk.world.uid, chunk.x, chunk.z)
         if (key in scannedThisSession || !queuedChunkKeys.add(key)) return
-        pendingChunks.addLast(key)
+        pendingChunks.add(key)
     }
 
     private fun processNextQueuedChunk() {
@@ -487,21 +486,38 @@ class LegacyMigrationService(private val plugin: InfinityExpansion2) : Listener 
             return
         }
 
-        while (pendingChunks.isNotEmpty()) {
-            val key = pendingChunks.removeFirst()
-            queuedChunkKeys.remove(key)
+        while (true) {
+            val key = pendingChunks.poll() ?: return
+            val world = plugin.server.getWorld(key.worldId)
+            if (world == null) {
+                queuedChunkKeys.remove(key)
+                continue
+            }
 
-            val world = plugin.server.getWorld(key.worldId) ?: continue
+            val anchor = Location(world, (key.x shl 4) + 8.0, 0.0, (key.z shl 4) + 8.0)
+            try {
+                IEScheduler.runAt(anchor, Runnable {
+                    try {
+                        // Never force-load a chunk just for migration. If it unloaded before
+                        // reaching its owned callback, a later ChunkLoadEvent may enqueue it again.
+                        if (!world.isChunkLoaded(key.x, key.z)) return@Runnable
 
-            // Never force-load a chunk just for migration. If it unloaded before reaching the
-            // queue head, its next genuine ChunkLoadEvent will enqueue it again.
-            if (!world.isChunkLoaded(key.x, key.z)) continue
-
-            scannedThisSession.add(key)
-            val chunk = world.getChunkAt(key.x, key.z)
-            val stats = scanChunk(chunk, true)
-            logAutoStats("chunk ${key.x},${key.z}", stats)
-            return
+                        scannedThisSession.add(key)
+                        val chunk = world.getChunkAt(key.x, key.z)
+                        val stats = scanChunk(chunk, true)
+                        logAutoStats("chunk ${key.x},${key.z}", stats)
+                    } finally {
+                        queuedChunkKeys.remove(key)
+                    }
+                })
+                return
+            } catch (failure: RuntimeException) {
+                queuedChunkKeys.remove(key)
+                InfinityExpansion2.log(
+                    Level.WARNING,
+                    "Unable to schedule IE1 migration for chunk ${key.x},${key.z}: ${failure.message}"
+                )
+            }
         }
     }
 
@@ -513,13 +529,22 @@ class LegacyMigrationService(private val plugin: InfinityExpansion2) : Listener 
             !InfinityExpansion2.configService.migrationAutoItems.value
         ) return
 
-        // Do not synchronously rescan every loaded chunk two seconds after startup. Queue the
-        // already-loaded set and let the bounded worker drain it gradually.
-        plugin.server.scheduler.runTaskLater(plugin, Runnable {
+        // Folia has no safe single-thread traversal of every region's loaded chunks.
+        // Existing loaded chunks will be handled by their owned ChunkLoadEvent callbacks;
+        // Paper/Purpur retain the historical delayed startup enumeration.
+        if (IEScheduler.isFolia) {
+            InfinityExpansion2.log(
+                Level.INFO,
+                "Folia detected: skipping global startup chunk migration scan; chunks migrate on owned load callbacks."
+            )
+            return
+        }
+
+        IEScheduler.runLater(40L, Runnable {
             plugin.server.worlds.forEach { world ->
                 world.loadedChunks.forEach(::queueChunk)
             }
-        }, 40L)
+        })
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -529,13 +554,17 @@ class LegacyMigrationService(private val plugin: InfinityExpansion2) : Listener 
                 !InfinityExpansion2.configService.migrationAutoItems.value)
         ) return
 
-        // Wait briefly for Slimefun to hydrate its block/menu data, then only enqueue. The actual
-        // scan is rate-limited by processNextQueuedChunk().
-        plugin.server.scheduler.runTaskLater(plugin, Runnable {
-            if (event.chunk.isLoaded) {
-                queueChunk(event.chunk)
+        // Wait briefly for Slimefun to hydrate its block/menu data, then only enqueue.
+        // The delayed read stays on the chunk's owning region on Folia.
+        val world = event.world
+        val chunkX = event.chunk.x
+        val chunkZ = event.chunk.z
+        val anchor = Location(world, (chunkX shl 4) + 8.0, 0.0, (chunkZ shl 4) + 8.0)
+        IEScheduler.runAtLater(anchor, 2L, Runnable {
+            if (world.isChunkLoaded(chunkX, chunkZ)) {
+                queueChunk(world.getChunkAt(chunkX, chunkZ))
             }
-        }, 2L)
+        })
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -543,13 +572,14 @@ class LegacyMigrationService(private val plugin: InfinityExpansion2) : Listener 
         if (!InfinityExpansion2.configService.migrationEnabled.value ||
             !InfinityExpansion2.configService.migrationAutoItems.value
         ) return
-        plugin.server.scheduler.runTask(plugin, Runnable {
+        val player = event.player
+        IEScheduler.runFor(player, Runnable {
             val stats = scanPlayer(
-                event.player,
+                player,
                 true,
                 InfinityExpansion2.configService.migrationRefreshModernItems.value
             )
-            logAutoStats("player ${event.player.name}", stats)
+            logAutoStats("player ${player.name}", stats)
         })
     }
 
