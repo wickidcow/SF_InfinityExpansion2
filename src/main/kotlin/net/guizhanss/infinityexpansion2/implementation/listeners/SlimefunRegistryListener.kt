@@ -5,6 +5,7 @@ package net.guizhanss.infinityexpansion2.implementation.listeners
 import io.github.thebusybiscuit.slimefun4.api.events.SlimefunItemRegistryFinalizedEvent
 import io.github.thebusybiscuit.slimefun4.implementation.Slimefun
 import net.guizhanss.infinityexpansion2.InfinityExpansion2
+import net.guizhanss.infinityexpansion2.core.scheduling.IEScheduler
 import net.guizhanss.infinityexpansion2.core.items.attributes.DelayedTaskItem
 import net.guizhanss.infinityexpansion2.implementation.setup.DynamicItemSetup
 import org.bukkit.event.EventHandler
@@ -32,9 +33,9 @@ class SlimefunRegistryListener(plugin: InfinityExpansion2) : Listener {
             if (item !is DelayedTaskItem) return@forEach
 
             if (item.isSync) {
-                InfinityExpansion2.scheduler().run(item::delayedTask)
+                IEScheduler.run(item::delayedTask)
             } else {
-                InfinityExpansion2.scheduler().runAsync(item::delayedTask)
+                IEScheduler.runAsync(item::delayedTask)
             }
         }
     }
