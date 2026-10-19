@@ -9,6 +9,7 @@ import net.guizhanss.guizhanlib.kt.slimefun.extensions.getSlimefunItem
 import net.guizhanss.guizhanlib.kt.slimefun.extensions.isSlimefunItem
 import net.guizhanss.infinityexpansion2.InfinityExpansion2
 import net.guizhanss.infinityexpansion2.core.debug.DebugCase
+import net.guizhanss.infinityexpansion2.core.scheduling.IEScheduler
 import net.guizhanss.infinityexpansion2.implementation.IEItems
 import net.guizhanss.infinityexpansion2.implementation.items.tools.VeinMinerRune
 import net.guizhanss.infinityexpansion2.utils.Debug
@@ -29,6 +30,8 @@ import org.bukkit.event.entity.FoodLevelChangeEvent
 import org.bukkit.event.player.PlayerDropItemEvent
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.Damageable
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
 
 class VeinMinerListener(plugin: InfinityExpansion2) : Listener {
@@ -40,16 +43,21 @@ class VeinMinerListener(plugin: InfinityExpansion2) : Listener {
     fun onRuneDrop(e: PlayerDropItemEvent) {
         val item = e.itemDrop
         if (item.itemStack.amount == 1 && item.itemStack.isRune(e.player)) {
-            InfinityExpansion2.scheduler().run(20) {
-                useRune(e.player, item)
-            }
+            // Translation/permission lookup belongs to the player-owned event context.
+            // The delayed world mutation itself is owned by the dropped item.
+            val lore = InfinityExpansion2.integrationService.getLore(e.player, "vein-miner")
+            IEScheduler.runForLater(
+                item,
+                20L,
+                Runnable { useRune(e.player, item, lore) }
+            )
         }
     }
 
     @EventHandler
     fun onBlockBreak(e: BlockBreakEvent) {
         val b = e.block
-        if (processing.contains(b)) return
+        if (processing.contains(BlockKey.of(b))) return
 
         val p = e.player
         if (!p.isSneaking) return
@@ -81,18 +89,22 @@ class VeinMinerListener(plugin: InfinityExpansion2) : Listener {
         val world = b.world
 
         foundBlocks.forEach { foundBlock ->
-            processing.add(foundBlock)
-            val event = BlockBreakEvent(foundBlock, p)
-            Bukkit.getPluginManager().callEvent(event)
-            if (!event.isCancelled) {
-                if (event.isDropItems) {
-                    foundBlock.getDrops(item).forEach { drop ->
-                        world.dropItemNaturally(loc, drop)
+            val key = BlockKey.of(foundBlock)
+            if (!processing.add(key)) return@forEach
+            try {
+                val event = BlockBreakEvent(foundBlock, p)
+                Bukkit.getPluginManager().callEvent(event)
+                if (!event.isCancelled) {
+                    if (event.isDropItems) {
+                        foundBlock.getDrops(item).forEach { drop ->
+                            world.dropItemNaturally(foundBlock.location, drop)
+                        }
                     }
+                    foundBlock.type = Material.AIR
                 }
-                foundBlock.type = Material.AIR
+            } finally {
+                processing.remove(key)
             }
-            processing.remove(foundBlock)
         }
 
         if (blockType.toString().endsWith("ORE")) {
@@ -119,11 +131,14 @@ class VeinMinerListener(plugin: InfinityExpansion2) : Listener {
 
     /**
      * Try to use the rune. Find the target item and apply vein miner to it.
+     *
+     * Player permission/translation state was checked on the original drop event.
+     * This delayed phase only mutates world state owned by the rune's entity region.
      */
-    private fun useRune(p: Player, rune: Item) {
+    private fun useRune(p: Player, rune: Item, lore: String) {
         Debug.log(DebugCase.VEIN_MINER, "Vein miner rune activating")
         if (!rune.isValid) return
-        if (rune.itemStack.amount != 1) return
+        if (rune.itemStack.amount != 1 || !rune.itemStack.isSlimefunItem<VeinMinerRune>()) return
         Debug.log(DebugCase.VEIN_MINER, "Rune is valid")
 
         val loc = rune.location
@@ -132,23 +147,41 @@ class VeinMinerListener(plugin: InfinityExpansion2) : Listener {
         Debug.log(DebugCase.VEIN_MINER, "World is loaded")
 
         val range = VeinMinerRune.ACTIVATE_RANGE
-        val targetItem = world.getNearbyEntities(loc, range, range, range) {
-            it is Item && it.itemStack.isValidItem() && !it.itemStack.hasVeinMiner() && !it.itemStack.isRune(p)
-        }.firstOrNull() ?: return
-        targetItem as Item
+        val targetItem = if (IEScheduler.isFolia) {
+            // A 1.5-block search can straddle a region boundary. Restrict the Folia
+            // path to entities in the currently owned chunk instead of reading
+            // another region's entity set.
+            rune.chunk.entities.asSequence()
+                .filterIsInstance<Item>()
+                .firstOrNull {
+                    it.location.distanceSquared(loc) <= range * range &&
+                        it.itemStack.isValidItem() &&
+                        !it.itemStack.hasVeinMiner() &&
+                        !it.itemStack.isSlimefunItem<VeinMinerRune>()
+                }
+        } else {
+            world.getNearbyEntities(loc, range, range, range) {
+                it is Item && it.itemStack.isValidItem() && !it.itemStack.hasVeinMiner() &&
+                    !it.itemStack.isSlimefunItem<VeinMinerRune>()
+            }.firstOrNull() as? Item
+        } ?: return
         Debug.log(DebugCase.VEIN_MINER, "Found a nearby item")
 
         world.strikeLightningEffect(loc)
-
         world.createExplosion(loc, 0F)
         world.playSound(loc, Sound.ENTITY_GENERIC_EXPLODE, 0.3F, 1F)
 
         val target = targetItem.itemStack.clone()
         rune.remove()
         targetItem.remove()
-        applyVeinMiner(p, target)
+        applyVeinMiner(target, lore)
         world.dropItem(loc, target)
-        InfinityExpansion2.integrationService.sendMessage(p, "vein-miner.applied")
+
+        // Messaging a player that may have moved regions must be entity-owned.
+        IEScheduler.runFor(
+            p,
+            Runnable { InfinityExpansion2.integrationService.sendMessage(p, "vein-miner.applied") }
+        )
     }
 
     /**
@@ -166,28 +199,31 @@ class VeinMinerListener(plugin: InfinityExpansion2) : Listener {
     private fun ItemStack?.hasVeinMiner() =
         !this.isAir() && this.hasItemMeta() && PersistentDataAPI.hasBoolean(itemMeta!!, Keys.VEIN_MINER)
 
-    private fun applyVeinMiner(p: Player, item: ItemStack) {
+    private fun applyVeinMiner(item: ItemStack, loreLine: String) {
         if (!item.hasItemMeta()) return
         val meta = item.itemMeta!!
 
         PersistentDataAPI.setBoolean(meta, Keys.VEIN_MINER, true)
 
         val lore = meta.lore ?: mutableListOf()
-        lore.add(InfinityExpansion2.integrationService.getLore(p, "vein-miner"))
+        lore.add(loreLine)
         meta.lore = lore
 
         item.itemMeta = meta
     }
 
     private fun getVein(checked: MutableSet<Location>, found: MutableSet<Block>, l: Location, block: Block) {
-        if (found.size >= MAX) {
-            return
-        }
+        if (found.size >= MAX) return
 
         getAdjacentLocations(l).forEach { loc ->
-            if (checked.add(loc) && loc.block.type == block.type && !BlockStorage.hasBlockInfo(block)) {
-                found.add(block)
-                getVein(checked, found, loc, loc.block)
+            if (found.size >= MAX) return@forEach
+            if (!checked.add(loc)) return@forEach
+            if (!IEScheduler.isOwned(loc)) return@forEach
+
+            val adjacent = loc.block
+            if (adjacent.type == block.type && !BlockStorage.hasBlockInfo(loc)) {
+                found.add(adjacent)
+                getVein(checked, found, loc, adjacent)
             }
         }
     }
@@ -204,9 +240,14 @@ class VeinMinerListener(plugin: InfinityExpansion2) : Listener {
         return list
     }
 
-    companion object {
+    private data class BlockKey(val worldId: UUID, val x: Int, val y: Int, val z: Int) {
+        companion object {
+            fun of(block: Block) = BlockKey(block.world.uid, block.x, block.y, block.z)
+        }
+    }
 
-        private val processing = mutableSetOf<Block>()
+    companion object {
+        private val processing: MutableSet<BlockKey> = ConcurrentHashMap.newKeySet()
         private const val MAX = 64
     }
 }
