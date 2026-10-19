@@ -159,6 +159,7 @@ class MobSimulationChamber(
 
     override fun process(b: Block, menu: BlockMenu): Boolean {
         val l = b.location
+        menu.refreshLegacyCard(layout)
         val (props, cardAmount) = menu.getDataCard(layout) ?: run {
             menu.setStatus { GuiItems.INVALID_INPUT }
             menu.setEnergyConsumption(0)
@@ -315,19 +316,20 @@ class MobSimulationChamber(
          * If the input is invalid, return null.
          * Returns the [MobDataCardProps] and the amount of the card.
          */
-        private fun BlockMenu.getDataCard(layout: MenuLayout): Pair<MobDataCardProps, Int>? {
+        private fun BlockMenu.refreshLegacyCard(layout: MenuLayout) {
             val slot = layout.inputSlots[0]
-            var input = getItemInSlot(slot) ?: return null
-            val props = input.getMobDataCardProps() ?: return null
+            val input = getItemInSlot(slot) ?: return
 
-            // Repair only the known stale appearance signature while the card is already inside
-            // the chamber. Amount and unknown PDC are retained; named custom carpet cards remain
-            // untouched. This is deliberately not a global inventory migration.
+            // This runs only from the chamber's normal process path. Keep HUD/read helpers
+            // side-effect free for scheduler/Folia safety.
             MobDataCard.refreshLegacyAppearance(input)?.let { repaired ->
                 replaceExistingItem(slot, repaired)
-                input = repaired
             }
+        }
 
+        private fun BlockMenu.getDataCard(layout: MenuLayout): Pair<MobDataCardProps, Int>? {
+            val input = getItemInSlot(layout.inputSlots[0]) ?: return null
+            val props = input.getMobDataCardProps() ?: return null
             return props to input.amount
         }
 
