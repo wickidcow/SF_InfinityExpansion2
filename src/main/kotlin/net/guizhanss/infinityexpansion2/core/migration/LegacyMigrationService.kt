@@ -88,7 +88,7 @@ class LegacyMigrationService(private val plugin: InfinityExpansion2) : Listener 
 
         // Keep automatic migration bounded. Four chunks/second is intentionally conservative:
         // aliases make waiting safe, while TPS remains far more important than migration speed.
-        IEScheduler.repeat(AUTO_QUEUE_PERIOD_TICKS, Runnable { processNextQueuedChunk() })
+        IEScheduler.repeat(AUTO_QUEUE_PERIOD_TICKS, AUTO_QUEUE_PERIOD_TICKS, Runnable { processNextQueuedChunk() })
     }
 
     fun installStartupAliases() {
