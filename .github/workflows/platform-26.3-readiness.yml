@@ -1,0 +1,172 @@
+name: IE2 26.3 Runtime Readiness
+
+on:
+  push:
+    branches: ['compat/**']
+    paths:
+      - 'src/**'
+      - 'scripts/runtime_26_3_readiness.py'
+      - 'scripts/verify_legacy_migration.py'
+      - 'build.gradle.kts'
+      - 'gradle.properties'
+      - '.github/workflows/platform-26.3-readiness.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'scripts/runtime_26_3_readiness.py'
+      - 'scripts/verify_legacy_migration.py'
+      - 'build.gradle.kts'
+      - 'gradle.properties'
+      - '.github/workflows/platform-26.3-readiness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CORE_HEAD: 1cb32d6e95b305998065b8ef6b936a56f679187d
+
+jobs:
+  build-candidate:
+    name: Build exact core and universal IE2 candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out IE2
+        uses: actions/checkout@v6
+
+      - name: Check out exact held Slimefun Legacy
+        uses: actions/checkout@v6
+        with:
+          repository: wickidcow/Slimefun-Legacy
+          ref: ${{ env.CORE_HEAD }}
+          path: .deps/Slimefun-Legacy
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Validate Gradle wrappers
+        uses: gradle/actions/wrapper-validation@v6
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Verify exact core checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C .deps/Slimefun-Legacy rev-parse HEAD)" = "$CORE_HEAD"
+
+      - name: Publish held Slimefun API locally
+        working-directory: .deps/Slimefun-Legacy
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew publishToMavenLocal -PprojectVersion=ALBION-SNAPSHOT --no-daemon
+
+      - name: Build held core runtime JAR
+        working-directory: .deps/Slimefun-Legacy
+        shell: bash
+        run: |
+          set -euo pipefail
+          export SOURCE_COMMIT="$CORE_HEAD"
+          export SOURCE_DATE_EPOCH="$(git show -s --format=%ct "$CORE_HEAD")"
+          ./gradlew clean shadowJar -PpaperApiVersion=26.3.build.+ --no-daemon --no-build-cache --no-configuration-cache
+          JAR="$(find build/libs -maxdepth 1 -type f -name 'Slimefun-*.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar' -print -quit)"
+          test -s "$JAR"
+          mkdir -p ../../build/platform-candidate
+          cp "$JAR" ../../build/platform-candidate/Slimefun-Legacy-candidate.jar
+          sha256sum ../../build/platform-candidate/Slimefun-Legacy-candidate.jar
+
+      - name: Build universal Java 21 IE2 JAR
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew clean build --stacktrace --console=plain             -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT             -PtargetJvm=21             -PbuildVersion=2.0.14             -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+          JAR="build/libs/SF_InfinityExpansion2.0.14.jar"
+          test -s "$JAR"
+          if unzip -p "$JAR" plugin.yml | grep -Eiq "^['\"]?folia-supported['\"]?[[:space:]]*:"; then
+            echo 'Production IE2 descriptor must remain Folia-undeclared during experimental readiness.' >&2
+            exit 1
+          fi
+          cp "$JAR" build/platform-candidate/SF_InfinityExpansion2.0.14.jar
+          sha256sum build/platform-candidate/SF_InfinityExpansion2.0.14.jar
+
+      - name: Upload exact platform candidate
+        uses: actions/upload-artifact@v7
+        with:
+          name: ie2-26.3-platform-candidate
+          path: build/platform-candidate/*
+          if-no-files-found: error
+          retention-days: 14
+
+  runtime:
+    name: Two boots on ${{ matrix.software }} 26.3
+    needs: build-candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        software: [purpur, folia]
+
+    steps:
+      - name: Check out exact IE2 source
+        uses: actions/checkout@v6
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Download exact candidate
+        uses: actions/download-artifact@v6
+        with:
+          name: ie2-26.3-platform-candidate
+          path: build/platform-candidate
+
+      - name: Verify readiness harness syntax
+        run: python3 -m py_compile scripts/runtime_26_3_readiness.py
+
+      - name: Boot twice and run Doctor checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/runtime_26_3_readiness.py             --software "${{ matrix.software }}"             --core build/platform-candidate/Slimefun-Legacy-candidate.jar             --ie2 build/platform-candidate/SF_InfinityExpansion2.0.14.jar             --work "build/runtime-${{ matrix.software }}-26.3"
+
+      - name: Summarize exact runtime evidence
+        if: always()
+        shell: bash
+        run: |
+          RESULT="build/runtime-${{ matrix.software }}-26.3/smoke-result.json"
+          BUILD="build/runtime-${{ matrix.software }}-26.3/runtime-build.json"
+          {
+            echo "## IE2 ${{ matrix.software }} 26.3 readiness"
+            echo
+            if [[ -f "$BUILD" ]]; then
+              echo '### Exact inputs'
+              cat "$BUILD"
+            fi
+            if [[ -f "$RESULT" ]]; then
+              echo '### Result'
+              cat "$RESULT"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ie2-${{ matrix.software }}-26.3-readiness
+          path: |
+            build/runtime-${{ matrix.software }}-26.3/*.console.log
+            build/runtime-${{ matrix.software }}-26.3/runtime-build.json
+            build/runtime-${{ matrix.software }}-26.3/smoke-result.json
+          if-no-files-found: warn
+          retention-days: 14
