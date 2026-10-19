@@ -3,6 +3,7 @@ package net.guizhanss.infinityexpansion2.core.commands.subcommands
 import net.guizhanss.guizhanlib.minecraft.commands.AbstractCommand
 import net.guizhanss.infinityexpansion2.InfinityExpansion2
 import net.guizhanss.infinityexpansion2.core.commands.AbstractSubCommand
+import net.guizhanss.infinityexpansion2.core.scheduling.IEScheduler
 import org.bukkit.ChatColor
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
@@ -31,6 +32,7 @@ class DoctorCommand(parent: AbstractCommand) : AbstractSubCommand(
             }
 
             "scan" -> {
+                if (rejectGlobalFoliaScan(sender)) return
                 val stats = service.scanLoaded(false)
                 sender.sendMessage("${ChatColor.GOLD}IE2 Doctor scan complete (loaded Slimefun blocks, world inventories/entities, and online players).")
                 sender.sendMessage("${ChatColor.YELLOW}${stats.legacyBlocksFound}${ChatColor.GRAY} IE1 block records need migration.")
@@ -39,6 +41,7 @@ class DoctorCommand(parent: AbstractCommand) : AbstractSubCommand(
             }
 
             "migrate" -> {
+                if (rejectGlobalFoliaScan(sender)) return
                 val stats = service.scanLoaded(true)
                 sender.sendMessage("${ChatColor.GREEN}IE2 migration pass complete.")
                 sender.sendMessage("${ChatColor.GRAY}Blocks: ${ChatColor.WHITE}${stats.blocksMigrated}/${stats.legacyBlocksFound}${ChatColor.GRAY}; Items: ${ChatColor.WHITE}${stats.itemsMigrated}/${stats.legacyItemsFound}${ChatColor.GRAY}; Failures: ${ChatColor.WHITE}${stats.blockFailures + stats.itemFailures}")
@@ -62,6 +65,17 @@ class DoctorCommand(parent: AbstractCommand) : AbstractSubCommand(
         if (args.size != 1) return emptyList()
         val current = args[0].lowercase(Locale.ENGLISH)
         return listOf("status", "scan", "migrate", "refresh").filter { it.startsWith(current) }
+    }
+
+    private fun rejectGlobalFoliaScan(sender: CommandSender): Boolean {
+        if (!IEScheduler.isFolia) return false
+        sender.sendMessage(
+            "${ChatColor.RED}A global loaded-world IE2 scan is disabled on Folia because one thread cannot safely own every region."
+        )
+        sender.sendMessage(
+            "${ChatColor.YELLOW}Automatic IE1 migration remains region-owned and will process eligible chunks as they load."
+        )
+        return true
     }
 
     private fun status(value: Boolean) = if (value) "${ChatColor.GREEN}enabled" else "${ChatColor.RED}disabled"
