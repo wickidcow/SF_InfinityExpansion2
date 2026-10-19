@@ -158,11 +158,22 @@ does not replace that appearance. Existing card sections keep their configured
 textures; the bundled chestplate values are used when an entirely new default
 section is added, or the category fallback applies when a texture is absent.
 
-Existing physical cards already stored in inventories, containers, or chambers
-retain their material and persistent Slimefun identity, and continue to work.
-This feature does not automatically rewrite those saved stacks or the existing
-card configuration files. Newly created cards use the loaded template. Card IDs,
-recipes, drops, energy, XP, and stacking behavior remain the same.
+Existing physical cards already stored in inventories or containers retain their
+persistent Slimefun identity and continue to work. IE2 does not run a broad saved-item
+rewrite. A narrow upgrade repair applies when a Mob Simulation Chamber encounters a
+card whose physical base is a carpet and whose first mob-name lore line is blank:
+the card is rebuilt from the current registered template in that same input slot.
+Its stack amount and unknown persistent-data keys are preserved, while the current
+Slimefun and mob-data identities remain authoritative. Named carpet cards and cards
+whose current configured texture is still a carpet are left unchanged.
+
+Likewise, a configured card with an explicitly blank/formatting-only `name` gets
+the normal humanized fallback name at registration. If that same malformed definition
+also uses a carpet texture, IE2 treats the pair as the stale conversion signature and
+uses the category chestplate for the loaded template. The configuration file itself is
+not rewritten. Nonblank named carpet textures, heads, spawn eggs, and other deliberate
+custom artwork remain authoritative. Newly created cards use the loaded template.
+Card IDs, recipes, drops, energy, XP, and stacking behavior remain the same.
 
 ## Drop chance and amount conversion
 

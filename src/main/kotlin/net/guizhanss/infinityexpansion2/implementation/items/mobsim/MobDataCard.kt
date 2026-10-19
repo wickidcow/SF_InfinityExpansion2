@@ -18,6 +18,7 @@ import net.guizhanss.infinityexpansion2.core.items.attributes.EnergyTickingConsu
 import net.guizhanss.infinityexpansion2.core.items.attributes.InformationalRecipeDisplayItem
 import net.guizhanss.infinityexpansion2.implementation.IEItems
 import net.guizhanss.infinityexpansion2.implementation.guide.IEItemGroups
+import net.guizhanss.infinityexpansion2.implementation.guide.MobDataCardAppearance
 import net.guizhanss.infinityexpansion2.implementation.guide.MobDataCardGuideGroup
 import net.guizhanss.infinityexpansion2.implementation.guide.MobDataCardGuideKey
 import net.guizhanss.infinityexpansion2.implementation.recipes.IERecipeTypes
@@ -123,6 +124,17 @@ class MobDataCard(
 
         fun getMobDataId(item: ItemStack) =
             if (item.hasItemMeta()) PersistentDataAPI.getString(item.itemMeta, Keys.MOB_DATA_ID) else null
+
+        /**
+         * Repair only the stale physical-card signature produced by older/broken conversions.
+         * Current registered props supply the authoritative name and configured texture.
+         */
+        internal fun refreshLegacyAppearance(item: ItemStack): ItemStack? {
+            val id = getMobDataId(item) ?: return null
+            val currentProps = IERegistry.mobDataCards[id] ?: return null
+            val current = buildOutputItem(id, currentProps.name, currentProps.texture)
+            return MobDataCardAppearance.refreshLegacyPhysical(item, current)
+        }
 
         fun getMobDataCard(id: String?) =
             getById("${IEItems.MOB_DATA_CARD.itemId}_${id?.toId()}") as? MobDataCard

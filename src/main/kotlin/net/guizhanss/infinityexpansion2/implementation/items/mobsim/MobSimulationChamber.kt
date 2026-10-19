@@ -159,6 +159,7 @@ class MobSimulationChamber(
 
     override fun process(b: Block, menu: BlockMenu): Boolean {
         val l = b.location
+        menu.refreshLegacyCard(layout)
         val (props, cardAmount) = menu.getDataCard(layout) ?: run {
             menu.setStatus { GuiItems.INVALID_INPUT }
             menu.setEnergyConsumption(0)
@@ -315,8 +316,19 @@ class MobSimulationChamber(
          * If the input is invalid, return null.
          * Returns the [MobDataCardProps] and the amount of the card.
          */
+        private fun BlockMenu.refreshLegacyCard(layout: MenuLayout) {
+            val slot = layout.inputSlots[0]
+            val input = getItemInSlot(slot) ?: return
+
+            // This runs only from the chamber's normal process path. Keep HUD/read helpers
+            // side-effect free for scheduler/Folia safety.
+            MobDataCard.refreshLegacyAppearance(input)?.let { repaired ->
+                replaceExistingItem(slot, repaired)
+            }
+        }
+
         private fun BlockMenu.getDataCard(layout: MenuLayout): Pair<MobDataCardProps, Int>? {
-            val input = getItemInSlot(layout.inputSlots[0])
+            val input = getItemInSlot(layout.inputSlots[0]) ?: return null
             val props = input.getMobDataCardProps() ?: return null
             return props to input.amount
         }
