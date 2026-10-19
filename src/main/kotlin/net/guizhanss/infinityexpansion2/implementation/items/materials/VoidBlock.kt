@@ -7,6 +7,7 @@ import io.github.thebusybiscuit.slimefun4.implementation.items.blocks.WitherProo
 import net.guizhanss.guizhanlib.kt.slimefun.items.builder.buildRecipe
 import net.guizhanss.guizhanlib.kt.slimefun.items.edit
 import net.guizhanss.infinityexpansion2.InfinityExpansion2
+import net.guizhanss.infinityexpansion2.core.scheduling.IEScheduler
 import net.guizhanss.infinityexpansion2.implementation.IEItems
 import org.bukkit.inventory.ItemStack
 
@@ -20,7 +21,7 @@ class VoidBlock(
     override fun postRegister() {
         // decompress recipe
         // ItemStack isn't available yet, delay registering
-        InfinityExpansion2.scheduler().runAsync {
+        IEScheduler.run {
             RecipeType.ENHANCED_CRAFTING_TABLE.register(
                 buildRecipe {
                     +"V  "
