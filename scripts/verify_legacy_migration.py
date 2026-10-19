@@ -16,6 +16,11 @@ config_service = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/core/
 mobsim = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/items/mobsim/MobSimulationChamber.kt").read_text()
 wrapper = (root / "gradle/wrapper/gradle-wrapper.properties").read_text()
 main_plugin = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/InfinityExpansion2.kt").read_text()
+ie_scheduler = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/core/scheduling/IEScheduler.kt").read_text()
+matrix_task = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/tasks/InfinityMatrixTask.kt").read_text()
+vein_listener = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/listeners/VeinMinerListener.kt").read_text()
+reactor = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/items/sfextension/NetherStarReactor.kt").read_text()
+void_block = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/items/materials/VoidBlock.kt").read_text()
 required_mappings = {
     '"INFINITE_MACHINE_CIRCUIT" to "IE_INFINITY_MACHINE_CIRCUIT"',
     '"INFINITE_MACHINE_CORE" to "IE_INFINITY_MACHINE_CORE"',
@@ -55,6 +60,38 @@ if "scanChunk(event.chunk" in chunk_load_body or "scanLoaded(" in chunk_load_bod
     errors.append("ChunkLoadEvent must enqueue migration work instead of scanning synchronously")
 if 'world.loadedChunks.forEach(::queueChunk)' not in service:
     errors.append("server-load migration must queue loaded chunks instead of scanning them all at once")
+
+if 'plugin.server.scheduler' in service:
+    errors.append("legacy migration must not call BukkitScheduler directly")
+for token, message in (
+    ("ConcurrentLinkedQueue<QueuedChunk>()", "migration queue must be concurrent for Folia callbacks"),
+    ("ConcurrentHashMap.newKeySet()", "migration deduplication sets must be concurrent"),
+    ("IEScheduler.runAt(anchor", "queued chunk migration must dispatch to the owning region"),
+    ("IEScheduler.runAtLater(anchor", "delayed chunk-load migration must retain region ownership"),
+    ("IEScheduler.runFor(player", "player migration must dispatch to the player owner"),
+    ("if (IEScheduler.isFolia)", "Folia startup migration must avoid global loaded-chunk traversal"),
+):
+    if token not in service:
+        errors.append(message)
+
+for token, message in (
+    ("Bukkit.getGlobalRegionScheduler()", "IE2 Folia global scheduler path is missing"),
+    ("Bukkit.getRegionScheduler()", "IE2 Folia region scheduler path is missing"),
+    ("entity.scheduler.run", "IE2 Folia entity scheduler path is missing"),
+    ("Bukkit.getAsyncScheduler()", "IE2 Folia async scheduler path is missing"),
+    ("RegionizedServer", "IE2 Folia runtime probe is missing"),
+):
+    if token not in ie_scheduler:
+        errors.append(message)
+
+if "ConcurrentHashMap.newKeySet()" not in matrix_task or "IEScheduler.runFor(" not in matrix_task:
+    errors.append("Infinity Matrix player checks must use concurrent state and entity-owned scheduling")
+if "IEScheduler.runForLater(" not in vein_listener or "IEScheduler.isOwned(loc)" not in vein_listener:
+    errors.append("Vein Miner delayed/entity and recursive block work must remain region-owned")
+if "IEScheduler.runAt(l" not in reactor:
+    errors.append("Nether Star Reactor effects must dispatch to their owning region")
+if "IEScheduler.run {" not in void_block or "runAsync" in void_block:
+    errors.append("Void Block recipe registration must use synchronous/global scheduling")
 
 # Universal compatibility contract: the shipped addon is compiled from the oldest supported
 # Paper baseline and emits Java 21 bytecode. Paper 26.2 remains the production compatibility
