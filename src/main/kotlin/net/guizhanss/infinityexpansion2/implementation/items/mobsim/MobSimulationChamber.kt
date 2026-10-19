@@ -316,8 +316,18 @@ class MobSimulationChamber(
          * Returns the [MobDataCardProps] and the amount of the card.
          */
         private fun BlockMenu.getDataCard(layout: MenuLayout): Pair<MobDataCardProps, Int>? {
-            val input = getItemInSlot(layout.inputSlots[0])
+            val slot = layout.inputSlots[0]
+            var input = getItemInSlot(slot) ?: return null
             val props = input.getMobDataCardProps() ?: return null
+
+            // Repair only the known stale appearance signature while the card is already inside
+            // the chamber. Amount and unknown PDC are retained; named custom carpet cards remain
+            // untouched. This is deliberately not a global inventory migration.
+            MobDataCard.refreshLegacyAppearance(input)?.let { repaired ->
+                replaceExistingItem(slot, repaired)
+                input = repaired
+            }
+
             return props to input.amount
         }
 
