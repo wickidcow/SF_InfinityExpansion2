@@ -3,7 +3,6 @@
 package net.guizhanss.infinityexpansion2.implementation.setup
 
 import io.github.thebusybiscuit.slimefun4.libraries.dough.config.Config
-import net.guizhanss.guizhanlib.common.utils.StringUtil
 import net.guizhanss.guizhanlib.kt.minecraft.extensions.isAir
 import net.guizhanss.guizhanlib.kt.slimefun.items.toItem
 import net.guizhanss.infinityexpansion2.InfinityExpansion2
@@ -16,7 +15,6 @@ import net.guizhanss.infinityexpansion2.implementation.guide.MobDataCardGuideGro
 import net.guizhanss.infinityexpansion2.implementation.items.mobsim.MobDataCard
 import net.guizhanss.infinityexpansion2.utils.Debug
 import net.guizhanss.infinityexpansion2.utils.items.toItemStack
-import org.bukkit.ChatColor
 import org.bukkit.Material
 import org.bukkit.MusicInstrument
 import org.bukkit.NamespacedKey
