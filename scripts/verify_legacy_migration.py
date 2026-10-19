@@ -21,6 +21,10 @@ matrix_task = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/implemen
 vein_listener = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/listeners/VeinMinerListener.kt").read_text()
 reactor = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/items/sfextension/NetherStarReactor.kt").read_text()
 void_block = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/items/materials/VoidBlock.kt").read_text()
+bow_listener = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/listeners/BowItemListener.kt").read_text()
+addon_doctor_bridge = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/core/migration/LegacyAddonDoctorBridge.kt").read_text()
+migration_provider_bridge = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/core/migration/LegacyMigrationProviderBridge.kt").read_text()
+block_provider_bridge = (root / "src/main/kotlin/net/guizhanss/infinityexpansion2/core/migration/LegacyBlockMigrationProviderBridge.kt").read_text()
 required_mappings = {
     '"INFINITE_MACHINE_CIRCUIT" to "IE_INFINITY_MACHINE_CIRCUIT"',
     '"INFINITE_MACHINE_CORE" to "IE_INFINITY_MACHINE_CORE"',
@@ -92,6 +96,17 @@ if "IEScheduler.runAt(l" not in reactor:
     errors.append("Nether Star Reactor effects must dispatch to their owning region")
 if "IEScheduler.run {" not in void_block or "runAsync" in void_block:
     errors.append("Void Block recipe registration must use synchronous/global scheduling")
+
+if "ConcurrentHashMap<UUID, SlimefunItem>()" not in bow_listener or "IEScheduler.runForLater(" not in bow_listener:
+    errors.append("Bow projectile state must be concurrent and cleanup must be entity-owned")
+
+for source, name in (
+    (addon_doctor_bridge, "Addon Doctor bridge"),
+    (migration_provider_bridge, "legacy item migration provider"),
+    (block_provider_bridge, "legacy block migration provider"),
+):
+    if "IEScheduler.isFolia" not in source:
+        errors.append(f"{name} must fail closed instead of globally scanning Folia regions")
 
 # Universal compatibility contract: the shipped addon is compiled from the oldest supported
 # Paper baseline and emits Java 21 bytecode. Paper 26.2 remains the production compatibility
