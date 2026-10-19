@@ -8,7 +8,7 @@ import me.mrCookieSlime.Slimefun.Objects.SlimefunItem.abstractItems.MachineFuel
 import me.mrCookieSlime.Slimefun.Objects.handlers.BlockTicker
 import me.mrCookieSlime.Slimefun.api.BlockStorage
 import net.guizhanss.guizhanlib.kt.minecraft.extensions.toItem
-import net.guizhanss.infinityexpansion2.InfinityExpansion2
+import net.guizhanss.infinityexpansion2.core.scheduling.IEScheduler
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.block.Block
@@ -57,27 +57,40 @@ class NetherStarReactor(
             return
         }
 
-        InfinityExpansion2.scheduler().run {
+        IEScheduler.runAt(l, Runnable {
             val locAbove = l.clone().add(0.0, 1.0, 0.0)
-            val world = locAbove.world ?: return@run
+            val world = locAbove.world ?: return@Runnable
             val checkWitherProof = locAbove.block.type == Material.AIR
-            locAbove.getNearbyEntities(8.0, 8.0, 8.0).forEach { entity ->
-                if (entity is LivingEntity && entity.isValid) {
-                    if (!checkWitherProof) {
-                        val result = world.rayTraceBlocks(locAbove, entity.location.subtract(locAbove).toVector(), 16.0)
-                        if (result != null) {
-                            val hit = result.hitBlock
-                            if (hit != null) {
-                                val id = BlockStorage.getLocationInfo(hit.location, "id")
-                                if (id != null && id.contains("WITHER_PROOF")) {
-                                    return@forEach
-                                }
+
+            val nearby = if (IEScheduler.isFolia) {
+                // Never enumerate entities from a neighboring Folia region. The
+                // effect is conservatively clipped to the currently owned chunk.
+                locAbove.chunk.entities.asSequence()
+                    .filterIsInstance<LivingEntity>()
+                    .filter { it.location.distanceSquared(locAbove) <= 64.0 }
+                    .toList()
+            } else {
+                locAbove.getNearbyEntities(8.0, 8.0, 8.0)
+                    .filterIsInstance<LivingEntity>()
+            }
+
+            nearby.forEach { entity ->
+                if (!entity.isValid) return@forEach
+                if (!checkWitherProof) {
+                    val direction = entity.location.clone().subtract(locAbove).toVector()
+                    val result = world.rayTraceBlocks(locAbove, direction, 16.0)
+                    if (result != null) {
+                        val hit = result.hitBlock
+                        if (hit != null) {
+                            val id = BlockStorage.getLocationInfo(hit.location, "id")
+                            if (id != null && id.contains("WITHER_PROOF")) {
+                                return@forEach
                             }
                         }
                     }
-                    entity.addPotionEffect(PotionEffect(PotionEffectType.WITHER, 100, 2))
                 }
+                entity.addPotionEffect(PotionEffect(PotionEffectType.WITHER, 100, 2))
             }
-        }
+        })
     }
 }
