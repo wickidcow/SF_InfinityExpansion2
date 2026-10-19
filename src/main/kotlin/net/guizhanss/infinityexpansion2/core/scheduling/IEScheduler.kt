@@ -52,12 +52,17 @@ object IEScheduler {
         }
     }
 
-    fun repeat(periodTicks: Long, task: Runnable) {
+    fun repeat(periodTicks: Long, task: Runnable) =
+        repeat(1L, periodTicks, task)
+
+    fun repeat(initialDelayTicks: Long, periodTicks: Long, task: Runnable) {
+        require(initialDelayTicks >= 0) { "Initial delay cannot be negative" }
         require(periodTicks > 0) { "Period must be greater than zero" }
+        val nativeInitialDelay = if (isFolia) maxOf(1L, initialDelayTicks) else initialDelayTicks
         if (isFolia) {
-            Bukkit.getGlobalRegionScheduler().runAtFixedRate(plugin, { task.run() }, 1L, periodTicks)
+            Bukkit.getGlobalRegionScheduler().runAtFixedRate(plugin, { task.run() }, nativeInitialDelay, periodTicks)
         } else {
-            Bukkit.getScheduler().runTaskTimer(plugin, task, 1L, periodTicks)
+            Bukkit.getScheduler().runTaskTimer(plugin, task, initialDelayTicks, periodTicks)
         }
     }
 
