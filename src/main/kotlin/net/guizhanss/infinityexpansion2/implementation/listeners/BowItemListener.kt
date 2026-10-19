@@ -1,10 +1,10 @@
 package net.guizhanss.infinityexpansion2.implementation.listeners
 
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem
-import io.github.thebusybiscuit.slimefun4.implementation.Slimefun
 import net.guizhanss.infinityexpansion2.InfinityExpansion2
 import net.guizhanss.infinityexpansion2.core.items.attributes.BowItem
 import net.guizhanss.infinityexpansion2.core.items.handlers.BowShootHandler
+import net.guizhanss.infinityexpansion2.core.scheduling.IEScheduler
 import org.bukkit.entity.Arrow
 import org.bukkit.entity.LivingEntity
 import org.bukkit.entity.Player
@@ -16,10 +16,11 @@ import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.EntityShootBowEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 class BowItemListener(plugin: InfinityExpansion2) : Listener {
 
-    private val projectiles = mutableMapOf<UUID, SlimefunItem>()
+    private val projectiles = ConcurrentHashMap<UUID, SlimefunItem>()
 
     init {
         plugin.server.pluginManager.registerEvents(this, plugin)
@@ -38,11 +39,18 @@ class BowItemListener(plugin: InfinityExpansion2) : Listener {
 
     @EventHandler
     fun onArrowHit(e: ProjectileHitEvent) {
-        Slimefun.runSync({
-            if (e.entity.isValid && e.entity is Arrow) {
-                projectiles.remove(e.entity.uniqueId)
-            }
-        }, 4L)
+        val projectile = e.entity
+        val projectileId = projectile.uniqueId
+        IEScheduler.runForLater(
+            projectile,
+            4L,
+            Runnable {
+                if (projectile.isValid && projectile is Arrow) {
+                    projectiles.remove(projectileId)
+                }
+            },
+            Runnable { projectiles.remove(projectileId) }
+        )
     }
 
     @EventHandler(priority = EventPriority.HIGH)
