@@ -20,7 +20,7 @@ on:
         default: ''
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   VERSION: "2.0.14"
@@ -120,42 +120,6 @@ jobs:
           path: dist/${{ env.OUTPUT_NAME }}
           archive: false
           if-no-files-found: error
-      - name: Validate explicit release publication request
-        id: release_state
-        if: github.event_name == 'workflow_dispatch' && inputs.publish == true
-        env:
-          GH_TOKEN: ${{ github.token }}
-          CONFIRM_VERSION: ${{ inputs.confirm_version }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$CONFIRM_VERSION" = "$VERSION" || {
-            echo "Refusing publication: confirm_version must exactly match VERSION ($VERSION)." >&2
-            exit 1
-          }
-          TAG="v${VERSION}"
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Refusing publication: release $TAG already exists." >&2
-            exit 1
-          fi
-          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
-            echo "Refusing publication: tag $TAG already exists." >&2
-            exit 1
-          fi
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-
-      - name: Publish canonical raw JAR release asset
-        if: github.event_name == 'workflow_dispatch' && inputs.publish == true
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          TAG="${{ steps.release_state.outputs.tag }}"
-          test -n "$TAG"
-          JAR="dist/${OUTPUT_NAME}"
-          test -s "$JAR"
-          gh release create "$TAG" "$JAR" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "SF_InfinityExpansion ${VERSION}" --notes "InfinityExpansion ${VERSION}: canonical ${OUTPUT_NAME} release."
 
   source-safety:
     name: Migration and transport safety checks
@@ -183,3 +147,55 @@ jobs:
           python3 scripts/verify_mob_sim_input_filtering.py
           python3 scripts/verify_mob_sim_modern_cards.py
           python3 scripts/verify_transport_contracts.py --slimefun .deps/Slimefun-Legacy --networks .deps/SF_NetworksExp
+
+  publish:
+    name: Publish validated immutable IE2 release
+    needs: [compatibility, source-safety]
+    if: github.event_name == 'workflow_dispatch' && inputs.publish == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download validated canonical JAR
+        uses: actions/download-artifact@v6
+        with:
+          name: ${{ env.OUTPUT_NAME }}
+          path: dist
+
+      - name: Validate explicit release publication request
+        id: release_state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONFIRM_VERSION: ${{ inputs.confirm_version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$CONFIRM_VERSION" = "$VERSION" || {
+            echo "Refusing publication: confirm_version must exactly match VERSION ($VERSION)." >&2
+            exit 1
+          }
+          JAR="dist/${OUTPUT_NAME}"
+          test -s "$JAR"
+          TAG="v${VERSION}"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Refusing publication: release $TAG already exists." >&2
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags "https://github.com/${GITHUB_REPOSITORY}.git" "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "Refusing publication: tag $TAG already exists." >&2
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Publish canonical raw JAR release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.release_state.outputs.tag }}"
+          test -n "$TAG"
+          JAR="dist/${OUTPUT_NAME}"
+          test -s "$JAR"
+          gh release create "$TAG" "$JAR" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "SF_InfinityExpansion ${VERSION}" --notes "InfinityExpansion ${VERSION}: canonical ${OUTPUT_NAME} release."
+
