@@ -168,6 +168,7 @@ class StorageUnit(
             }
         }
 
+        // output item
         // Reserve and persist cached items BEFORE crediting the physical output.
         // Verified post-push/post-markDirty reads replace an unchecked delivery.
         // Only this existing single output slot is eligible; normal tick rates stay intact.
