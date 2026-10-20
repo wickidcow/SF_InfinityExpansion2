@@ -24,7 +24,14 @@ class StorageCache(
     private var allowedInputIdentity: ItemStack? = null
     private var inputCreditConsumed = false
 
-    fun hasBlockedTransfer() = withdrawalActive || inputActive || transferUnverified
+    /**
+     * A migrated or corrupted balance must not be silently clamped: its physical
+     * owners cannot be reconstructed by choosing a new capacity or template.
+     * Keep the original amount for administrator reconciliation.
+     */
+    fun hasInvalidBalance() = limit <= 0 || amount < 0 || amount > limit
+
+    fun hasBlockedTransfer() = withdrawalActive || inputActive || transferUnverified || hasInvalidBalance()
 
     @Synchronized
     fun beginInputReceipt(): Boolean {
@@ -127,6 +134,9 @@ class StorageCache(
     @Synchronized
     fun increaseAmount(amount: Int): Int {
         if (amount <= 0) return amount
+        // Check BEFORE consuming any authorized one-use input receipt.
+        // Void-excess applies to NEW stock, never to already-persisted items.
+        if (hasInvalidBalance()) return amount
         if (inputActive) {
             if (allowedInputAmount != amount || inputCreditConsumed
                 || withdrawalActive || transferUnverified) return amount
