@@ -168,22 +168,33 @@ class StorageUnit(
             }
         }
 
-        // output item
-        val outputItem = menu.getItemInSlot(outputSlots[0])
-        var fetched: ItemStack? = null
-        if (outputItem.isAir()) {
-            // no item in output slot
-            fetched = menu.outputItem(cache)
-        } else if (outputItem.amount < outputItem.maxStackSize && cache.matches(outputItem)) {
-            // matched item in output slot but not yet filled
-            fetched = menu.outputItem(cache, outputItem.maxStackSize - outputItem.amount)
-        }
-
-        if (!fetched.isAir()) {
-            Debug.log(DebugCase.STORAGE_UNIT, "output item: $fetched")
-            menu.pushItem(fetched, *outputSlots)
-            menu.markDirty()
-            menu.updateDisplay(cache)
+        // Reserve and persist cached items BEFORE crediting the physical output.
+        // Verified post-push/post-markDirty reads replace an unchecked delivery.
+        // Only this existing single output slot is eligible; normal tick rates stay intact.
+        if (cache.amount > 0 && cache.itemStack != null) {
+            try {
+                val delivered = StorageOutputReceipt.transfer(
+                    cache.itemStack!!,
+                    cache.amount,
+                    { cache.itemStack },
+                    { menu.getItemInSlot(outputSlots[0]) },
+                    { requested -> menu.outputItem(cache, requested) },
+                    { cache.amount },
+                    { stack -> menu.pushItem(stack, *outputSlots) },
+                    { menu.markDirty() },
+                    {
+                        // An ambiguous physical write cannot be automatically refunded.
+                        cache.blockUnverifiedTransfer()
+                        menu.location.save(cache)
+                    }
+                )
+                if (delivered > 0) menu.updateDisplay(cache)
+            } catch (failure: RuntimeException) {
+                InfinityExpansion2.instance.logger.log(java.util.logging.Level.SEVERE,
+                    "Unverified ticker output at ${menu.location}; IE2 storage is blocked " +
+                        "for operator reconciliation. No automatic refund was made.", failure)
+                return
+            }
         }
 
         // TODO: try to update signs and holo through tasks
