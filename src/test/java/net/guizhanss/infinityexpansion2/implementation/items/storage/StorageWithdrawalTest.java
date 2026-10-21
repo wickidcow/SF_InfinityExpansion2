@@ -74,6 +74,7 @@ class StorageWithdrawalTest {
         var cache = cache(Material.STONE, 100);
 
         assertEquals(64, StorageWithdrawal.transfer(cache, inventory, 64));
+
         assertEquals(36, cache.getAmount());
         assertEquals(64, total(Material.STONE));
     }
@@ -143,7 +144,10 @@ class StorageWithdrawalTest {
         var cache = cache(Material.STONE, 100);
         Inventory mutating = (Inventory) Proxy.newProxyInstance(
             Inventory.class.getClassLoader(), new Class<?>[] {Inventory.class}, (proxy, method, args) -> {
-                if (!method.getName().equals("addItem")) throw new AssertionError(method.getName());
+                if (!method.getName().equals("addItem")) {
+                    try { return method.invoke(inventory, args); }
+                    catch (java.lang.reflect.InvocationTargetException failure) { throw failure.getCause(); }
+                }
                 var offered = (ItemStack[]) args[0];
                 var leftovers = inventory.addItem(offered);
                 offered[0].setAmount(leftovers.values().stream().mapToInt(ItemStack::getAmount).sum());

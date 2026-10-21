@@ -7,13 +7,26 @@ on:
   pull_request:
     branches: ['**']
   workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish this validated versioned release'
+        required: true
+        type: boolean
+        default: false
+      confirm_version:
+        description: 'Type the exact VERSION when publish=true'
+        required: false
+        type: string
+        default: ''
 
 permissions:
-  contents: write
+  contents: read
 
 env:
-  VERSION: "2.0.14"
-  OUTPUT_NAME: "SF_InfinityExpansion2.0.14.jar"
+  VERSION: "2.0.15"
+  OUTPUT_NAME: "SF_InfinityExpansion2.0.15.jar"
+  CORE_HEAD: 1cb32d6e95b305998065b8ef6b936a56f679187d
+  NETWORKS_HEAD: 1266e7a0f7461ba40af331ede42c288d848f49fc
 
 jobs:
   compatibility:
@@ -26,7 +39,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: wickidcow/Slimefun-Legacy
-          ref: master
+          ref: ${{ env.CORE_HEAD }}
           path: .deps/Slimefun-Legacy
       - name: Set up Java 25
         uses: actions/setup-java@v5
@@ -51,13 +64,13 @@ jobs:
           grep -Fq 'archiveFileName.set("SF_InfinityExpansion${project.version}.jar")' build.gradle.kts
           if printf '%s\n%s\n' "$VERSION" "$OUTPUT_NAME" | grep -Eiq '(legacy|english|snapshot)'; then exit 1; fi
       - name: Verify Paper 1.21.11 baseline compilation
-        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PbuildVersion=2.0.14 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PbuildVersion=2.0.15 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
       - name: Verify Paper 26.2 compilation
-        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=26.2.build.+ -PtargetJvm=25 -PbuildVersion=2.0.14 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
-      - name: Verify Paper 26.3 alpha compilation
-        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=26.3-rc-3.build.1-alpha -PtargetJvm=25 -PbuildVersion=2.0.14 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=26.2.build.+ -PtargetJvm=25 -PbuildVersion=2.0.15 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+      - name: Verify Paper 26.3 stable compilation
+        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=26.3.build.+ -PtargetJvm=25 -PbuildVersion=2.0.15 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
       - name: Build universal Java 21 release JAR
-        run: ./gradlew clean build --stacktrace --console=plain -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PbuildVersion=2.0.14 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+        run: ./gradlew clean build --stacktrace --console=plain -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PbuildVersion=2.0.15 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
       - name: Retain regression test reports
         if: always()
         uses: actions/upload-artifact@v7
@@ -109,38 +122,6 @@ jobs:
           path: dist/${{ env.OUTPUT_NAME }}
           archive: false
           if-no-files-found: error
-      - name: Check release publication state
-        id: release_state
-        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') || github.ref_name == github.event.repository.default_branch
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then TAG="$GITHUB_REF_NAME"; else TAG="v${VERSION}"; fi
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Publish canonical raw JAR release asset
-        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') || (github.ref_name == github.event.repository.default_branch && steps.release_state.outputs.exists == 'false')
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then TAG="$GITHUB_REF_NAME"; else TAG="v${VERSION}"; fi
-          JAR="dist/${OUTPUT_NAME}"
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            while IFS= read -r OLD; do
-              if [[ "$OLD" == *.jar && "$OLD" != "$OUTPUT_NAME" ]]; then gh release delete-asset "$TAG" "$OLD" --repo "$GITHUB_REPOSITORY" -y; fi
-            done < <(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
-            gh release upload "$TAG" "$JAR" --repo "$GITHUB_REPOSITORY" --clobber
-          else
-            gh release create "$TAG" "$JAR" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "SF_InfinityExpansion ${VERSION}" --notes "InfinityExpansion ${VERSION}: canonical ${OUTPUT_NAME} release."
-          fi
 
   source-safety:
     name: Migration and transport safety checks
@@ -152,13 +133,13 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: wickidcow/Slimefun-Legacy
-          ref: master
+          ref: ${{ env.CORE_HEAD }}
           path: .deps/Slimefun-Legacy
       - name: Checkout Networks Expansion transport contract
         uses: actions/checkout@v6
         with:
           repository: wickidcow/SF_NetworksExp
-          ref: master
+          ref: ${{ env.NETWORKS_HEAD }}
           path: .deps/SF_NetworksExp
       - name: Verify migration, mob simulation, and transport invariants
         run: |
@@ -168,3 +149,60 @@ jobs:
           python3 scripts/verify_mob_sim_input_filtering.py
           python3 scripts/verify_mob_sim_modern_cards.py
           python3 scripts/verify_transport_contracts.py --slimefun .deps/Slimefun-Legacy --networks .deps/SF_NetworksExp
+
+  publish:
+    name: Publish validated immutable IE2 release
+    needs: [compatibility, source-safety]
+    if: github.event_name == 'workflow_dispatch' && inputs.publish == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the validated release notes
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Download validated canonical JAR
+        uses: actions/download-artifact@v6
+        with:
+          name: ${{ env.OUTPUT_NAME }}
+          path: dist
+
+      - name: Validate explicit release publication request
+        id: release_state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONFIRM_VERSION: ${{ inputs.confirm_version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$CONFIRM_VERSION" = "$VERSION" || {
+            echo "Refusing publication: confirm_version must exactly match VERSION ($VERSION)." >&2
+            exit 1
+          }
+          JAR="dist/${OUTPUT_NAME}"
+          test -s "$JAR"
+          test -s "docs/releases/${VERSION}.md"
+          TAG="v${VERSION}"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Refusing publication: release $TAG already exists." >&2
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags "https://github.com/${GITHUB_REPOSITORY}.git" "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "Refusing publication: tag $TAG already exists." >&2
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Publish canonical raw JAR release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.release_state.outputs.tag }}"
+          test -n "$TAG"
+          JAR="dist/${OUTPUT_NAME}"
+          test -s "$JAR"
+          gh release create "$TAG" "$JAR" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "SF_InfinityExpansion ${VERSION}" --notes-file "docs/releases/${VERSION}.md"
+
