@@ -143,6 +143,36 @@ class StorageInputReceiptTest {
     }
 
     @Test
+    void zeroBalanceCanReseedAnotherMaterialWithoutLosingItsDebitedInput() {
+        physical.set(new ItemStack(Material.EMERALD, 8));
+        assertEquals(8, StorageInputReceipt.transfer(cache, this::readCopy, physical::set,
+            () -> {}, this::seedAndCredit));
+        assertNull(physical.get());
+        assertEquals(8, cache.getAmount());
+        assertEquals(new ItemStack(Material.EMERALD), cache.getItemStack());
+        assertFalse(cache.hasBlockedTransfer());
+    }
+
+    @Test
+    void zeroBalanceCanReseedExactForeignPdcAfterItsOldMetadataWasCached() {
+        var owner = new NamespacedKey("ie2-test", "reseed-owner");
+        var old = new ItemStack(Material.DIAMOND);
+        old.editMeta(meta -> meta.getPersistentDataContainer().set(owner, PersistentDataType.STRING, "old"));
+        cache = new StorageCache(old, 0, 1000, true);
+        assertTrue(cache.matches(old), "Prime the old template metadata as normal storage use does");
+        var offered = new ItemStack(Material.DIAMOND, 8);
+        offered.editMeta(meta -> meta.getPersistentDataContainer().set(owner, PersistentDataType.STRING, "new"));
+        physical.set(offered.clone());
+        assertEquals(8, StorageInputReceipt.transfer(cache, this::readCopy, physical::set,
+            () -> {}, this::seedAndCredit));
+        assertNull(physical.get());
+        assertEquals(8, cache.getAmount());
+        assertTrue(offered.isSimilar(cache.getItemStack()));
+        assertEquals(1, cache.getItemStack().getAmount());
+        assertFalse(cache.hasBlockedTransfer());
+    }
+
+    @Test
     void templateSnapshotFailureMustReleaseOwnershipBeforeTouchingPhysicalSource() {
         var failOnce = new java.util.concurrent.atomic.AtomicBoolean(true);
         var readCalls = new AtomicInteger();
@@ -184,5 +214,23 @@ class StorageInputReceiptTest {
     private int credit(ItemStack input) {
         int amount = input.getAmount();
         return amount - cache.increaseAmount(amount);
+    }
+
+    /** Production cache assignment/credit, with unrelated host persistence left out. */
+    private int seedAndCredit(ItemStack input) {
+        assertTrue(cache.isEmpty());
+        var template = input.clone();
+        template.setAmount(1);
+        try {
+            // Kotlin's internal setter has a module suffix; invoke the actual setter
+            // so its memoized metadata is invalidated exactly as in inputItem().
+            var setter = java.util.Arrays.stream(StorageCache.class.getDeclaredMethods())
+                .filter(method -> method.getName().startsWith("setItemStack"))
+                .findFirst().orElseThrow();
+            setter.invoke(cache, template);
+        } catch (ReflectiveOperationException failure) {
+            throw new IllegalStateException(failure);
+        }
+        return credit(input);
     }
 }

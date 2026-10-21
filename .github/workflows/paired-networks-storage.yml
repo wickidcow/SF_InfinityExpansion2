@@ -13,12 +13,12 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NETWORKS_HEAD: 23c9b23aa82ace043be584f8eb6e83a05eebf94b
-  CORE_HEAD: 36d665f1ec47ce3f05b1be092051ed0b1a1f53ff
+  NETWORKS_HEAD: 1266e7a0f7461ba40af331ede42c288d848f49fc
+  CORE_HEAD: 1cb32d6e95b305998065b8ef6b936a56f679187d
 
 jobs:
   paired-storage:
-    name: IE2 candidate plus Networks 101 / Purpur conservation and restart
+    name: IE2 candidate plus pinned Networks / Purpur conservation and restart
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -84,7 +84,7 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew clean build --no-daemon -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT \
-            -PtargetJvm=21 -PbuildVersion=2.0.14 \
+            -PtargetJvm=21 -PbuildVersion=2.0.15 \
             -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
       - name: Build and test exact Networks candidate
         working-directory: .ci/networks
@@ -102,7 +102,7 @@ jobs:
           curl --fail --location --silent --show-error --retry 2 --max-time 240 \
             https://api.purpurmc.org/v2/purpur/1.21.11/2568/download --output .ci/purpur.jar
           python3 .ci/networks/scripts/paired_ie2_storage_probe.py "$CORE_JAR" \
-            .ci/networks/build/libs/SF_Networks1.0.59.jar build/libs/SF_InfinityExpansion2.0.14.jar \
+            .ci/networks/build/libs/SF_Networks1.0.59.jar build/libs/SF_InfinityExpansion2.0.15.jar \
             .ci/purpur.jar build/paired-networks-storage
       - name: Retain source, binary and test evidence
         if: always()

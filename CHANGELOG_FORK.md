@@ -1,3 +1,11 @@
+## v2.0.15 - Storage ownership and verified break recovery
+
+- Coordinate Networks inputs, outputs and player withdrawals through verified receipts and shared storage ownership.
+- Preserve exact identity and quantity through partial writes, reentry, physical output, cancelled drop spawns and verified break rollback.
+- Keep unknown outcomes held for recovery; never guess an item identity or silently discard invalid saved stock.
+- Preserve the existing Infinity Dust Extractor synchronization and current master Mob Simulation card appearance fixes.
+- Add reproducible native break/place/restart fixtures and publish the universal Java 21 JAR after the existing CI and explicit release confirmation gates.
+
 ## v2.0.14 - Synchronized HopperMachine producer transactions
 
 - Run the HopperMachine converter family on Slimefun's synchronized ticker instead of inheriting GuizhanLib 2.5.0's asynchronous TickingMenuBlock default.

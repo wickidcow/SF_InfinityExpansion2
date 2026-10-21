@@ -105,7 +105,7 @@ public final class NativeIE2BreakProbe extends JavaPlugin implements Listener {
 
     private void createCases() throws Exception {
         var database = Slimefun.getDatabaseManager().getBlockDataController();
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 6; i++) {
             Location location = new Location(Bukkit.getWorlds().getFirst(), 160 + i * 3, 100, 160);
             location.getChunk().load();
             location.clone().add(0, -1, 0).getBlock().setType(Material.STONE);
@@ -185,8 +185,9 @@ public final class NativeIE2BreakProbe extends JavaPlugin implements Listener {
             try {
                 require(actualPlacement, "Require an actual client BlockPlaceEvent");
                 verifyPlaced();
-                finish("PASS: seed break-cases=5 exact-ledgers=true native-spawn-cancellation=true partial-rollback=true"
-                    + " same-cache-reentry=true actual-client-placement=true");
+                finish("PASS: seed native-break-cases=5 injected-linkage-handler-cases=1 exact-ledgers=true"
+                    + " native-spawn-cancellation=true partial-rollback=true same-cache-reentry=true"
+                    + " actual-client-placement=true linkage-after-source-clear=true healthy-linkage-retry=true");
             } catch (Throwable failure) { fail(failure); }
         }, 10L);
     }
@@ -212,11 +213,12 @@ public final class NativeIE2BreakProbe extends JavaPlugin implements Listener {
 
     private void runCases() throws Exception {
         // Each seed is explicit disposable test state; the events and item PDC are native.
-        runCase(0, 0, 11, false, false, false, false);
-        runCase(1, capacity, 64, true, false, false, false);
-        runCase(2, 23, 11, false, true, false, false);
-        runCase(3, capacity, 64, true, false, true, false);
-        runCase(4, 23, 11, false, false, false, true);
+        runCase(0, 0, 11, false, false, false, false, false);
+        runCase(1, capacity, 64, true, false, false, false, false);
+        runCase(2, 23, 11, false, true, false, false, false);
+        runCase(3, capacity, 64, true, false, true, false, false);
+        runCase(4, 23, 11, false, false, false, true, false);
+        runCase(5, 23, 11, false, false, false, false, true);
         require(reentryVerified, "Actual world-spawn callback must reach reentry assertion");
         require(placementShell != null, "Need verified shell from zero-cache case");
         active = null;
@@ -228,7 +230,8 @@ public final class NativeIE2BreakProbe extends JavaPlugin implements Listener {
     }
 
     private void runCase(int index, int stored, int output, boolean voidExcess,
-                         boolean foreign, boolean cancelSecond, boolean reentry) throws Exception {
+                         boolean foreign, boolean cancelSecond, boolean reentry,
+                         boolean linkageAfterClear) throws Exception {
         active = cases.get(index);
         activeMenu = StorageCacheUtils.getMenu(active);
         Object original = cacheType.getConstructor(ItemStack.class, int.class, int.class, boolean.class)
@@ -239,7 +242,32 @@ public final class NativeIE2BreakProbe extends JavaPlugin implements Listener {
         activeMenu.replaceExistingItem(inputSlot, physicalInput.clone());
         activeMenu.replaceExistingItem(outputSlot, physicalOutput.clone());
         drops.clear(); cancelSpawn = cancelSecond ? 2 : 0; injectReentry = reentry;
-        boolean broken = player.breakBlock(active.getBlock());
+        boolean broken;
+        if (linkageAfterClear) {
+            // This sixth case invokes the actual protected handler with a narrow
+            // forwarding menu fault. The original five cases still use native
+            // Player.breakBlock. All source slots and spawned entities remain real.
+            var faultMenu = new LinkageAfterClearMenu(activeMenu, inputSlot);
+            var injected = new BlockBreakEvent(active.getBlock(), player);
+            var handler = unit.getClass().getDeclaredMethod("onBreak", BlockBreakEvent.class, BlockMenu.class);
+            handler.setAccessible(true);
+            handler.invoke(unit, injected, faultMenu);
+            require(faultMenu.injected, "Controlled setter must actually clear the native source before throwing");
+            require(injected.isCancelled(), "Linkage failure must cancel the break");
+            require(drops.size() == 2 && drops.stream().noneMatch(Item::isValid),
+                "Linkage rollback must remove both exact captured entities");
+            require(cache(active) == original && amount(original) == stored,
+                "Linkage rollback must retain the original cache");
+            require(physicalInput.equals(activeMenu.getItemInSlot(inputSlot))
+                && physicalOutput.equals(activeMenu.getItemInSlot(outputSlot)),
+                "Linkage rollback must restore the exact native physical slots");
+            require(!(boolean) cacheType.getMethod("hasBlockedTransfer").invoke(original),
+                "Verified linkage rollback must release ownership for a healthy retry");
+            drops.clear();
+            broken = player.breakBlock(active.getBlock());
+        } else {
+            broken = player.breakBlock(active.getBlock());
+        }
         if (cancelSecond) {
             require(!broken && active.getBlock().getType() == unit.getItem().getType(), "Cancelled spawn must cancel block break");
             require(drops.size() == 2 && drops.stream().noneMatch(Item::isValid), "Partial spawn rollback must remove exact prior entities");
@@ -275,6 +303,31 @@ public final class NativeIE2BreakProbe extends JavaPlugin implements Listener {
         require(cache(active) == null, "Successful break must retire the exact runtime cache");
         getLogger().info("PASS: native break case=" + index + " stored=" + storedLedger
             + " physical=" + physicalLedger + " foreign=" + foreignLedger + " input=" + inputLedger);
+    }
+
+    /** One injected linkage failure; every read/write delegates to the actual native menu. */
+    private static final class LinkageAfterClearMenu extends BlockMenu {
+        private final BlockMenu delegate;
+        private final int sourceSlot;
+        private boolean injected;
+
+        private LinkageAfterClearMenu(BlockMenu delegate, int sourceSlot) {
+            super(delegate.getPreset(), delegate.getLocation(), delegate.toInventory());
+            this.delegate = delegate;
+            this.sourceSlot = sourceSlot;
+        }
+
+        @Override public ItemStack getItemInSlot(int slot) { return delegate.getItemInSlot(slot); }
+
+        @Override public void replaceExistingItem(int slot, ItemStack item) {
+            delegate.replaceExistingItem(slot, item);
+            if (!injected && slot == sourceSlot && (item == null || item.getType().isAir())) {
+                injected = true;
+                throw new NoClassDefFoundError("Controlled IE2 linkage failure after actual source-slot clear");
+            }
+        }
+
+        @Override public void markDirty() { delegate.markDirty(); }
     }
 
     private void awaitRestored() {

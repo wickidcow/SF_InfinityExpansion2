@@ -92,7 +92,10 @@ public final class StorageInputReceipt {
                 || cache.getVoidExcess() != voidAtEntry) {
                 throw new IllegalStateException("Storage balance/identity/void policy changed during input credit");
             }
-            if (templateAtEntry != null) {
+            // A verified zero balance may be seeded with the exact incoming type.
+            // Keep the old identity immutable only while it represents stored stock;
+            // the exact incoming-template checks above still protect a fresh seed.
+            if (balanceAtEntry > 0 && templateAtEntry != null) {
                 requireTemplate(templateAtEntry, cache.getItemStack());
             }
             return planned;

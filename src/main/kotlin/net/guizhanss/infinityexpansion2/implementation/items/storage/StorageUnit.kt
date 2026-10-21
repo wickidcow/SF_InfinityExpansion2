@@ -276,7 +276,8 @@ class StorageUnit(
                 }) {
                 "IE2 storage changed during break serialization"
             }
-        } catch (failure: RuntimeException) {
+        } catch (failure: Throwable) {
+            if (failure !is RuntimeException && failure !is LinkageError) throw failure
             // No physical source was touched; do not speculate about a refund.
             e.isCancelled = true
             InfinityExpansion2.instance.logger.log(java.util.logging.Level.SEVERE,
@@ -338,7 +339,8 @@ class StorageUnit(
             check(_caches.remove(menu.position, cache)) { "IE2 break cache ownership changed" }
             e.isDropItems = false
             e.isCancelled = false
-        } catch (failure: RuntimeException) {
+        } catch (failure: Throwable) {
+            if (failure !is RuntimeException && failure !is LinkageError) throw failure
             // Remove only actual entities captured for this attempt. Restore
             // our cleared slots only after every entity is verified absent.
             // A failed/ambiguous removal never authorizes a duplicate refund.
@@ -355,7 +357,8 @@ class StorageUnit(
                     }
                     if (changedSlots.isNotEmpty()) menu.markDirty()
                     check(originalSourcesMatch()) { "IE2 original source did not survive break rollback" }
-                } catch (restoreFailure: RuntimeException) {
+                } catch (restoreFailure: Throwable) {
+                    if (restoreFailure !is RuntimeException && restoreFailure !is LinkageError) throw restoreFailure
                     failure.addSuppressed(restoreFailure)
                     restored = false
                 }

@@ -3,7 +3,6 @@
 package net.guizhanss.infinityexpansion2.implementation.setup
 
 import io.github.thebusybiscuit.slimefun4.libraries.dough.config.Config
-import net.guizhanss.guizhanlib.common.utils.StringUtil
 import net.guizhanss.guizhanlib.kt.minecraft.extensions.isAir
 import net.guizhanss.guizhanlib.kt.slimefun.items.toItem
 import net.guizhanss.infinityexpansion2.InfinityExpansion2
@@ -16,7 +15,6 @@ import net.guizhanss.infinityexpansion2.implementation.guide.MobDataCardGuideGro
 import net.guizhanss.infinityexpansion2.implementation.items.mobsim.MobDataCard
 import net.guizhanss.infinityexpansion2.utils.Debug
 import net.guizhanss.infinityexpansion2.utils.items.toItemStack
-import org.bukkit.ChatColor
 import org.bukkit.Material
 import org.bukkit.MusicInstrument
 import org.bukkit.NamespacedKey
@@ -75,7 +73,7 @@ internal object MobSimulationSetup {
             Debug.log(DebugCase.MOB_SIMULATION, "Loading mob data card: $key")
 
             // load data
-            val name = section.getString("name", "${ChatColor.BLUE}${StringUtil.humanize(key)}")!!
+            val configuredName = section.getString("name")
             val configuredGuideGroup = section.getString("guide-group")
             val guideGroup = MobDataCardGuideGroups.parse(configuredGuideGroup)
             if (configuredGuideGroup != null && guideGroup == null) {
@@ -86,10 +84,24 @@ internal object MobSimulationSetup {
                 )
             }
             val group = guideGroup ?: MobDataCardGuideGroups.defaultGroup(key)
-            val texture = MobDataCardAppearance.texture(
-                section.getString("texture")?.toItemStack(),
-                group,
-            )
+            val configuredTexture = section.getString("texture")
+                ?.takeIf { it.isNotBlank() }
+                ?.toItemStack()
+            val appearance = MobDataCardAppearance.resolve(key, configuredName, configuredTexture, group)
+            val name = appearance.name
+            val texture = appearance.texture
+            if (appearance.repairedBlankName) {
+                val textureNote = if (appearance.replacedLegacyCarpet) {
+                    " and stale carpet texture; using the ${texture.type} category default"
+                } else {
+                    "; preserving the configured texture"
+                }
+                InfinityExpansion2.log(
+                    Level.WARNING,
+                    "Mob data card $key has a blank configured name$textureNote. " +
+                        "The config file was not rewritten."
+                )
+            }
             val energy = section.getInt("energy", 75).coerceIn(0, 1_000_000)
             val experience = section.getInt("experience").coerceIn(0, Int.MAX_VALUE)
             val dropMode = section.getString("drop-mode", "independent")!!.lowercase()
