@@ -163,10 +163,12 @@ jobs:
         with:
           persist-credentials: false
       - name: Download validated canonical JAR
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: ${{ env.OUTPUT_NAME }}
           path: dist
+          # The raw JAR is itself a ZIP; retain its original bytes for publication.
+          skip-decompress: true
 
       - name: Validate explicit release publication request
         id: release_state
