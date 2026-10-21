@@ -42,11 +42,11 @@
 # CATEGORY MATERIAL DEFAULTS:
 #   passive = IRON_CHESTPLATE       neutral = COPPER_CHESTPLATE
 #   hostile = DIAMOND_CHESTPLATE    boss = NETHERITE_CHESTPLATE
-# Every explicit texture: value is preserved, including custom chestplates, heads and spawn eggs.
-# Changing guide-group: or sorting never replaces that configured texture.
-# To use the category default for newly created cards, omit only the card's texture: field.
-# Bundled texture values also supply these defaults for new card definitions.
-# Existing saved cards are not rewritten by these guide settings.
+# Ordinary chestplate textures always use their guide category, including older explicit values.
+# Custom models, armor trims, dyed leather, player heads, spawn eggs and named carpet artwork
+# remain authoritative. Names, colors, recipes, drops and the configuration file are preserved.
+# Existing ordinary cards refresh during inventory activity and Mob Simulation Chamber use.
+# Set mob-simulation.refresh-card-appearance: false in config.yml to stop saved-card refresh.
 # More details: docs/SMARTSPAWNER_CARDS.md.
 
 goat:

@@ -152,11 +152,17 @@ mob-simulation:
   # mob-simulation.yml or mob-simulation-modern.yml, not inside the guide: block above.
   #   name: "&aCow"             Colors the mob label in the card description; used for A-Z sorting.
   #   guide-group: passive     Options: passive, neutral, hostile, boss. Omit for the built-in group.
-  #   texture: IRON_CHESTPLATE  Sets that card's item material/texture; keep any custom value you use.
-  # Existing explicit textures always win, even when guide-group or sort-order changes.
-  # To use the category's default chestplate, omit only that card's texture: field.
-  # Existing saved cards are not rewritten. See both card files' comments for examples,
-  # accepted category aliases, and details about preserving customized definitions.
+  #   texture: IRON_CHESTPLATE  Ordinary chestplates follow the card's guide category.
+  # Passive = iron, neutral = copper, hostile = diamond, boss = netherite.
+  # Custom models, trims, dyed leather, heads, spawn eggs and named carpets retain their artwork.
+  # Names, colors and complete card definitions stay in your files; no config rewrite is needed.
+
+  # Refresh existing registered Mob Data Cards on inventory activity and chamber processing.
+  # Updates category icons and standard name/first-label formatting; preserves original IDs,
+  # quantities, effective stack capacity, custom names/extra lore and all persistent metadata.
+  # Closed/offline storage is refreshed when encountered, never by a full-world scan.
+  # This does not enable IE1 item/block migration. Restart after editing card definitions.
+  refresh-card-appearance: true
 
   # The amount of runs required to output once (affected by tick rate)
   # Range: 1 to 3600

@@ -141,39 +141,60 @@ Accepted values are `passive`, `neutral`, `hostile`, and `boss`. The aliases
 `friendly` -> `passive`, `aggressive` -> `hostile`, and `bosses` -> `boss` are also
 accepted. Values ignore surrounding spaces and letter case. Omitting the field
 uses the built-in classification, including for older customized sections that
-predate the field. Changing a category preserves the card's explicitly configured
-texture, name, and colors. Restart the server after changing a category.
+predate the field. Ordinary chestplate icons follow the selected category; custom
+artwork, names and colors are preserved. Restart the server after changing a category.
 
 ### Card materials, custom appearance, and existing items
 
-The bundled default materials are iron chestplates for Passive, copper for Neutral,
-diamond for Hostile, and netherite for Boss cards. A card definition without a
-`texture` field also uses its category's default material. These defaults apply to
-the actual newly created Mob Data Card item, as well as its guide icon.
+All ordinary Mob Data Card chestplates follow the same category as the guide:
 
-Every explicitly configured `texture` is preserved, including chestplates of any
-material, spawn eggs, player heads, and other custom textures. Your configured
-names and colors are also preserved. Choosing a different category or sort order
-does not replace that appearance. Existing card sections keep their configured
-textures; the bundled chestplate values are used when an entirely new default
-section is added, or the category fallback applies when a texture is absent.
+| Category | Material |
+| --- | --- |
+| Passive | Iron chestplate |
+| Neutral | Copper chestplate |
+| Hostile | Diamond chestplate |
+| Boss | Netherite chestplate |
 
-Existing physical cards already stored in inventories or containers retain their
-persistent Slimefun identity and continue to work. IE2 does not run a broad saved-item
-rewrite. A narrow upgrade repair applies when a Mob Simulation Chamber encounters a
-card whose physical base is a carpet and whose first mob-name lore line is blank:
-the card is rebuilt from the current registered template in that same input slot.
-Its stack amount and unknown persistent-data keys are preserved, while the current
-Slimefun and mob-data identities remain authoritative. Named carpet cards and cards
-whose current configured texture is still a carpet are left unchanged.
+This applies to guide icons, newly infused cards and cards registered by other addons,
+including older definitions that explicitly selected a different ordinary chestplate.
+A configured `guide-group` controls both category placement and the material. Public
+addon registration signatures and card IDs remain unchanged.
 
-Likewise, a configured card with an explicitly blank/formatting-only `name` gets
-the normal humanized fallback name at registration. If that same malformed definition
-also uses a carpet texture, IE2 treats the pair as the stale conversion signature and
-uses the category chestplate for the loaded template. The configuration file itself is
-not rewritten. Nonblank named carpet textures, heads, spawn eggs, and other deliberate
-custom artwork remain authoritative. Newly created cards use the loaded template.
-Card IDs, recipes, drops, energy, XP, and stacking behavior remain the same.
+Intentional custom models, item-model components, armor trims, dyed leather, heads,
+spawn eggs and nonblank named carpets keep their artwork. Configured names and colors
+are preserved. No card configuration is rewritten to apply the category style.
+
+Existing cards refresh automatically with `mob-simulation.refresh-card-appearance: true`
+(the default, also when the setting is missing). The event listener waits until the next
+tick after joining, opening/closing/clicking/dragging an inventory, picking up items, changing the
+held slot or swapping hands. It then reads the current player slots and cursor; it never
+writes back an inventory snapshot captured before the transaction. The ender chest is
+included on join/open. A currently open single vanilla container may also be refreshed
+when it is region-owned and has no Slimefun block state. Virtual guide menus, other
+machine inventories and double chests are excluded from that traversal. Mob Simulation
+Chambers refresh their own card input during normal processing.
+
+The update preserves the original Slimefun ID (including the guide's per-mob variant),
+`mob_data_id`, stack amount, effective stack capacity and all persistent-data keys/types.
+Only the ordinary icon and standard/blank display-name or first mob-label formatting are
+updated. Player-renamed cards, fixed item names, interactive names/labels, extra rich-text lore, enchantments,
+damage and other metadata are retained. Current cards are a no-op. The existing
+modern-item refresh on join also uses this narrow card path rather than rebuilding a
+filled card from the generic empty-label template.
+
+A blank/formatting-only configured `name` still receives the humanized mob-name fallback.
+When paired with an ordinary carpet texture, it receives the category chestplate. A saved
+blank-label carpet card can likewise refresh to its current registered chestplate template.
+Named carpet artwork and explicit custom models are preserved.
+
+Set `mob-simulation.refresh-card-appearance: false` to disable automatic saved-card
+refresh; newly created cards still use the category style. Restart to load edited card
+configuration or the updated plugin. Once loaded, encountered existing cards update
+without another restart. Closed containers, offline inventories and unloaded chunks are
+not scanned; retrieving a card makes it eligible. This feature does not enable IE1
+migration, change simulation rates/recipes/drops/energy/XP, or reconstruct stored contents.
+The entity/region ownership used by the new listener is not a claim that every IE2 system
+has been validated on Folia.
 
 ## Drop chance and amount conversion
 
@@ -232,8 +253,8 @@ The original source's optional `potion_type` corresponds to IE2's existing
 `potion` field. None of these 44 missing mob definitions contains a potion drop;
 the already bundled skeleton-variant cards retain their existing potion metadata.
 The source's head textures are menu artwork, not loot metadata. New bundled card
-icons use the chestplate defaults described above; explicitly configured textures
-remain unchanged.
+icons use the chestplate categories described above; explicit custom artwork
+remains unchanged.
 
 ## Recipes and existing settings
 
