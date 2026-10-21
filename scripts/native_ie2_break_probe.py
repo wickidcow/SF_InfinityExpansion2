@@ -111,6 +111,16 @@ def main() -> None:
                 manifest[f'{phase}_pid'] = process.pid
                 manifest[f'{phase}_result'] = report
                 (work / f'{phase}-result.txt').write_text(report + '\n')
+                # Preserve the exact stopped-server database and any journal files
+                # before the next JVM can open them. This is evidence only: never
+                # replace the live database or checkpoint it from the harness.
+                stopped_storage = work / f'{phase}-stopped-storage'
+                shutil.copytree(work / 'data-storage', stopped_storage)
+                manifest[f'{phase}_stopped_storage_sha256'] = {
+                    str(path.relative_to(stopped_storage)): digest(path)
+                    for path in sorted(stopped_storage.rglob('*')) if path.is_file()
+                }
+                manifest_path.write_text(json.dumps(manifest, indent=2) + '\n')
                 print(report, flush=True)
             except BaseException:
                 manifest['result'] = 'FAIL'
