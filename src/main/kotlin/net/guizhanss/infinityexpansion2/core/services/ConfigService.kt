@@ -55,6 +55,7 @@ class ConfigService(plugin: InfinityExpansion2) {
     lateinit var mobSimChargeCardEnergy: ConfigField<Boolean>
     lateinit var mobSimExpMultiplier: ConfigField<Double>
     lateinit var mobSimLegacyOutput: ConfigField<Boolean>
+    internal lateinit var mobSimRefreshCardAppearance: ConfigField<Boolean>
     internal lateinit var mobSimGuideCategories: ConfigField<Set<MobDataCardGuideCategory>>
     internal lateinit var mobSimGuideSortMode: ConfigField<MobDataCardGuideSortMode>
 
@@ -111,6 +112,7 @@ class ConfigService(plugin: InfinityExpansion2) {
         mobSimChargeCardEnergy = boolean("mob-simulation.charge-card-energy", false)
         mobSimExpMultiplier = double("mob-simulation.exp-multiplier", 1.0, 0.0, 1000.0)
         mobSimLegacyOutput = boolean("mob-simulation.legacy-output", false)
+        mobSimRefreshCardAppearance = boolean("mob-simulation.refresh-card-appearance", true)
         mobSimGuideCategories = custom {
             MobDataCardGuideCategory.enabledIn(it.getConfigurationSection("mob-simulation.guide.categories"))
         }
@@ -172,7 +174,7 @@ class ConfigService(plugin: InfinityExpansion2) {
         }
         reload()
         mergeBundledModernMobSimulationCards(plugin)
-        // Explicit card names and textures remain authoritative, including older spawn-egg artwork.
+        // Names and custom artwork remain authoritative; ordinary chestplates use the guide category.
     }
 
     internal fun mobSimGuideOrdering() = MobDataCardGuideOrdering(

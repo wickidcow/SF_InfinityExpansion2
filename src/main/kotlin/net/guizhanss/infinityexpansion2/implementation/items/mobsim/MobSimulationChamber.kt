@@ -159,7 +159,7 @@ class MobSimulationChamber(
 
     override fun process(b: Block, menu: BlockMenu): Boolean {
         val l = b.location
-        menu.refreshLegacyCard(layout)
+        menu.refreshCardAppearance(layout)
         val (props, cardAmount) = menu.getDataCard(layout) ?: run {
             menu.setStatus { GuiItems.INVALID_INPUT }
             menu.setEnergyConsumption(0)
@@ -316,13 +316,14 @@ class MobSimulationChamber(
          * If the input is invalid, return null.
          * Returns the [MobDataCardProps] and the amount of the card.
          */
-        private fun BlockMenu.refreshLegacyCard(layout: MenuLayout) {
+        private fun BlockMenu.refreshCardAppearance(layout: MenuLayout) {
+            if (!InfinityExpansion2.configService.mobSimRefreshCardAppearance.value) return
             val slot = layout.inputSlots[0]
             val input = getItemInSlot(slot) ?: return
 
             // This runs only from the chamber's normal process path. Keep HUD/read helpers
             // side-effect free for scheduler/Folia safety.
-            MobDataCard.refreshLegacyAppearance(input)?.let { repaired ->
+            MobDataCard.refreshAppearance(input)?.let { repaired ->
                 replaceExistingItem(slot, repaired)
             }
         }

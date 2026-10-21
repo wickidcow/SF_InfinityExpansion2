@@ -2,6 +2,8 @@ package net.guizhanss.infinityexpansion2.core.migration
 
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem
 import io.github.thebusybiscuit.slimefun4.implementation.Slimefun
+import net.guizhanss.infinityexpansion2.InfinityExpansion2
+import net.guizhanss.infinityexpansion2.implementation.items.mobsim.MobDataCard
 import org.bukkit.block.Container
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ArmorMeta
@@ -31,25 +33,35 @@ class LegacyItemMigrator {
 
         if (targetId != null) {
             val targetItem = SlimefunItem.getById(targetId) ?: return Result(stack, false, sourceId, null)
-            val modern = targetItem.item.clone()
-            modern.amount = stack.amount
-            preserveGameplayState(stack, modern)
-
-            // Preserve addon PDC that is not supplied by the new template. This retains
-            // useful custom state while the new Slimefun id wins on key collisions.
-            copyPdc(stack, modern)
-
-            // IE1 filled storage units need a real data-format conversion, not only an id rename.
-            // Also migrate the identity of the item stored inside the unit, if that stored type
-            // is itself an IE1 Slimefun item.
-            LegacyStorageBridge.read(stack)?.let { legacy ->
-                val storedItem = legacy.item?.let { stored ->
-                    migrateInternal(stored, false, depth + 1)?.item ?: stored
+            if (sourceId == targetId && targetItem is MobDataCard) {
+                // Crafted cards share a generic ID whose template has no mob label. Do not
+                // rebuild them from that template or overwrite player-added name/lore/PDC.
+                working = if (InfinityExpansion2.configService.mobSimRefreshCardAppearance.value) {
+                    MobDataCard.refreshAppearance(stack) ?: stack
+                } else {
+                    stack
                 }
-                LegacyStorageBridge.writeModern(modern, targetId, legacy.copy(item = storedItem))
-            }
+            } else {
+                val modern = targetItem.item.clone()
+                modern.amount = stack.amount
+                preserveGameplayState(stack, modern)
 
-            working = modern
+                // Preserve addon PDC that is not supplied by the new template. This retains
+                // useful custom state while the new Slimefun id wins on key collisions.
+                copyPdc(stack, modern)
+
+                // IE1 filled storage units need a real data-format conversion, not only an id rename.
+                // Also migrate the identity of the item stored inside the unit, if that stored type
+                // is itself an IE1 Slimefun item.
+                LegacyStorageBridge.read(stack)?.let { legacy ->
+                    val storedItem = legacy.item?.let { stored ->
+                        migrateInternal(stored, false, depth + 1)?.item ?: stored
+                    }
+                    LegacyStorageBridge.writeModern(modern, targetId, legacy.copy(item = storedItem))
+                }
+
+                working = modern
+            }
         }
 
         val nested = migrateNestedContents(working, refreshModern, depth)

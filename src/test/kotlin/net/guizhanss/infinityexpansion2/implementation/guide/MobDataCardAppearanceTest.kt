@@ -15,7 +15,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockbukkit.mockbukkit.MockBukkit
 
-/** Category defaults apply only when no texture was configured; every explicit texture is preserved. */
+/** Ordinary chestplates use category defaults; deliberate modeled and alternate artwork is preserved. */
 class MobDataCardAppearanceTest {
     @BeforeEach
     fun setUp() {
@@ -54,7 +54,7 @@ class MobDataCardAppearanceTest {
     }
 
     @Test
-    fun everyExplicitChestplateKeepsItsMaterialRichMetadataDamageAndAmountForEveryCategory() {
+    fun modeledChestplatesKeepTheirMaterialRichMetadataDamageAndAmountForEveryCategory() {
         val materials = listOf(
             Material.IRON_CHESTPLATE,
             Material.COPPER_CHESTPLATE,
@@ -132,6 +132,11 @@ class MobDataCardAppearanceTest {
         ))
         meta.isUnbreakable = true
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES)
+        // MockBukkit's generic ItemMeta copy currently omits modern model-component lists.
+        // Keep a legacy model value for this metadata-copy fixture; MobDataCardRefreshTest
+        // separately exercises every modern model-component kind with explicit preconditions.
+        @Suppress("deprecation")
+        meta.setCustomModelData(12345)
         val model = meta.customModelDataComponent
         model.floats = listOf(12345.25F)
         model.strings = listOf("custom-card-model")
@@ -141,6 +146,8 @@ class MobDataCardAppearanceTest {
         meta.persistentDataContainer.set(ADDON_COUNT, PersistentDataType.LONG, 9_000_000_001L)
         meta.persistentDataContainer.set(ADDON_BYTES, PersistentDataType.BYTE_ARRAY, byteArrayOf(-1, 0, 42, 127))
         itemMeta = meta
+        @Suppress("deprecation")
+        assertTrue(itemMeta.hasCustomModelData())
     }
 
     private fun assertPersistentData(item: ItemStack) {

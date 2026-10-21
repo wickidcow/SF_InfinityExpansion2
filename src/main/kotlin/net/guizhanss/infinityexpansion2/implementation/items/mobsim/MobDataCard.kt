@@ -6,6 +6,7 @@ import io.github.thebusybiscuit.slimefun4.api.items.ItemGroup
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItemStack
 import io.github.thebusybiscuit.slimefun4.api.recipes.RecipeType
 import io.github.thebusybiscuit.slimefun4.core.attributes.DistinctiveItem
+import io.github.thebusybiscuit.slimefun4.implementation.Slimefun
 import io.github.thebusybiscuit.slimefun4.implementation.items.blocks.UnplaceableBlock
 import io.github.thebusybiscuit.slimefun4.libraries.dough.data.persistent.PersistentDataAPI
 import net.guizhanss.guizhanlib.kt.minecraft.extensions.toItem
@@ -41,7 +42,7 @@ class MobDataCard(
     recipeType: RecipeType,
     recipe: Array<out ItemStack?>,
     private val props: MobDataCardProps,
-) : UnplaceableBlock(itemGroup, itemStack, recipeType, recipe, buildOutputItem(props.id, props.name, props.texture)),
+) : UnplaceableBlock(itemGroup, itemStack, recipeType, recipe, buildOutputItem(props.id, props.name, itemStack)),
     EnergyTickingConsumer, InformationalRecipeDisplayItem, DistinctiveItem, CustomWikiItem {
 
     override val wikiUrl = "mob-simulation/card"
@@ -126,14 +127,25 @@ class MobDataCard(
             if (item.hasItemMeta()) PersistentDataAPI.getString(item.itemMeta, Keys.MOB_DATA_ID) else null
 
         /**
-         * Repair only the stale physical-card signature produced by older/broken conversions.
-         * Current registered props supply the authoritative name and configured texture.
+         * Refresh only an actual registered IE2 card, using its current guide/output template.
+         * The generic crafted ID and the guide's per-mob ID both remain valid and unchanged.
          */
-        internal fun refreshLegacyAppearance(item: ItemStack): ItemStack? {
+        internal fun refreshAppearance(item: ItemStack): ItemStack? {
+            if (!item.hasItemMeta()) return null
+            val sourceId = Slimefun.getItemDataService().getItemData(item).orElse(null) ?: return null
             val id = getMobDataId(item) ?: return null
-            val currentProps = IERegistry.mobDataCards[id] ?: return null
-            val current = buildOutputItem(id, currentProps.name, currentProps.texture)
-            return MobDataCardAppearance.refreshLegacyPhysical(item, current)
+            val genericId = IEItems.MOB_DATA_CARD.itemId
+            // A registry alias can resolve an IE1 item to this class. Appearance refresh
+            // must not turn that into implicit legacy migration when migration is disabled.
+            if (sourceId != genericId && sourceId != "${genericId}_${id.toId()}") return null
+            val sourceCard = getById(sourceId) as? MobDataCard ?: return null
+            if (sourceCard.isDisabled) return null
+            if (sourceCard.props.id.isNotEmpty() && sourceCard.props.id != id) return null
+            if (id !in IERegistry.mobDataCards) return null
+            val currentCard = getMobDataCard(id)?.takeUnless { it.isDisabled } ?: return null
+            // The updater never mutates its target. Reuse the registered template instead
+            // of constructing new nested SlimefunItemStacks on every chamber process tick.
+            return MobDataCardAppearance.refreshPhysical(item, currentCard.item, id)
         }
 
         fun getMobDataCard(id: String?) =

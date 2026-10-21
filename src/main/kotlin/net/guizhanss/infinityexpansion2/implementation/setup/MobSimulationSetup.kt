@@ -12,7 +12,6 @@ import net.guizhanss.infinityexpansion2.core.debug.DebugCase
 import net.guizhanss.infinityexpansion2.implementation.IEItems
 import net.guizhanss.infinityexpansion2.implementation.guide.MobDataCardAppearance
 import net.guizhanss.infinityexpansion2.implementation.guide.MobDataCardGuideGroups
-import net.guizhanss.infinityexpansion2.implementation.items.mobsim.MobDataCard
 import net.guizhanss.infinityexpansion2.utils.Debug
 import net.guizhanss.infinityexpansion2.utils.items.toItemStack
 import org.bukkit.Material
@@ -204,11 +203,7 @@ internal object MobSimulationSetup {
                 configureDropAmountRanges(configuredDrops.map { it.amountRange })
                 configureDropDamageRanges(configuredDrops.map { it.damageRange })
             }
-            InfinityExpansion2API.registerMobDataCard(props, InfinityExpansion2.instance)
-            MobDataCard.getMobDataCard(key)?.let { card ->
-                // A late config pass must not change metadata on a card another addon already owns.
-                if (card.addon === InfinityExpansion2.instance) card.guideGroup = guideGroup
-            }
+            InfinityExpansion2API.registerMobDataCard(props, InfinityExpansion2.instance, group)
             registeredCards += key
             if (randomOne) randomOneCards += key
         }

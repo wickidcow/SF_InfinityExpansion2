@@ -7,6 +7,9 @@ import io.github.thebusybiscuit.slimefun4.core.guide.SlimefunGuideMode
 import io.github.thebusybiscuit.slimefun4.implementation.Slimefun
 import net.guizhanss.infinityexpansion2.InfinityExpansion2
 import net.guizhanss.infinityexpansion2.api.mobsim.MobDataCardProps
+import net.guizhanss.infinityexpansion2.implementation.guide.MobDataCardAppearance
+import net.guizhanss.infinityexpansion2.implementation.guide.MobDataCardGuideGroup
+import net.guizhanss.infinityexpansion2.implementation.guide.MobDataCardGuideGroups
 import net.guizhanss.infinityexpansion2.implementation.items.mobsim.MobDataCard
 import net.guizhanss.infinityexpansion2.utils.SlimefunReflection
 import net.guizhanss.infinityexpansion2.utils.slimefunext.displayItem
@@ -34,9 +37,18 @@ object InfinityExpansion2API {
      * Register a mob data card.
      */
     @JvmStatic
-    fun registerMobDataCard(props: MobDataCardProps, addon: SlimefunAddon) {
+    fun registerMobDataCard(props: MobDataCardProps, addon: SlimefunAddon) =
+        registerMobDataCard(props, addon, null)
+
+    internal fun registerMobDataCard(
+        props: MobDataCardProps,
+        addon: SlimefunAddon,
+        guideGroup: MobDataCardGuideGroup?,
+    ) {
         // create item
-        val displayItem = MobDataCard.buildDisplayItem(props.id, props.name, props.texture)
+        val group = guideGroup ?: MobDataCardGuideGroups.defaultGroup(props.id)
+        val texture = MobDataCardAppearance.texture(props.texture, group)
+        val displayItem = MobDataCard.buildDisplayItem(props.id, props.name, texture)
 
         // If another addon already registered the same IE2 mob data card, keep the
         // existing registration instead of throwing a Slimefun IdConflictException.
@@ -52,7 +64,7 @@ object InfinityExpansion2API {
         }
 
         // register item
-        val card = MobDataCard.create(displayItem, props.recipe, props)
+        val card = MobDataCard.create(displayItem, props.recipe, props).apply { this.guideGroup = guideGroup }
         card.register(addon)
         // in case autoloading is not yet enabled but item is registered
         if (!SlimefunReflection.isAutoLoadingEnabled()) {

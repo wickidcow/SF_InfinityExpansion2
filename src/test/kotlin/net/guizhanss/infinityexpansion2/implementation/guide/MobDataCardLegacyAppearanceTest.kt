@@ -95,7 +95,7 @@ class MobDataCardLegacyAppearanceTest {
         assertEquals("Vex", visibleFirstLore(repaired))
 
         val data = repaired.itemMeta.persistentDataContainer
-        assertEquals("IE_MOB_DATA_CARD", data.get(SLIMEFUN_ID, PersistentDataType.STRING))
+        assertEquals("IE_MOB_DATA_CARD_OLD", data.get(SLIMEFUN_ID, PersistentDataType.STRING))
         assertEquals("vex", data.get(MOB_ID, PersistentDataType.STRING))
         assertEquals(9_000_000_001L, data.get(ADDON_COUNT, PersistentDataType.LONG))
         assertArrayEquals(byteArrayOf(-1, 0, 42, 127), data.get(ADDON_BYTES, PersistentDataType.BYTE_ARRAY))
