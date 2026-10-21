@@ -18,8 +18,6 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockbukkit.mockbukkit.MockBukkit
 import org.mockbukkit.mockbukkit.inventory.ItemStackMock
-import org.mockbukkit.mockbukkit.inventory.meta.ArmorMetaMock
-import org.mockbukkit.mockbukkit.inventory.meta.components.CustomModelDataComponentMock
 
 /** Regression cases for updating existing cards without reconstructing their identity or custom state. */
 class MobDataCardRefreshTest {
@@ -330,25 +328,6 @@ class MobDataCardRefreshTest {
 
         override fun getMaxStackSize(): Int =
             if (savedMeta.hasMaxStackSize()) savedMeta.maxStackSize else type.maxStackSize
-    }
-
-    private class ComponentAwareArmorMeta : ArmorMetaMock {
-        constructor() : super()
-
-        constructor(source: ItemMeta) : super(source) {
-            if (source.hasItemModel()) itemModel = source.itemModel
-            if (source.hasCustomModelDataComponent()) {
-                val previous = source.customModelDataComponent
-                val copy = CustomModelDataComponentMock.useDefault()
-                copy.floats = previous.floats.toList()
-                copy.flags = previous.flags.toList()
-                copy.strings = previous.strings.toList()
-                copy.colors = previous.colors.toList()
-                setCustomModelDataComponent(copy)
-            }
-        }
-
-        override fun clone(): ArmorMetaMock = ComponentAwareArmorMeta(this)
     }
 
     companion object {
