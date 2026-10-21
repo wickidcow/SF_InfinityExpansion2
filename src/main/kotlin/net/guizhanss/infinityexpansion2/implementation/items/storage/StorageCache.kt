@@ -157,6 +157,26 @@ class StorageCache(
     }
 
     /**
+     * Prepare a non-mutating output recovery receipt for block breaking.
+     * Physical output was ALREADY debited from storage; input Void Excess is
+     * never an acceptable reason to destroy that existing output.
+     * The same persisted fields and item template are retained.
+     */
+    @Synchronized
+    fun snapshotPhysicalOutputForBreak(output: ItemStack?): Pair<StorageCache, Int> {
+        check(!hasUnassignedItems() && !hasBlockedTransfer())
+        // StorageCache.matches() uses a memoized ItemMeta; an in-place template edit
+        // can leave that memo stale. Freeze ONE fresh template clone for both the
+        // identity test and the item persisted in the returned storage shell.
+        val liveTemplate = itemStack?.clone()
+        val absorbed = if (output != null && !output.isAir() && output.amount > 0
+            && liveTemplate != null && liveTemplate.isSimilar(output)) {
+            minOf(output.amount.toLong(), (limit.toLong() - amount.toLong()).coerceAtLeast(0L)).toInt()
+        } else 0
+        return StorageCache(liveTemplate, amount + absorbed, limit, voidExcess) to absorbed
+    }
+
+    /**
      * Add the lore to the target [ItemMeta] of the storage unit
      */
     fun addLore(meta: ItemMeta) {

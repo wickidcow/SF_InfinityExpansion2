@@ -214,44 +214,160 @@ class StorageUnit(
     }
 
     override fun onBreak(e: BlockBreakEvent, menu: BlockMenu) {
-        if (_caches[menu.position]?.let { it.hasUnassignedItems() || it.hasBlockedTransfer() } == true) {
+        if (e.isCancelled) return
+        val cache = _caches[menu.position]
+        if (cache == null || cache.hasUnassignedItems() || cache.hasBlockedTransfer()) {
             e.isCancelled = true
-            e.player.sendMessage("[InfinityExpansion2] This storage has an unverified item identity or transfer. Ask an administrator to inspect it.")
+            e.player.sendMessage("[InfinityExpansion2] Storage is unavailable or unverified. Ask an administrator to inspect it.")
             return
         }
+
         val loc = menu.location
         val dropLocation = loc.clone().add(0.5, 0.5, 0.5)
+        val outputItem: ItemStack?
+        val shell: ItemStack
+        val remainder: Int
+        val physicalSources: Map<Int, ItemStack?>
+        val initialAmount: Int
+        val initialTemplate: ItemStack?
+        val initialVoid = cache.voidExcess
 
-        menu.dropItems(loc, *inputSlots)
-
-        val cache = _caches.remove(menu.position)
-        if (cache != null && cache.amount > 0 && cache.itemStack != null) {
-            val itemToDrop = item.clone()
-            val meta = itemToDrop.itemMeta
-
-            // attempt to add item into storage from output slot
-            val outputItem = menu.getItemInSlot(outputSlots[0])
-            Debug.log(DebugCase.STORAGE_UNIT, "Checking dropped storage's output slot")
-            if (!outputItem.isAir()) {
-                Debug.log(DebugCase.STORAGE_UNIT, "Output slot has item: $outputItem")
-                if (!cache.matches(outputItem)) {
-                    Debug.log(DebugCase.STORAGE_UNIT, "Output item not match, drop as is")
-                    loc.world.dropItem(dropLocation, outputItem)
-                } else {
-                    Debug.log(DebugCase.STORAGE_UNIT, "Output item match, try to add into storage")
-                    val leftover = cache.increaseAmount(outputItem.amount)
-                    if (leftover > 0) {
-                        val item = outputItem.edit { amount(leftover) }
-                        loc.world.dropItem(dropLocation, item)
-                    }
-                }
+        // Complete all fallible serialization BEFORE input drops, world spawns,
+        // removing the runtime cache, or changing the original stored amount.
+        try {
+            // Frozen physical snapshot; never modify the item in the live menu.
+            physicalSources = (inputSlots + outputSlots).distinct().associateWith { menu.getItemInSlot(it)?.clone() }
+            outputItem = physicalSources[outputSlots[0]]
+            initialAmount = cache.amount
+            initialTemplate = cache.itemStack?.clone()
+            val (prepared, absorbed) = cache.snapshotPhysicalOutputForBreak(outputItem)
+            remainder = if (outputItem == null || outputItem.isAir()) 0
+                else (outputItem.amount - absorbed).coerceAtLeast(0)
+            shell = item.clone()
+            val meta = shell.itemMeta
+            PersistentDataAPI.set(meta, STORAGE_KEY, PersistentStorageCacheType.TYPE, prepared)
+            prepared.addLore(meta)
+            shell.itemMeta = meta
+            // The ItemStack setter may reject metadata or another plugin may
+            // corrupt the serialized PDC. Prove the *actual dropped shell* can
+            // deserialize the prepared ledger before touching physical slots.
+            val readback = PersistentDataAPI.get(
+                shell.itemMeta, STORAGE_KEY, PersistentStorageCacheType.TYPE)
+            check(readback != null && readback.amount == prepared.amount
+                && readback.limit == prepared.limit
+                && readback.voidExcess == prepared.voidExcess
+                && readback.itemStack == prepared.itemStack) {
+                "IE2 storage shell metadata/PDC did not survive serialization"
             }
 
-            PersistentDataAPI.set(meta, STORAGE_KEY, PersistentStorageCacheType.TYPE, cache)
-            cache.addLore(meta)
-            itemToDrop.itemMeta = meta
-            loc.world.dropItem(loc.clone().add(0.5, 0.5, 0.5), itemToDrop)
+            // ItemStack equality includes stack quantity and full live metadata/PDC.
+            // isSimilar alone would miss a changed template amount.
+            val sameTemplate = initialTemplate == cache.itemStack
+            val outputNow = menu.getItemInSlot(outputSlots[0])
+            val sameOutput = if (outputItem == null || outputItem.isAir()) {
+                outputNow == null || outputNow.isAir()
+            } else {
+                outputItem == outputNow
+            }
+            check(!e.isCancelled && !cache.hasBlockedTransfer()
+                && cache.amount == initialAmount && cache.voidExcess == initialVoid && sameTemplate && sameOutput
+                && physicalSources.all { (slot, original) ->
+                    if (original.isAir()) menu.getItemInSlot(slot).isAir() else original == menu.getItemInSlot(slot)
+                }) {
+                "IE2 storage changed during break serialization"
+            }
+        } catch (failure: RuntimeException) {
+            // No physical source was touched; do not speculate about a refund.
+            e.isCancelled = true
+            InfinityExpansion2.instance.logger.log(java.util.logging.Level.SEVERE,
+                "IE2 storage break preflight failed at $loc; physical slots untouched.", failure)
+            e.player.sendMessage("[InfinityExpansion2] Storage break could not be verified. Ask an administrator.")
+            return
+        }
+
+        // World item-spawn listeners can re-enter this block's handlers. Keep
+        // the existing cross-direction ownership guard until every drop has
+        // either completed or the cache has been quarantined.
+        e.isCancelled = true
+        if (!cache.beginWithdrawal()) {
+            return
+        }
+        val drops = StorageBreakDropReceipt()
+        val changedSlots = linkedSetOf<Int>()
+        fun originalSourcesMatch() = _caches[menu.position] === cache
+            && cache.amount == initialAmount && cache.itemStack == initialTemplate
+            && cache.voidExcess == initialVoid
+            && physicalSources.all { (slot, original) ->
+                if (original.isAir()) menu.getItemInSlot(slot).isAir() else original == menu.getItemInSlot(slot)
+            }
+        fun spawn(stack: ItemStack) {
+            drops.spawn(stack) { offered, capture ->
+                // Register before ItemSpawnEvent, including cancelled spawns and
+                // an exception thrown after the world has created the entity.
+                loc.world.dropItem(dropLocation, offered) { created -> capture.accept(created) }
+            }
+        }
+        try {
+            check(originalSourcesMatch()) { "IE2 source changed before break drops" }
+            for (slot in inputSlots) {
+                val input = physicalSources[slot]
+                if (!input.isAir()) spawn(input!!.clone())
+            }
+            if (remainder > 0 && outputItem != null) {
+                spawn(outputItem.edit { amount(remainder) })
+            }
+            spawn(shell)
+            check(originalSourcesMatch()) { "IE2 source changed during break drops" }
+            drops.verify()
+
+            // Retain every original physical source until all exact world
+            // receipts pass. No input/output is dropped through an unchecked
+            // helper that clears its slot after a cancelled spawn.
+            for (slot in physicalSources.keys) {
+                changedSlots.add(slot) // The setter may write before throwing.
+                menu.replaceExistingItem(slot, ItemStack(Material.AIR))
+                check(menu.getItemInSlot(slot).isAir()) { "IE2 break source slot was not cleared" }
+            }
+            menu.markDirty()
+            check(physicalSources.keys.all { menu.getItemInSlot(it).isAir() }
+                && _caches[menu.position] === cache && cache.amount == initialAmount
+                && cache.itemStack == initialTemplate && cache.voidExcess == initialVoid) {
+                "IE2 source changed during break commit"
+            }
+            drops.verify()
+            check(_caches.remove(menu.position, cache)) { "IE2 break cache ownership changed" }
             e.isDropItems = false
+            e.isCancelled = false
+        } catch (failure: RuntimeException) {
+            // Remove only actual entities captured for this attempt. Restore
+            // our cleared slots only after every entity is verified absent.
+            // A failed/ambiguous removal never authorizes a duplicate refund.
+            var restored = drops.rollback(failure)
+            if (restored) {
+                try {
+                    for (slot in changedSlots) {
+                        val actual = menu.getItemInSlot(slot)
+                        val original = physicalSources[slot]
+                        check(actual.isAir() || actual == original) {
+                            "IE2 rollback would overwrite a foreign source-slot change"
+                        }
+                        menu.replaceExistingItem(slot, original?.clone() ?: ItemStack(Material.AIR))
+                    }
+                    if (changedSlots.isNotEmpty()) menu.markDirty()
+                    check(originalSourcesMatch()) { "IE2 original source did not survive break rollback" }
+                } catch (restoreFailure: RuntimeException) {
+                    failure.addSuppressed(restoreFailure)
+                    restored = false
+                }
+            }
+            if (!restored) cache.blockUnverifiedTransfer()
+            InfinityExpansion2.instance.logger.log(java.util.logging.Level.SEVERE,
+                if (restored) "IE2 storage break rolled back at $loc; original contents retained."
+                else "IE2 storage break is unverified at $loc; operator reconciliation required.", failure)
+            e.player.sendMessage(if (restored) "[InfinityExpansion2] Storage break was cancelled; contents were preserved."
+                else "[InfinityExpansion2] Unverified storage break. Ask an administrator.")
+        } finally {
+            cache.finishWithdrawal()
         }
     }
 
