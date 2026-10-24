@@ -23,10 +23,10 @@ permissions:
   contents: read
 
 env:
-  VERSION: "2.0.15"
-  OUTPUT_NAME: "SF_InfinityExpansion2.0.15.jar"
-  CORE_HEAD: 1cb32d6e95b305998065b8ef6b936a56f679187d
-  NETWORKS_HEAD: 1266e7a0f7461ba40af331ede42c288d848f49fc
+  VERSION: "2.0.16"
+  OUTPUT_NAME: "SF_InfinityExpansion2.0.16.jar"
+  CORE_HEAD: a538adddaf58e2f219f383eb2be9bed27da7bafc
+  NETWORKS_HEAD: 80ef42b137b1cd0ff4482ab2f02254c6755f897d
 
 jobs:
   compatibility:
@@ -64,13 +64,13 @@ jobs:
           grep -Fq 'archiveFileName.set("SF_InfinityExpansion${project.version}.jar")' build.gradle.kts
           if printf '%s\n%s\n' "$VERSION" "$OUTPUT_NAME" | grep -Eiq '(legacy|english|snapshot)'; then exit 1; fi
       - name: Verify Paper 1.21.11 baseline compilation
-        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PbuildVersion=2.0.15 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PbuildVersion=2.0.16 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
       - name: Verify Paper 26.2 compilation
-        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=26.2.build.+ -PtargetJvm=25 -PbuildVersion=2.0.15 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=26.2.build.+ -PtargetJvm=25 -PbuildVersion=2.0.16 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
       - name: Verify Paper 26.3 stable compilation
-        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=26.3.build.+ -PtargetJvm=25 -PbuildVersion=2.0.15 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=26.3.build.+ -PtargetJvm=25 -PbuildVersion=2.0.16 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
       - name: Build universal Java 21 release JAR
-        run: ./gradlew clean build --stacktrace --console=plain -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PbuildVersion=2.0.15 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+        run: ./gradlew clean build --stacktrace --console=plain -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PbuildVersion=2.0.16 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
       - name: Retain regression test reports
         if: always()
         uses: actions/upload-artifact@v7
