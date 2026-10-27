@@ -244,7 +244,7 @@ jobs:
           test "$(stat -c %s "$JAR")" -eq 1722317
           printf '%s  %s\n' 0ee8037249f25e912d26b510f838869fd892ccde469eb32cbd980e3a66010ac3 "$JAR" | sha256sum --check --strict
           test -s docs/releases/2.0.16.md
-          unzip -p "$JAR" plugin.yml | grep -Eq '^version: ["\x27]?2\.0\.16["\x27]?$'
+          unzip -p "$JAR" plugin.yml | grep -Eq "^version: ['\"]?2\.0\.16['\"]?$"
           if gh release view v2.0.16 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo 'Refusing to replace an existing release' >&2
             exit 1
