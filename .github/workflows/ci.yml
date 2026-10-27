@@ -208,3 +208,50 @@ jobs:
           test -s "$JAR"
           gh release create "$TAG" "$JAR" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "SF_InfinityExpansion ${VERSION}" --notes-file "docs/releases/${VERSION}.md"
 
+  # Exact-source one-time publication, granted by the repository owner.
+  # The publish flag in workflow_dispatch is unchanged; this job runs once
+  # on the approved workflow-only merge, then becomes inert.
+  publish_reviewed_source_once:
+    name: Publish reviewed immutable IE2 2.0.16
+    needs: [compatibility, source-safety]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master' && github.event.before == 'a9b105e5cf3e8c69b3edb135c615eb3710f72158'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout workflow-only release approval
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Download the validated Java 21 JAR
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ env.OUTPUT_NAME }}
+          path: dist
+          skip-decompress: true
+      - name: Verify source, immutable JAR and absent release before publishing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          APPROVED=a9b105e5cf3e8c69b3edb135c615eb3710f72158
+          JAR=dist/SF_InfinityExpansion2.0.16.jar
+          test "$(git rev-parse HEAD^)" = "$APPROVED"
+          test "$(git diff --name-only "$APPROVED" "$GITHUB_SHA")" = '.github/workflows/ci.yml'
+          test -s "$JAR"
+          test "$(stat -c %s "$JAR")" -eq 1722317
+          printf '%s  %s\n' 0ee8037249f25e912d26b510f838869fd892ccde469eb32cbd980e3a66010ac3 "$JAR" | sha256sum --check --strict
+          test -s docs/releases/2.0.16.md
+          unzip -p "$JAR" plugin.yml | grep -Eq '^version: ["\x27]?2\.0\.16["\x27]?$'
+          if gh release view v2.0.16 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'Refusing to replace an existing release' >&2
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin refs/tags/v2.0.16 >/dev/null 2>&1; then
+            echo 'Refusing to replace an existing tag' >&2
+            exit 1
+          fi
+          gh release create v2.0.16 "$JAR" --repo "$GITHUB_REPOSITORY" --target "$APPROVED" --title 'SF_InfinityExpansion 2.0.16' --notes-file docs/releases/2.0.16.md
+          echo 'Published approved IE2 source and exact CI-validated JAR; no plugin files changed.' >> "$GITHUB_STEP_SUMMARY"
