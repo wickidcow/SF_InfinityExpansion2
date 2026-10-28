@@ -118,8 +118,10 @@ class DoctorCommand(parent: AbstractCommand) : AbstractSubCommand(
         return listOf("status", "scan", "migrate", "refresh").filter { it.startsWith(current) }
     }
 
-    private fun colored(value: String, color: NamedTextColor): Component = Component.text(value, color)
+    companion object {
+        internal fun colored(value: String, color: NamedTextColor): Component = Component.text(value, color)
 
-    private fun status(value: Boolean): Component =
-        colored(if (value) "enabled" else "disabled", if (value) NamedTextColor.GREEN else NamedTextColor.RED)
+        internal fun status(value: Boolean): Component =
+            colored(if (value) "enabled" else "disabled", if (value) NamedTextColor.GREEN else NamedTextColor.RED)
+    }
 }
