@@ -44,6 +44,9 @@ dependencies {
     testImplementation("org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.110.0")
     // Match MockBukkit independently of the production compile-API override.
     testImplementation("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
+    // Tests using real Research objects need the same API at compile time as at runtime.
+    // Keep it test-scoped so Slimefun classes never enter the shaded plugin JAR.
+    testCompileOnly(slimefunApiCoordinate.get())
     testRuntimeOnly(slimefunApiCoordinate.get())
 }
 
