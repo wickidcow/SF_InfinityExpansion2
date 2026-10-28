@@ -95,7 +95,7 @@ class SlimefunCompatibilityBridge {
 
     fun runtimeDescription(): String {
         val plugin = Bukkit.getPluginManager().getPlugin("Slimefun")
-        val version = plugin?.description?.version ?: "unknown"
+        val version = plugin?.pluginMeta?.version ?: "unknown"
         val implementation = when {
             classExists("com.xzavier0722.mc.plugin.slimefun4.storage.controller.BlockDataController") -> "Slimefun Legacy/Gugu storage"
             classExists("io.github.thebusybiscuit.slimefun4.storage.controller.BlockDataController") -> "Slimefun Core/United storage"

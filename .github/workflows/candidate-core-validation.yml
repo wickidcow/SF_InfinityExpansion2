@@ -1,0 +1,125 @@
+name: IE2 Combined Candidate Core Validation
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    name: Candidate core / Paper ${{ matrix.paper }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - paper: '1.21.11-R0.1-SNAPSHOT'
+            target: '21'
+            test: true
+          - paper: '26.2.build.+'
+            target: '25'
+            test: false
+          - paper: '26.3.build.+'
+            target: '25'
+            test: false
+    env:
+      CORE_CANDIDATE: f5656f43d220de1fac59e1492eb1f5248af129ab
+      NETWORKS_CANDIDATE: 7c6a36b26ddb294ee5775454449d996c02cb9dc6
+    steps:
+      - name: Checkout combined IE2 candidate
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Checkout exact core candidate
+        uses: actions/checkout@v6
+        with:
+          repository: wickidcow/Slimefun-Legacy
+          ref: ${{ env.CORE_CANDIDATE }}
+          path: .deps/Slimefun-Legacy
+          persist-credentials: false
+      - name: Checkout exact Networks transport contract
+        uses: actions/checkout@v6
+        with:
+          repository: wickidcow/SF_NetworksExp
+          ref: ${{ env.NETWORKS_CANDIDATE }}
+          path: .deps/SF_NetworksExp
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/wrapper-validation@v6
+      - name: Verify source identities and existing migration guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C .deps/Slimefun-Legacy rev-parse HEAD)" = "$CORE_CANDIDATE"
+          test "$(git -C .deps/SF_NetworksExp rev-parse HEAD)" = "$NETWORKS_CANDIDATE"
+          printf 'IE2 checkout: %s\nCore: %s\nNetworks: %s\n' "$(git rev-parse HEAD)" "$CORE_CANDIDATE" "$NETWORKS_CANDIDATE" >> "$GITHUB_STEP_SUMMARY"
+          python3 scripts/verify_legacy_migration.py
+          python3 scripts/verify_doctor_bridge_safety.py
+          python3 scripts/verify_mob_sim_drop_ranges.py
+          python3 scripts/verify_mob_sim_input_filtering.py
+          python3 scripts/verify_mob_sim_modern_cards.py
+          python3 scripts/verify_transport_contracts.py --slimefun .deps/Slimefun-Legacy --networks .deps/SF_NetworksExp
+      - name: Build exact core API locally
+        working-directory: .deps/Slimefun-Legacy
+        run: |
+          chmod +x gradlew
+          ./gradlew publishToMavenLocal -PprojectVersion=IE2-CANDIDATE-SNAPSHOT --no-daemon
+      - name: Compile combined IE2 against candidate core
+        env:
+          PAPER_API: ${{ matrix.paper }}
+          JVM_TARGET: ${{ matrix.target }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew clean compileJava compileKotlin --console=plain --no-daemon -PpaperApiVersion="$PAPER_API" -PtargetJvm="$JVM_TARGET" -PslimefunApiCoordinate=com.github.slimefun:Slimefun:IE2-CANDIDATE-SNAPSHOT 2>&1 | tee candidate-compile.log
+      - name: Run regression tests and build Java 21 candidate
+        if: matrix.test
+        run: ./gradlew build --console=plain --no-daemon -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:IE2-CANDIDATE-SNAPSHOT
+      - name: Verify tests executed and core/test classes are not shaded
+        if: matrix.test
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import struct
+          import xml.etree.ElementTree as ET
+          import zipfile
+          from pathlib import Path
+          required = {'DoctorCommandColorTest': 3, 'DisplaySubGroupResearchCostTest': 3}
+          for name, minimum in required.items():
+              reports = list(Path('build/test-results/test').glob('TEST-*.' + name + '.xml'))
+              if len(reports) != 1:
+                  raise SystemExit('Missing or ambiguous test report: ' + name)
+              suite = ET.parse(reports[0]).getroot()
+              if int(suite.get('tests', '0')) < minimum or any(int(suite.get(key, '0')) for key in ('failures', 'errors', 'skipped')):
+                  raise SystemExit('Required tests did not all execute successfully: ' + name)
+          jars = list(Path('build/libs').glob('*.jar'))
+          if len(jars) != 1:
+              raise SystemExit('Expected one canonical shaded candidate JAR')
+          with zipfile.ZipFile(jars[0]) as jar:
+              classes = [name for name in jar.namelist() if name.endswith('.class')]
+              forbidden = ('io/github/thebusybiscuit/slimefun4/', 'org/junit/', 'org/mockbukkit/')
+              if any(name.startswith(forbidden) for name in classes):
+                  raise SystemExit('Core or test-only classes leaked into the plugin JAR')
+              majors = {struct.unpack('>H', jar.read(name)[6:8])[0] for name in classes}
+              if 65 not in majors or any(major > 65 for major in majors):
+                  raise SystemExit('Candidate does not preserve Java 21 bytecode')
+          print('Required tests executed; Java 21 target and dependency packaging preserved.')
+          PY
+      - name: Retain candidate compile and test evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ie2-candidate-${{ matrix.target }}-${{ matrix.paper }}
+          path: |
+            candidate-compile.log
+            build/test-results/test/TEST-*.xml
+          if-no-files-found: warn
+          retention-days: 14
