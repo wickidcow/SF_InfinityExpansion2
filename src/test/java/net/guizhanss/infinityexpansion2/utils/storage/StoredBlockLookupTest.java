@@ -136,7 +136,7 @@ class StoredBlockLookupTest {
 
     @ParameterizedTest @EnumSource(Entry.class)
     void everyCallResolvesAgainRatherThanCachingAFormerRecord(Entry entry) {
-        when(controller.getBlockData(location)).thenReturn(data, null);
+        when(controller.getBlockData(location)).thenReturn(data, (SlimefunBlockData) null);
         assertPresent(entry);
         assertEquals(entry.existence() ? Boolean.FALSE : null, read(entry));
         verify(controller, times(2)).getBlockData(location);
