@@ -40,6 +40,7 @@ dependencies {
     implementation("com.jeff-media:MorePersistentDataTypes:2.4.0")
     testImplementation(kotlin("stdlib"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.12.2")
+    testImplementation("org.mockito:mockito-core:5.18.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.12.2")
     testImplementation("org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.110.0")
     // Match MockBukkit independently of the production compile-API override.
