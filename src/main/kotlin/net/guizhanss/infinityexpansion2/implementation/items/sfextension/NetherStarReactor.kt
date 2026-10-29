@@ -7,7 +7,7 @@ import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItemStack
 import io.github.thebusybiscuit.slimefun4.api.recipes.RecipeType
 import me.mrCookieSlime.Slimefun.Objects.SlimefunItem.abstractItems.MachineFuel
 import me.mrCookieSlime.Slimefun.Objects.handlers.BlockTicker
-import me.mrCookieSlime.Slimefun.api.BlockStorage
+import net.guizhanss.infinityexpansion2.utils.storage.StoredBlockLookup
 import net.guizhanss.guizhanlib.kt.minecraft.extensions.toItem
 import net.guizhanss.infinityexpansion2.InfinityExpansion2
 import org.bukkit.Location
@@ -73,7 +73,7 @@ class NetherStarReactor(
                         if (result != null) {
                             val hit = result.hitBlock
                             if (hit != null) {
-                                val id = BlockStorage.getLocationInfo(hit.location, "id")
+                                val id = StoredBlockLookup.getId(hit.location)
                                 if (id != null && id.contains("WITHER_PROOF")) {
                                     return@forEach
                                 }

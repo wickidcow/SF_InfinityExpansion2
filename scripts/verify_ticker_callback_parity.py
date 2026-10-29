@@ -8,6 +8,7 @@ from pathlib import Path
 import hashlib
 import re
 import sys
+from verify_storage_lookup import restore_lookup, verify_sources as verify_storage_sources, verify_diagnostics as verify_storage_diagnostics
 
 ROOT = Path('src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/items')
 MODERN_IMPORT = 'import com.xzavier0722.mc.plugin.slimefun4.storage.controller.SlimefunBlockData\n'
@@ -29,6 +30,7 @@ def once(text, old, new):
 def verify_sources():
     for path, expected in BASELINE.items():
         text = (ROOT / path).read_text(encoding='utf-8')
+        text = restore_lookup(path, text)
         text = once(text, MODERN_IMPORT, '')
         text = once(text, ANNOTATION, '')
         if path.startswith('machines/'):
@@ -88,9 +90,6 @@ def verify_diagnostics(log):
                   and CONFIG in source[index])
         if reason == "'class Config : Any' is deprecated. Deprecated in Java." and bridge:
             diagnostics.add((path, row))
-        elif path.endswith('/sfextension/NetherStarReactor.kt') and reason == "'class BlockStorage : Any' is deprecated. Deprecated in Java.":
-            # Wither-proof block lookup and its import are separate, unchanged storage work.
-            continue
         else:
             raise AssertionError('Unexpected ticker deprecation: ' + line)
     if len(diagnostics) > 3:
@@ -99,8 +98,10 @@ def verify_diagnostics(log):
 
 
 if __name__ == '__main__':
+    verify_storage_sources()
     verify_sources()
     if len(sys.argv) == 2:
+        verify_storage_diagnostics(sys.argv[1])
         verify_diagnostics(sys.argv[1])
     elif len(sys.argv) != 1:
         raise SystemExit('Usage: verify_ticker_callback_parity.py [compiler-log]')
