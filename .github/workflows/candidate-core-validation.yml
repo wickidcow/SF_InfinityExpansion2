@@ -101,7 +101,7 @@ jobs:
           import xml.etree.ElementTree as ET
           import zipfile
           from pathlib import Path
-          required = {'DoctorCommandColorTest': 3, 'DisplaySubGroupResearchCostTest': 3, 'MachineEnergyAccessTest': 18}
+          required = {'DoctorCommandColorTest': 3, 'DisplaySubGroupResearchCostTest': 3, 'MachineEnergyAccessTest': 18, 'PluginPermissionMetadataTest': 2}
           for name, minimum in required.items():
               reports = list(Path('build/test-results/test').glob('TEST-*.' + name + '.xml'))
               if len(reports) != 1:
@@ -113,6 +113,8 @@ jobs:
           if len(jars) != 1:
               raise SystemExit('Expected one canonical shaded candidate JAR')
           with zipfile.ZipFile(jars[0]) as jar:
+              if jar.read('plugin.yml') != Path('build/resources/main/plugin.yml').read_bytes():
+                  raise SystemExit('Packaged descriptor differs from the permission/alias-tested descriptor')
               classes = [name for name in jar.namelist() if name.endswith('.class')]
               forbidden = ('io/github/thebusybiscuit/slimefun4/', 'org/junit/', 'org/mockbukkit/', 'org/mockito/', 'net/bytebuddy/', 'org/objenesis/')
               if any(name.startswith(forbidden) for name in classes):
@@ -120,7 +122,7 @@ jobs:
               majors = {struct.unpack('>H', jar.read(name)[6:8])[0] for name in classes}
               if 65 not in majors or any(major > 65 for major in majors):
                   raise SystemExit('Candidate does not preserve Java 21 bytecode')
-          print('Required tests executed; Java 21 target and dependency packaging preserved.')
+          print('Required tests executed; descriptor bytes, Java 21 target and dependency packaging preserved.')
           PY
       - name: Retain candidate compile and test evidence
         if: always()

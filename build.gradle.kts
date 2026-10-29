@@ -113,6 +113,7 @@ bukkit {
         register("infinityexpansion2.command.giverecipe") { default = BukkitPluginDescription.Permission.Default.OP }
         register("infinityexpansion2.command.guide") { default = BukkitPluginDescription.Permission.Default.TRUE }
         register("infinityexpansion2.command.printitem") { default = BukkitPluginDescription.Permission.Default.OP }
+        register("infinityexpansion2.command.id") { default = BukkitPluginDescription.Permission.Default.OP }
     }
 }
 
