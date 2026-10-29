@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import sqlite3
 import subprocess
 import sys
 import zipfile
@@ -23,6 +24,22 @@ def run_process(command, directory, log, timeout):
     if code:
         print('\n'.join(log.read_text(errors='replace').splitlines()[-100:]))
         raise RuntimeError('Disposable runtime exited '+str(code))
+
+
+def stored_unknown_snapshot(runtime):
+    """Read the actual stopped disposable database; never register, rewrite or repair a record."""
+    database=runtime/'data-storage/Slimefun/block-storage.db'
+    if not database.is_file():raise AssertionError('Native Slimefun SQLite database is missing')
+    with sqlite3.connect(database.as_uri()+'?mode=ro',uri=True) as connection:
+        connection.execute('PRAGMA query_only=ON')
+        records=connection.execute('SELECT loc, chunk, sf_id FROM block_record WHERE sf_id=?',
+            ('IE2_NATIVE_UNKNOWN_ID',)).fetchall()
+        if len(records)!=1:raise AssertionError('Unknown record not preserved exactly once in native database')
+        payload=connection.execute('SELECT data_key, data_val FROM block_data WHERE loc=? ORDER BY data_key',
+            (records[0][0],)).fetchall()
+        if ('probe.marker','preserve-unknown-record') not in payload:
+            raise AssertionError('Unknown record payload did not survive native database save')
+    return {'record':records[0],'payload':payload}
 
 
 def main():
@@ -72,6 +89,11 @@ def main():
         if 'failures: 0' not in text or 'PASS '+phase+':' not in text:
             raise AssertionError('Native phase failed: '+phase)
         evidence['phases'][phase]=text
+        stored=stored_unknown_snapshot(runtime)
+        if phase=='seed':evidence['unknown_record_database_snapshot']=stored
+        elif stored!=evidence['unknown_record_database_snapshot']:
+            raise AssertionError('Unknown-ID database record or payload changed across restart')
+        print('Read-only SQLite evidence: unknown-ID record and payload preserved after '+phase)
     (runtime/'release-runtime-evidence.json').write_text(json.dumps(evidence,indent=2)+'\n')
     print('Native card suite and both live database/menu persistence phases passed; three clean JVM boots.')
     return 0
