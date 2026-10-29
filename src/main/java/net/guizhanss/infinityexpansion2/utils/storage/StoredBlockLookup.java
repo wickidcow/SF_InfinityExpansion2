@@ -3,10 +3,11 @@ package net.guizhanss.infinityexpansion2.utils.storage;
 import com.xzavier0722.mc.plugin.slimefun4.storage.controller.SlimefunBlockData;
 import io.github.thebusybiscuit.slimefun4.implementation.Slimefun;
 import javax.annotation.Nullable;
+import me.mrCookieSlime.Slimefun.api.inventory.BlockMenu;
 import org.bukkit.Location;
 
 /**
- * Narrow controller-backed replacement for IE2's two legacy existence/ID reads.
+ * Narrow controller-backed replacement for IE2's legacy existence/ID/menu reads.
  *
  * <p>A record lookup and a loaded payload are different things. Preserve the historical
  * conditional load, including its exceptions, before returning existence or the stored
@@ -27,6 +28,13 @@ public final class StoredBlockLookup {
     public static String getId(Location location) {
         var data = resolve(location);
         return data == null ? null : data.getSfId();
+    }
+
+    /** Return the original record's menu after the same conditional load as BlockStorage. */
+    @Nullable
+    public static BlockMenu getInventory(Location location) {
+        var data = resolve(location);
+        return data == null ? null : data.getBlockMenu();
     }
 
     @Nullable

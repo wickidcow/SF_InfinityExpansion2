@@ -39,6 +39,8 @@ def verify_diagnostics(log):
     expected = {
         'EnergyGenerator.kt': 2, 'PoweredBedrock.kt': 1,
         'NetherStarReactor.kt': 1, 'StorageUnit.kt': 1,
+        # Previously hidden by file-wide suppression; existing public ABI, not new calls.
+        'InfinityReactor.kt': 1, 'InfinitySingularityReactor.kt': 1,
     }
     seen = set()
     pattern = re.compile(r'^w: .*?/src/main/kotlin/(.+?\.kt):(\d+):\d+ (.+)$')

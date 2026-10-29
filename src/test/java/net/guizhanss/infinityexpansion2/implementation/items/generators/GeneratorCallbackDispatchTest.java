@@ -21,6 +21,7 @@ import me.mrCookieSlime.Slimefun.api.inventory.BlockMenu;
 import net.guizhanss.infinityexpansion2.InfinityExpansion2;
 import net.guizhanss.infinityexpansion2.core.services.DebugService;
 import net.guizhanss.infinityexpansion2.core.services.LocalizationService;
+import net.guizhanss.infinityexpansion2.utils.storage.StoredBlockLookup;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -48,6 +49,7 @@ class GeneratorCallbackDispatchTest {
     private IllegalStateException writeFailure;
     private final Map<String, String> state = new LinkedHashMap<>();
     private MockedStatic<BlockStorage> storage;
+    private MockedStatic<StoredBlockLookup> lookups;
     private World world;
     private Block block;
     private Location location;
@@ -81,7 +83,8 @@ class GeneratorCallbackDispatchTest {
         legacy = mock(Config.class);
         state.put("progress", "1");
         storage = mockStatic(BlockStorage.class);
-        storage.when(() -> BlockStorage.getInventory(location)).thenReturn(menu);
+        lookups = mockStatic(StoredBlockLookup.class);
+        lookups.when(() -> StoredBlockLookup.getInventory(location)).thenReturn(menu);
         storage.when(() -> BlockStorage.getLocationInfo(location, "progress"))
             .thenAnswer(invocation -> state.get("progress"));
         storage.when(() -> BlockStorage.addBlockInfo(eq(location), eq("progress"), anyString()))
@@ -95,6 +98,7 @@ class GeneratorCallbackDispatchTest {
 
     @AfterEach
     void tearDown() throws Exception {
+        if (lookups != null) lookups.close();
         if (storage != null) storage.close();
         for (var entry : previousServices.entrySet()) entry.getKey().set(null, entry.getValue());
         MockBukkit.unmock();
@@ -144,6 +148,7 @@ class GeneratorCallbackDispatchTest {
         assertEquals(1, writes.get());
         verify(menu, never()).consumeItem(anyInt());
         verify(reactor, times(1)).getEnergyProduction();
+        lookups.verify(() -> StoredBlockLookup.getInventory(location), times(1));
     }
 
     @ParameterizedTest @EnumSource(Entry.class)
@@ -154,6 +159,7 @@ class GeneratorCallbackDispatchTest {
         assertEquals(1, writes.get());
         verify(menu, never()).consumeItem(anyInt());
         verify(reactor, times(1)).getEnergyProduction();
+        lookups.verify(() -> StoredBlockLookup.getInventory(location), times(1));
     }
 
     @ParameterizedTest @EnumSource(Entry.class)
@@ -171,12 +177,28 @@ class GeneratorCallbackDispatchTest {
 
     @ParameterizedTest @EnumSource(Entry.class)
     void missingMenusDoNotGenerateOrResetSavedProgress(Entry entry) throws Exception {
-        storage.when(() -> BlockStorage.getInventory(location)).thenReturn(null);
+        lookups.when(() -> StoredBlockLookup.getInventory(location)).thenReturn(null);
         assertEquals(0L, output(infinity(), entry));
         assertEquals(0L, output(singularity(), entry));
         assertEquals("1", state.get("progress"));
         assertEquals(0, writes.get());
         verifyNoInteractions(menu);
+    }
+
+    @ParameterizedTest @EnumSource(Entry.class)
+    void failedMenuLookupPropagatesBeforeProgressOrFuelChanges(Entry entry) throws Exception {
+        var failure = new IllegalStateException("menu lookup unavailable");
+        lookups.when(() -> StoredBlockLookup.getInventory(location)).thenThrow(failure);
+        var first = infinity();
+        var second = singularity();
+        assertSame(failure, assertThrows(IllegalStateException.class, () -> output(first, entry)));
+        assertSame(failure, assertThrows(IllegalStateException.class, () -> output(second, entry)));
+        assertEquals("1", state.get("progress"));
+        assertEquals(0, writes.get());
+        verifyNoInteractions(menu);
+        storage.verify(() -> BlockStorage.getLocationInfo(location, "progress"), never());
+        verify(first, never()).getEnergyProduction();
+        verify(second, never()).getEnergyProduction();
     }
 
     @ParameterizedTest @EnumSource(Entry.class)
@@ -236,6 +258,7 @@ class GeneratorCallbackDispatchTest {
             assertThrows(IllegalStateException.class, () -> provider.getGeneratedOutputLong(location, unsupported));
         }
         storage.verifyNoInteractions();
+        lookups.verifyNoInteractions();
         verifyNoInteractions(menu, unsupported);
     }
 

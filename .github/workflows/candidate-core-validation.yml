@@ -118,7 +118,7 @@ jobs:
           import xml.etree.ElementTree as ET
           import zipfile
           from pathlib import Path
-          required = {'DoctorCommandColorTest': 3, 'DisplaySubGroupResearchCostTest': 3, 'MachineEnergyAccessTest': 18, 'PluginPermissionMetadataTest': 2, 'PoweredBedrockEnergyTest': 9, 'IndividualMachineEnergyTest': 16, 'LegacyHudEnergyTest': 5, 'GeneratorCallbackDispatchTest': 58, 'TickerCallbackDispatchTest': 40}
+          required = {'DoctorCommandColorTest': 3, 'DisplaySubGroupResearchCostTest': 3, 'MachineEnergyAccessTest': 18, 'PluginPermissionMetadataTest': 2, 'PoweredBedrockEnergyTest': 9, 'IndividualMachineEnergyTest': 16, 'LegacyHudEnergyTest': 5, 'GeneratorCallbackDispatchTest': 63, 'TickerCallbackDispatchTest': 40, 'StoredBlockLookupTest': 44, 'MobDataCardStorageLookupTest': 8, 'StoredBlockMenuLookupTest': 24, 'ReactorTextTest': 6}
           for name, minimum in required.items():
               reports = list(Path('build/test-results/test').glob('TEST-*.' + name + '.xml'))
               if len(reports) != 1:
@@ -126,6 +126,14 @@ jobs:
               suite = ET.parse(reports[0]).getroot()
               if int(suite.get('tests', '0')) < minimum or any(int(suite.get(key, '0')) for key in ('failures', 'errors', 'skipped')):
                   raise SystemExit('Required tests did not all execute successfully: ' + name)
+          totals = {key: 0 for key in ('tests', 'failures', 'errors', 'skipped')}
+          for report in Path('build/test-results/test').glob('TEST-*.xml'):
+              suite = ET.parse(report).getroot()
+              for key in totals:
+                  totals[key] += int(suite.get(key, '0'))
+          print('IE2 regression XML totals:', totals)
+          if totals['tests'] < 424 or any(totals[key] for key in ('failures', 'errors', 'skipped')):
+              raise SystemExit('The full regression suite did not execute successfully')
           jars = list(Path('build/libs').glob('*.jar'))
           if len(jars) != 1:
               raise SystemExit('Expected one canonical shaded candidate JAR')
@@ -149,6 +157,7 @@ jobs:
           name: ie2-candidate-${{ matrix.target }}-${{ matrix.paper }}
           path: |
             candidate-compile.log
+            reactor-suppression-inventory.json
             build/test-results/test/TEST-*.xml
           if-no-files-found: warn
           retention-days: 14

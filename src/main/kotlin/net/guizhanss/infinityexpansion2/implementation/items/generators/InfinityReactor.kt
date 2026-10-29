@@ -1,5 +1,3 @@
-@file:Suppress("deprecation")
-
 package net.guizhanss.infinityexpansion2.implementation.items.generators
 
 import com.xzavier0722.mc.plugin.slimefun4.storage.controller.ASlimefunDataContainer
@@ -8,8 +6,7 @@ import io.github.thebusybiscuit.slimefun4.api.items.ItemGroup
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItemStack
 import io.github.thebusybiscuit.slimefun4.api.items.settings.IntRangeSetting
 import io.github.thebusybiscuit.slimefun4.api.recipes.RecipeType
-import me.mrCookieSlime.CSCoreLibPlugin.Configuration.Config
-import me.mrCookieSlime.Slimefun.api.BlockStorage
+import net.guizhanss.infinityexpansion2.utils.storage.StoredBlockLookup
 import me.mrCookieSlime.Slimefun.api.inventory.BlockMenu
 import me.mrCookieSlime.Slimefun.api.inventory.BlockMenuPreset
 import me.mrCookieSlime.Slimefun.api.inventory.DirtyChestMenu
@@ -18,8 +15,7 @@ import net.guizhanss.infinityexpansion2.InfinityExpansion2
 import net.guizhanss.infinityexpansion2.core.items.attributes.CustomWikiItem
 import net.guizhanss.infinityexpansion2.implementation.IEItems
 import net.guizhanss.infinityexpansion2.utils.items.GuiItems
-import net.guizhanss.infinityexpansion2.utils.items.MachineLore
-import org.bukkit.ChatColor
+import net.guizhanss.infinityexpansion2.utils.items.ReactorText
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
@@ -85,11 +81,11 @@ class InfinityReactor(
         getGeneratedOutput(l, data).toLong()
 
     @Deprecated("Compatibility bridge; use getGeneratedOutputLong(Location, ASlimefunDataContainer)")
-    override fun getGeneratedOutput(l: Location, data: Config): Int = generateAt(l)
+    override fun getGeneratedOutput(l: Location, data: me.mrCookieSlime.CSCoreLibPlugin.Configuration.Config): Int = generateAt(l)
 
     // Both APIs execute exactly one copy of the historical fuel/progress logic.
     private fun generateAt(l: Location): Int {
-        val menu = BlockStorage.getInventory(l) ?: return 0
+        val menu = StoredBlockLookup.getInventory(l) ?: return 0
         val progress = l.getProgress()
         val voidInput = menu.getItemInSlot(VOID_INPUT)
         val infinityInput = menu.getItemInSlot(INFINITY_INPUT)
@@ -179,22 +175,22 @@ class InfinityReactor(
         private fun infoVoid(ticks: Int) = InfinityExpansion2.localization.getGuiItem(
             Material.LIME_STAINED_GLASS_PANE.asMaterialType(),
             "ir_duration_void",
-            "${ChatColor.GRAY}${MachineLore.format(ticks)}"
+            ReactorText.grayNumber(ticks)
         )
 
         private fun infoInfinity(ticks: Int) = InfinityExpansion2.localization.getGuiItem(
             Material.LIME_STAINED_GLASS_PANE.asMaterialType(),
             "ir_duration_infinity",
-            "${ChatColor.GRAY}${MachineLore.format(ticks)}"
+            ReactorText.grayNumber(ticks)
         )
 
         private fun info(infinity: Int, void: Int) = InfinityExpansion2.localization.getGuiItem(
             Material.LIME_STAINED_GLASS_PANE.asMaterialType(),
             "ir_info",
             InfinityExpansion2.localization.getString("items._UI_IR_INFO.lore-overrides.1"),
-            "${ChatColor.GRAY}${MachineLore.format(infinity)}",
+            ReactorText.grayNumber(infinity),
             InfinityExpansion2.localization.getString("items._UI_IR_INFO.lore-overrides.3"),
-            "${ChatColor.GRAY}${MachineLore.format(void)}",
+            ReactorText.grayNumber(void),
         )
     }
 }

@@ -3,6 +3,7 @@
 from pathlib import Path
 import re
 import sys
+from verify_reactor_source import restore_reactor_source, verify_reactor_sources
 
 ROOT = Path('src/main/kotlin/net/guizhanss/infinityexpansion2/implementation/items/generators')
 TARGETS = ('EnergyGenerator', 'InfinityReactor', 'InfinitySingularityReactor')
@@ -16,9 +17,11 @@ def body(text: str, declaration: str) -> str:
 
 
 def verify(baseline: Path, candidate: Path = Path('.')) -> None:
+    verify_reactor_sources(candidate)
     for name in TARGETS:
         old = (baseline / ROOT / (name + '.kt')).read_text(encoding='utf-8')
         new = (candidate / ROOT / (name + '.kt')).read_text(encoding='utf-8')
+        new = restore_reactor_source(name, new)
         before = body(old, 'override fun getGeneratedOutput(l: Location, data: Config): Int')
         after = body(new, 'private fun generateAt(l: Location): Int')
         if before != after:
