@@ -19,6 +19,9 @@ jobs:
           - paper: '1.21.11-R0.1-SNAPSHOT'
             target: '21'
             test: true
+          - paper: '26.1.build.+'
+            target: '25'
+            test: false
           - paper: '26.2.build.+'
             target: '25'
             test: false
@@ -28,10 +31,17 @@ jobs:
     env:
       CORE_CANDIDATE: f5656f43d220de1fac59e1492eb1f5248af129ab
       NETWORKS_CANDIDATE: 7c6a36b26ddb294ee5775454449d996c02cb9dc6
+      GENERATOR_BASELINE: de70d55311ef15a8baca9696b973ee027ee73ad3
     steps:
       - name: Checkout combined IE2 candidate
         uses: actions/checkout@v6
         with:
+          persist-credentials: false
+      - name: Checkout exact generator behavior baseline
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.GENERATOR_BASELINE }}
+          path: .deps/ie2-generator-baseline
           persist-credentials: false
       - name: Checkout exact core candidate
         uses: actions/checkout@v6
@@ -58,7 +68,9 @@ jobs:
           set -euo pipefail
           test "$(git -C .deps/Slimefun-Legacy rev-parse HEAD)" = "$CORE_CANDIDATE"
           test "$(git -C .deps/SF_NetworksExp rev-parse HEAD)" = "$NETWORKS_CANDIDATE"
-          printf 'IE2 checkout: %s\nCore: %s\nNetworks: %s\n' "$(git rev-parse HEAD)" "$CORE_CANDIDATE" "$NETWORKS_CANDIDATE" >> "$GITHUB_STEP_SUMMARY"
+          test "$(git -C .deps/ie2-generator-baseline rev-parse HEAD)" = "$GENERATOR_BASELINE"
+          printf 'IE2 checkout: %s\nCore: %s\nNetworks: %s\nGenerator baseline: %s\n' "$(git rev-parse HEAD)" "$CORE_CANDIDATE" "$NETWORKS_CANDIDATE" "$GENERATOR_BASELINE" >> "$GITHUB_STEP_SUMMARY"
+          python3 scripts/verify_generator_callback_parity.py .deps/ie2-generator-baseline
           python3 scripts/verify_legacy_migration.py
           python3 scripts/verify_doctor_bridge_safety.py
           python3 scripts/verify_mob_sim_drop_ranges.py
@@ -103,7 +115,7 @@ jobs:
           import xml.etree.ElementTree as ET
           import zipfile
           from pathlib import Path
-          required = {'DoctorCommandColorTest': 3, 'DisplaySubGroupResearchCostTest': 3, 'MachineEnergyAccessTest': 18, 'PluginPermissionMetadataTest': 2, 'PoweredBedrockEnergyTest': 9, 'IndividualMachineEnergyTest': 16, 'LegacyHudEnergyTest': 5}
+          required = {'DoctorCommandColorTest': 3, 'DisplaySubGroupResearchCostTest': 3, 'MachineEnergyAccessTest': 18, 'PluginPermissionMetadataTest': 2, 'PoweredBedrockEnergyTest': 9, 'IndividualMachineEnergyTest': 16, 'LegacyHudEnergyTest': 5, 'GeneratorCallbackDispatchTest': 58}
           for name, minimum in required.items():
               reports = list(Path('build/test-results/test').glob('TEST-*.' + name + '.xml'))
               if len(reports) != 1:
