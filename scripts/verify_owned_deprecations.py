@@ -35,7 +35,7 @@ def verify(log):
                 raise AssertionError('Unexpected Java deprecation/removal: '+line)
             found.add(('BowDamageEvents.java',row))
             continue
-        if '/src/main/' in line and ('deprecated' in line.lower() or 'removal' in line.lower()):
+        if '/src/main/' in line and any(term in line.lower() for term in ('deprecated', 'deprecation', 'removal')):
             raise AssertionError('Unparsed production diagnostic: '+line)
     for name,maximum in {**BRIDGES,'BowDamageEvents.java':1}.items():
         if sum(f==name for f,_ in found)>maximum:raise AssertionError('Additional compatibility warnings: '+name)
