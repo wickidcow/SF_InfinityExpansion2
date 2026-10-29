@@ -18,8 +18,6 @@ import org.bukkit.Bukkit
 import org.bukkit.Effect
 import org.bukkit.Material
 import org.bukkit.SoundCategory
-import org.bukkit.damage.DamageSource
-import org.bukkit.damage.DamageType
 import org.bukkit.entity.ArmorStand
 import org.bukkit.entity.Entity
 import org.bukkit.entity.LivingEntity
@@ -65,7 +63,7 @@ class InfinityBow(
                     val event = BowDamageEvents.splash(
                         e.damager,
                         entity,
-                        DamageSource.builder(DamageType.EXPLOSION).withCausingEntity(e.damager).build(),
+                        BowDamageEvents.explosionSource(e.damager),
                         damage
                     )
                     Bukkit.getPluginManager().callEvent(event)

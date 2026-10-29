@@ -3,6 +3,7 @@ package verification;
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem;
 import io.github.thebusybiscuit.slimefun4.implementation.Slimefun;
 import io.papermc.paper.registry.RegistryAccess;
+import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.registry.RegistryKey;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -20,8 +21,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
-import org.bukkit.damage.DamageSource;
-import org.bukkit.damage.DamageType;
 import org.bukkit.entity.Cow;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -143,8 +142,10 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
         var victim=location.getWorld().spawn(location.clone().add(2,0,0),Cow.class);
         try {
             double health=victim.getHealth();
-            active=BowDamageEvents.splash(attacker,victim,
-                DamageSource.builder(DamageType.EXPLOSION).withCausingEntity(attacker).build(),12.5);
+            var source=BowDamageEvents.explosionSource(attacker);
+            require(source.getDirectEntity()==attacker,"native explosion source retains direct entity");
+            require(source.getCausingEntity()==attacker,"native explosion source retains causing entity");
+            active=BowDamageEvents.splash(attacker,victim,source,12.5);
             Bukkit.getPluginManager().callEvent(active);
             require(preflights==1,"one cancellable preflight notification");
             require(active.isCancelled() && active.getDamage()==8.0,"protection listener can cancel and edit damage");
@@ -164,8 +165,12 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             Object drop=method.invoke(instance,Map.of("item","GOAT_HORN","instrument",id,"amount",1));
             require(drop!=null,"configured horn resolves "+id);
             var item=(ItemStack)drop.getClass().getMethod("getItem").invoke(drop);
-            var instrument=((MusicInstrumentMeta)item.getItemMeta()).getInstrument();
-            require(instrument!=null && instrument.equals(RegistryAccess.registryAccess().getRegistry(RegistryKey.INSTRUMENT).get(NamespacedKey.minecraft(id))),"configured instrument retained "+id);
+            // The effective component includes the material default; ItemMeta may omit an
+            // unchanged default instrument in newer Paper versions.
+            var registry=RegistryAccess.registryAccess().getRegistry(RegistryKey.INSTRUMENT);
+            var instrument=item.getData(DataComponentTypes.INSTRUMENT);
+            var actualKey=instrument==null?null:registry.getKey(instrument);
+            require(NamespacedKey.minecraft(id).equals(actualKey),"configured effective instrument retained "+id+"; actual="+actualKey+"; meta="+item.getItemMeta().serialize());
         }
     }
 
