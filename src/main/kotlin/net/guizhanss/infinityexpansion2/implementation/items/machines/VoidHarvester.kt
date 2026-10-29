@@ -17,6 +17,7 @@ import net.guizhanss.infinityexpansion2.core.items.attributes.InformationalRecip
 import net.guizhanss.infinityexpansion2.core.menu.MenuLayout
 import net.guizhanss.infinityexpansion2.implementation.IEItems
 import net.guizhanss.infinityexpansion2.implementation.items.machines.abstracts.AbstractTickingMachine
+import net.guizhanss.infinityexpansion2.utils.LegacyHudEnergy
 import net.guizhanss.infinityexpansion2.utils.items.GuiItems
 import org.bukkit.block.Block
 import org.bukkit.inventory.ItemStack
@@ -98,7 +99,7 @@ class VoidHarvester(
                 append(HudBuilder.getProgressBar(progress, totalProgress))
                 append("&7 | ")
 
-                append(HudBuilder.formatEnergyStored(machine.getCharge(loc), machine.capacity))
+                append(HudBuilder.formatEnergyStored(LegacyHudEnergy.read(machine, loc), machine.capacity))
             }
         }
     }

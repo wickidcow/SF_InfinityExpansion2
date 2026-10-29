@@ -76,8 +76,10 @@ if '-PpaperApiVersion=1.21.11-R0.1-SNAPSHOT' not in workflow or '-PtargetJvm=21'
     errors.append("Paper 1.21.11 / Java 21 universal release lane is missing")
 if 'archiveFileName.set("SF_InfinityExpansion${project.version}.jar")' not in build:
     errors.append("standard SF_InfinityExpansion2 public JAR naming is missing")
-if 'gradle-9.3.0-bin.zip' not in wrapper:
-    errors.append("Java 25 build requires the Gradle 9.3.0 wrapper")
+if 'gradle-9.8.2-bin.zip' not in wrapper:
+    errors.append("Java 25 build requires the verified Gradle 9.8.2 wrapper")
+if 'distributionSha256Sum=21bd5da2de49b642904077f38c0efdc7778e92b3ed0889392dca61b97e389607' not in wrapper:
+    errors.append("Gradle 9.8.2 distribution checksum is missing")
 if 'kotlin("jvm") version "2.3.21"' not in build:
     errors.append("Kotlin Gradle plugin must remain on the Java-25-capable 2.3.21 line")
 if main_plugin.count('.version("2.3.21")') < 2:

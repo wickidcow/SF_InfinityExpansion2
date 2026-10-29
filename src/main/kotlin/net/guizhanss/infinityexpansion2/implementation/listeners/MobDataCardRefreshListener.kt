@@ -1,6 +1,6 @@
 package net.guizhanss.infinityexpansion2.implementation.listeners
 
-import me.mrCookieSlime.Slimefun.api.BlockStorage
+import net.guizhanss.infinityexpansion2.utils.storage.StoredBlockLookup
 import net.guizhanss.infinityexpansion2.InfinityExpansion2
 import net.guizhanss.infinityexpansion2.implementation.items.mobsim.MobDataCard
 import org.bukkit.Bukkit
@@ -41,7 +41,7 @@ internal class MobDataCardRefreshListener(
         player.scheduler.runDelayed(plugin, { task.run() }, retired, 1L) != null
     },
     private val ownsLocation: (Location) -> Boolean = { Bukkit.isOwnedByCurrentRegion(it) },
-    private val isSlimefunBlock: (Location) -> Boolean = { BlockStorage.hasBlockInfo(it) },
+    private val isSlimefunBlock: (Location) -> Boolean = { StoredBlockLookup.hasBlockInfo(it) },
 ) : Listener {
     private class PendingRefresh(includeEnderChest: Boolean) {
         val includeEnderChest = AtomicBoolean(includeEnderChest)

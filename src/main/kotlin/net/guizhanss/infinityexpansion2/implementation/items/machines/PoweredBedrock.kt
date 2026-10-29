@@ -1,5 +1,6 @@
 package net.guizhanss.infinityexpansion2.implementation.items.machines
 
+import com.xzavier0722.mc.plugin.slimefun4.storage.controller.SlimefunBlockData
 import io.github.thebusybiscuit.slimefun4.api.items.ItemGroup
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItemStack
@@ -7,7 +8,6 @@ import io.github.thebusybiscuit.slimefun4.api.recipes.RecipeType
 import io.github.thebusybiscuit.slimefun4.core.attributes.EnergyNetComponent
 import io.github.thebusybiscuit.slimefun4.core.networks.energy.EnergyNetComponentType
 import io.github.thebusybiscuit.slimefun4.implementation.SlimefunItems
-import me.mrCookieSlime.CSCoreLibPlugin.Configuration.Config
 import me.mrCookieSlime.Slimefun.Objects.handlers.BlockTicker
 import net.guizhanss.infinityexpansion2.InfinityExpansion2
 import net.guizhanss.infinityexpansion2.core.items.attributes.EnergyTickingConsumer
@@ -44,12 +44,22 @@ class PoweredBedrock(
                 tickCount++
             }
 
-            override fun tick(b: Block, item: SlimefunItem, data: Config) {
+            // The core's neutral-container overload dispatches here after its block-type check.
+            override fun tick(b: Block, item: SlimefunItem, data: SlimefunBlockData) {
+                tickBlock(b)
+            }
+
+            @Deprecated("Compatibility bridge; use the block-data ticker overload")
+            override fun tick(b: Block, item: SlimefunItem, data: me.mrCookieSlime.CSCoreLibPlugin.Configuration.Config) {
+                tickBlock(b)
+            }
+
+            private fun tickBlock(b: Block) {
                 // Preserve the final IE1 cadence: one ticker pass out of every eight is skipped.
                 if (tickCount % 8L == 0L) return
 
                 val location = b.location
-                val charge = getCharge(location, data)
+                val charge = getChargeLong(location)
 
                 if (charge < energyPerTick) {
                     if (b.type != Material.NETHERITE_BLOCK) {
@@ -64,7 +74,7 @@ class PoweredBedrock(
 
                 // IE1 v140 moved this outside the state-change branch so powered bedrock
                 // continuously consumes charge instead of only charging when it transforms.
-                removeCharge(location, energyPerTick)
+                removeCharge(location, energyPerTick.toLong())
             }
         })
     }

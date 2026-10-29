@@ -1,0 +1,43 @@
+name: IE2 Release Source Evidence
+on:
+  pull_request:
+    branches: [master]
+permissions:
+  contents: read
+jobs:
+  source-evidence:
+    if: startsWith(github.head_ref, 'release/ie2-modernization-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v6
+        with:
+          repository: wickidcow/Slimefun-Legacy
+          ref: f5656f43d220de1fac59e1492eb1f5248af129ab
+          path: .deps/core
+          persist-credentials: false
+      - uses: actions/checkout@v6
+        with:
+          repository: wickidcow/SF_NetworksExp
+          ref: 7c6a36b26ddb294ee5775454449d996c02cb9dc6
+          path: .deps/networks
+          persist-credentials: false
+      - name: Archive tracked source only
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p source-evidence
+          git archive --format=tar HEAD > source-evidence/ie2-source.tar
+          git -C .deps/core archive --format=tar HEAD > source-evidence/core-source.tar
+          git -C .deps/networks archive --format=tar HEAD > source-evidence/networks-source.tar
+          printf 'IE2=%s\nCore=%s\nNetworks=%s\n' "$(git rev-parse HEAD)" "$(git -C .deps/core rev-parse HEAD)" "$(git -C .deps/networks rev-parse HEAD)" > source-evidence/source-identities.txt
+          sha256sum source-evidence/*.tar > source-evidence/SHA256SUMS
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ie2-release-source-evidence
+          path: source-evidence/*
+          retention-days: 14
+          if-no-files-found: error

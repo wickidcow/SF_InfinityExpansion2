@@ -1,5 +1,3 @@
-@file:Suppress("deprecation")
-
 package net.guizhanss.infinityexpansion2.implementation.setup
 
 import io.github.thebusybiscuit.slimefun4.libraries.dough.config.Config
@@ -15,7 +13,8 @@ import net.guizhanss.infinityexpansion2.implementation.guide.MobDataCardGuideGro
 import net.guizhanss.infinityexpansion2.utils.Debug
 import net.guizhanss.infinityexpansion2.utils.items.toItemStack
 import org.bukkit.Material
-import org.bukkit.MusicInstrument
+import io.papermc.paper.registry.RegistryAccess
+import io.papermc.paper.registry.RegistryKey
 import org.bukkit.NamespacedKey
 import org.bukkit.configuration.ConfigurationSection
 import org.bukkit.inventory.ItemStack
@@ -221,7 +220,7 @@ internal object MobSimulationSetup {
         val instrumentName = this["instrument"] as? String
         if (instrumentName != null) {
             if (item.type != Material.GOAT_HORN) return null
-            val instrument = MusicInstrument.getByKey(
+            val instrument = RegistryAccess.registryAccess().getRegistry(RegistryKey.INSTRUMENT).get(
                 NamespacedKey.minecraft(instrumentName.trim().lowercase())
             ) ?: return null
             val meta = item.itemMeta as? MusicInstrumentMeta ?: return null

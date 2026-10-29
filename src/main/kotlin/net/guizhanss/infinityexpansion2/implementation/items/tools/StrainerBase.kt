@@ -1,5 +1,3 @@
-@file:Suppress("deprecation")
-
 package net.guizhanss.infinityexpansion2.implementation.items.tools
 
 import io.github.thebusybiscuit.slimefun4.api.items.ItemGroup
@@ -88,8 +86,8 @@ class StrainerBase(
         menu.pushItem(output.clone(), *outputSlots)
 
         // strainer reduce durability
-        val bound = strainerItem.getEnchantmentLevel(Enchantment.getByName("unbreaking")!!) +
-            3 * strainerItem.getEnchantmentLevel(Enchantment.getByName("mending")!!) +
+        val bound = strainerItem.getEnchantmentLevel(Enchantment.UNBREAKING) +
+            3 * strainerItem.getEnchantmentLevel(Enchantment.MENDING) +
             1
         if (Random.nextInt(bound) == 0) {
             val meta = strainerItem.itemMeta as Damageable

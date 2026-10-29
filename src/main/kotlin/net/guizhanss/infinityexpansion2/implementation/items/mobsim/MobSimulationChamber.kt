@@ -27,6 +27,7 @@ import net.guizhanss.infinityexpansion2.core.items.attributes.InformationalRecip
 import net.guizhanss.infinityexpansion2.core.menu.MenuLayout
 import net.guizhanss.infinityexpansion2.implementation.items.machines.abstracts.AbstractTickingMachine
 import net.guizhanss.infinityexpansion2.implementation.setup.MobSimulationSetup
+import net.guizhanss.infinityexpansion2.utils.LegacyHudEnergy
 import net.guizhanss.infinityexpansion2.utils.items.GuiItems
 import org.bukkit.Sound
 import org.bukkit.block.Block
@@ -200,7 +201,7 @@ class MobSimulationChamber(
                 requestedEnergy <= 0L ||
                 requestedEnergy > capacity.toLong() ||
                 requestedEnergy > MAX_SAFE_ENERGY.toLong() ||
-                getCharge(menu.location).toLong() < requestedEnergy
+                getChargeLong(menu.location) < requestedEnergy
             ) {
                 menu.setStatus { GuiItems.NO_POWER }
                 menu.setEnergyConsumption(0)
@@ -254,7 +255,7 @@ class MobSimulationChamber(
             menu.replaceExistingItem(XP_SLOT, GuiItems.experience(newXp))
         }
 
-        removeCharge(l, energyToDrain)
+        removeCharge(l, energyToDrain.toLong())
         // handle custom energy consumption, so always return false
         return false
     }
@@ -347,7 +348,7 @@ class MobSimulationChamber(
                     append("&7 | ")
                 }
 
-                append(HudBuilder.formatEnergyStored(machine.getCharge(request.location), machine.capacity))
+                append(HudBuilder.formatEnergyStored(LegacyHudEnergy.read(machine, request.location), machine.capacity))
             }
         }
     }

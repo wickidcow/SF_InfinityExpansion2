@@ -1,5 +1,3 @@
-@file:Suppress("deprecation")
-
 package net.guizhanss.infinityexpansion2.implementation.items.tools
 
 import io.github.thebusybiscuit.slimefun4.api.items.ItemGroup
@@ -17,7 +15,8 @@ import net.guizhanss.infinityexpansion2.implementation.IEItems
 import net.guizhanss.infinityexpansion2.implementation.guide.IEItemGroups
 import net.guizhanss.infinityexpansion2.utils.constant.Keys
 import net.guizhanss.infinityexpansion2.utils.items.toItemStack
-import org.bukkit.ChatColor
+import net.guizhanss.infinityexpansion2.utils.items.ModernText
+import net.guizhanss.infinityexpansion2.utils.items.ModernItems
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
 
@@ -41,19 +40,19 @@ class Oscillator(
          * Create an oscillator item with specified target.
          */
         fun getItem(target: String): SlimefunItemStack {
-            val item = IEItems.OSCILLATOR.toItem()
+            val original = IEItems.OSCILLATOR.toItem()
             val targetItem = target.toItemStack()
-            item.type = targetItem.type
+            val item = ModernItems.withType(original, targetItem.type)
             val meta = item.itemMeta
 
             // set pdc
             PersistentDataAPI.setString(meta, Keys.OSCILLATOR_TARGET, target)
 
             // set lore
-            meta.lore = mutableListOf(
-                ChatColor.GRAY.toString() + ItemUtils.getItemName(targetItem),
-                ChatColor.GRAY.toString() + String.format("%.2f%%", getChance(target) * 100)
-            )
+            meta.lore(listOf(
+                ModernText.loreLine("\u00a77" + ItemUtils.getItemName(targetItem)),
+                ModernText.loreLine("\u00a77" + String.format("%.2f%%", getChance(target) * 100))
+            ))
 
             item.itemMeta = meta
 

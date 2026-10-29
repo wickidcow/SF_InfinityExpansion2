@@ -16,7 +16,7 @@ val mainPackage = "net.guizhanss.infinityexpansion2"
 val paperApiVersion = providers.gradleProperty("paperApiVersion").orElse("1.21.11-R0.1-SNAPSHOT")
 val slimefunApiCoordinate = providers.gradleProperty("slimefunApiCoordinate").orElse("com.github.slimefun:Slimefun4:experimental-SNAPSHOT")
 val targetJvm = providers.gradleProperty("targetJvm").orElse("21").get().toInt()
-version = providers.gradleProperty("buildVersion").orElse("2.0.16").get()
+version = providers.gradleProperty("buildVersion").orElse("2.0.17").get()
 
 repositories {
     mavenLocal()
@@ -40,10 +40,17 @@ dependencies {
     implementation("com.jeff-media:MorePersistentDataTypes:2.4.0")
     testImplementation(kotlin("stdlib"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.12.2")
+    testImplementation("org.mockito:mockito-core:5.18.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.12.2")
+    // IntegrationService exposes optional translation types in private method signatures.
+    // Mockito must resolve them, but tests must not load an older transitive server/core API.
+    testRuntimeOnly("net.guizhanss:SlimefunTranslation:e03b01a7b7") { isTransitive = false }
     testImplementation("org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.110.0")
     // Match MockBukkit independently of the production compile-API override.
     testImplementation("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
+    // Tests using real Research objects need the same API at compile time as at runtime.
+    // Keep it test-scoped so Slimefun classes never enter the shaded plugin JAR.
+    testCompileOnly(slimefunApiCoordinate.get())
     testRuntimeOnly(slimefunApiCoordinate.get())
 }
 
@@ -54,7 +61,10 @@ java {
     targetCompatibility = JavaVersion.toVersion(targetJvm)
 }
 
-tasks.withType<JavaCompile>().configureEach { options.release.set(targetJvm) }
+tasks.withType<JavaCompile>().configureEach {
+    options.release.set(targetJvm)
+    if (name == "compileJava") options.compilerArgs.addAll(listOf("-Xlint:deprecation", "-Xlint:removal"))
+}
 
 kotlin {
     jvmToolchain(25)

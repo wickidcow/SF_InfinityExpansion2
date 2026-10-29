@@ -40,7 +40,7 @@ abstract class AbstractEnergyCraftingMachine(
     override fun getEnergyComponentType() = EnergyNetComponentType.CONSUMER
 
     override fun craft(menu: BlockMenu, p: Player) {
-        if (getCharge(menu.location) < getEnergyConsumptionPerAction()) {
+        if (getChargeLong(menu.location) < getEnergyConsumptionPerAction()) {
             menu.setStatus { GuiItems.NO_POWER }
         } else {
             super.craft(menu, p)
@@ -48,7 +48,7 @@ abstract class AbstractEnergyCraftingMachine(
     }
 
     override fun onSuccessfulCraft(menu: BlockMenu, output: ItemStack, p: Player) {
-        removeCharge(menu.location, getEnergyConsumptionPerAction())
+        removeCharge(menu.location, getEnergyConsumptionPerAction().toLong())
         super.onSuccessfulCraft(menu, output, p)
     }
 }

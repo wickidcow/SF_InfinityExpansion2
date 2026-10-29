@@ -1,0 +1,168 @@
+name: IE2 Combined Candidate Core Validation
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    name: Candidate core / Paper ${{ matrix.paper }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - paper: '1.21.11-R0.1-SNAPSHOT'
+            target: '21'
+            test: true
+          # 26.1.2 is source-compilation advisory only; no runtime/world claim.
+          - paper: '26.1.2.build.64-stable'
+            target: '25'
+            test: false
+          - paper: '26.2.build.+'
+            target: '25'
+            test: false
+          - paper: '26.3.build.+'
+            target: '25'
+            test: false
+    env:
+      CORE_CANDIDATE: f5656f43d220de1fac59e1492eb1f5248af129ab
+      NETWORKS_CANDIDATE: 7c6a36b26ddb294ee5775454449d996c02cb9dc6
+      GENERATOR_BASELINE: de70d55311ef15a8baca9696b973ee027ee73ad3
+    steps:
+      - name: Checkout combined IE2 candidate
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Checkout exact generator behavior baseline
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.GENERATOR_BASELINE }}
+          path: .deps/ie2-generator-baseline
+          persist-credentials: false
+      - name: Checkout exact core candidate
+        uses: actions/checkout@v6
+        with:
+          repository: wickidcow/Slimefun-Legacy
+          ref: ${{ env.CORE_CANDIDATE }}
+          path: .deps/Slimefun-Legacy
+          persist-credentials: false
+      - name: Checkout exact Networks transport contract
+        uses: actions/checkout@v6
+        with:
+          repository: wickidcow/SF_NetworksExp
+          ref: ${{ env.NETWORKS_CANDIDATE }}
+          path: .deps/SF_NetworksExp
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/wrapper-validation@v6
+      - name: Verify source identities and existing migration guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C .deps/Slimefun-Legacy rev-parse HEAD)" = "$CORE_CANDIDATE"
+          test "$(git -C .deps/SF_NetworksExp rev-parse HEAD)" = "$NETWORKS_CANDIDATE"
+          test "$(git -C .deps/ie2-generator-baseline rev-parse HEAD)" = "$GENERATOR_BASELINE"
+          printf 'IE2 checkout: %s\nCore: %s\nNetworks: %s\nGenerator baseline: %s\n' "$(git rev-parse HEAD)" "$CORE_CANDIDATE" "$NETWORKS_CANDIDATE" "$GENERATOR_BASELINE" >> "$GITHUB_STEP_SUMMARY"
+          python3 scripts/verify_ticker_callback_parity.py
+          python3 scripts/verify_generator_callback_parity.py .deps/ie2-generator-baseline
+          python3 scripts/verify_legacy_migration.py
+          python3 scripts/verify_doctor_bridge_safety.py
+          python3 scripts/verify_mob_sim_drop_ranges.py
+          python3 scripts/verify_mob_sim_input_filtering.py
+          python3 scripts/verify_mob_sim_modern_cards.py
+          python3 scripts/verify_transport_contracts.py --slimefun .deps/Slimefun-Legacy --networks .deps/SF_NetworksExp
+      - name: Build exact core API locally
+        working-directory: .deps/Slimefun-Legacy
+        run: |
+          chmod +x gradlew
+          ./gradlew publishToMavenLocal -PprojectVersion=IE2-CANDIDATE-SNAPSHOT --no-daemon
+      - name: Compile combined IE2 against candidate core
+        env:
+          PAPER_API: ${{ matrix.paper }}
+          JVM_TARGET: ${{ matrix.target }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew clean compileJava compileKotlin --console=plain --no-daemon -PpaperApiVersion="$PAPER_API" -PtargetJvm="$JVM_TARGET" -PslimefunApiCoordinate=com.github.slimefun:Slimefun:IE2-CANDIDATE-SNAPSHOT 2>&1 | tee candidate-compile.log
+          python3 scripts/verify_ticker_callback_parity.py candidate-compile.log
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          targets = ('AbstractTickingMachine.kt:', 'AbstractTickingActionMachine.kt:', 'AbstractEnergyCraftingMachine.kt:', 'AdvancedAnvil.kt:', 'SingularityConstructor.kt:', 'VoidHarvester.kt:', 'MobSimulationChamber.kt:')
+          lines = Path('candidate-compile.log').read_text().splitlines()
+          remaining = [line for line in lines if line.startswith('w:') and 'deprecat' in line.lower() and (any(name in line for name in targets) or ('PoweredBedrock.kt:' in line and re.search(r'fun (getCharge|removeCharge)\(', line)))]
+          if remaining:
+              raise SystemExit('Migrated machine energy deprecations returned:\n' + '\n'.join(remaining))
+          print('No migrated energy deprecation diagnostics; storage/callback warnings remain separately tracked.')
+          PY
+      - name: Run regression tests and build Java 21 candidate
+        if: matrix.test
+        run: ./gradlew build --console=plain --no-daemon -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:IE2-CANDIDATE-SNAPSHOT
+      - name: Verify tests executed and core/test classes are not shaded
+        if: matrix.test
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import struct
+          import subprocess
+          import xml.etree.ElementTree as ET
+          import zipfile
+          from pathlib import Path
+          required = {'DoctorCommandColorTest': 3, 'DisplaySubGroupResearchCostTest': 3, 'MachineEnergyAccessTest': 18, 'PluginPermissionMetadataTest': 2, 'PoweredBedrockEnergyTest': 9, 'IndividualMachineEnergyTest': 16, 'LegacyHudEnergyTest': 5, 'GeneratorCallbackDispatchTest': 63, 'TickerCallbackDispatchTest': 40, 'StoredBlockLookupTest': 44, 'MobDataCardStorageLookupTest': 8, 'StoredBlockMenuLookupTest': 24, 'ReactorTextTest': 6, 'ModernTextTest': 21, 'GameplayEventCompatibilityTest': 10}
+          for name, minimum in required.items():
+              reports = list(Path('build/test-results/test').glob('TEST-*.' + name + '.xml'))
+              if len(reports) != 1:
+                  raise SystemExit('Missing or ambiguous test report: ' + name)
+              suite = ET.parse(reports[0]).getroot()
+              if int(suite.get('tests', '0')) < minimum or any(int(suite.get(key, '0')) for key in ('failures', 'errors', 'skipped')):
+                  raise SystemExit('Required tests did not all execute successfully: ' + name)
+          totals = {key: 0 for key in ('tests', 'failures', 'errors', 'skipped')}
+          for report in Path('build/test-results/test').glob('TEST-*.xml'):
+              suite = ET.parse(report).getroot()
+              for key in totals:
+                  totals[key] += int(suite.get(key, '0'))
+          print('IE2 regression XML totals:', totals)
+          if totals['tests'] < 455 or any(totals[key] for key in ('failures', 'errors', 'skipped')):
+              raise SystemExit('The full regression suite did not execute successfully')
+          jars = list(Path('build/libs').glob('*.jar'))
+          if len(jars) != 1:
+              raise SystemExit('Expected one canonical shaded candidate JAR')
+          with zipfile.ZipFile(jars[0]) as jar:
+              if jar.read('plugin.yml') != Path('build/resources/main/plugin.yml').read_bytes():
+                  raise SystemExit('Packaged descriptor differs from the permission/alias-tested descriptor')
+              classes = [name for name in jar.namelist() if name.endswith('.class')]
+              forbidden = ('io/github/thebusybiscuit/slimefun4/', 'org/junit/', 'org/mockbukkit/', 'org/mockito/', 'net/bytebuddy/', 'org/objenesis/')
+              if any(name.startswith(forbidden) for name in classes):
+                  raise SystemExit('Core or test-only classes leaked into the plugin JAR')
+              majors = {struct.unpack('>H', jar.read(name)[6:8])[0] for name in classes}
+              if 65 not in majors or any(major > 65 for major in majors):
+                  raise SystemExit('Candidate does not preserve Java 21 bytecode')
+          subprocess.run(['python3', 'scripts/verify_individual_energy_bytecode.py', str(jars[0])], check=True)
+          print('Required tests executed; descriptor bytes, Java 21 target and dependency packaging preserved.')
+          PY
+      - name: Audit hidden deprecations in a disposable worktree
+        if: matrix.test
+        run: python3 scripts/audit_hidden_deprecations.py
+      - name: Retain candidate compile and test evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ie2-candidate-${{ matrix.target }}-${{ matrix.paper }}
+          path: |
+            candidate-compile.log
+            reactor-suppression-inventory.json
+            unsuppressed-compile.log
+            unsuppressed-deprecation-audit.json
+            build/test-results/test/TEST-*.xml
+          if-no-files-found: warn
+          retention-days: 14

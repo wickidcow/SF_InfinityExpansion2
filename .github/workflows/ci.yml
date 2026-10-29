@@ -23,8 +23,8 @@ permissions:
   contents: read
 
 env:
-  VERSION: "2.0.16"
-  OUTPUT_NAME: "SF_InfinityExpansion2.0.16.jar"
+  VERSION: "2.0.17"
+  OUTPUT_NAME: "SF_InfinityExpansion2.0.17.jar"
   CORE_HEAD: a538adddaf58e2f219f383eb2be9bed27da7bafc
   NETWORKS_HEAD: 80ef42b137b1cd0ff4482ab2f02254c6755f897d
 
@@ -64,13 +64,49 @@ jobs:
           grep -Fq 'archiveFileName.set("SF_InfinityExpansion${project.version}.jar")' build.gradle.kts
           if printf '%s\n%s\n' "$VERSION" "$OUTPUT_NAME" | grep -Eiq '(legacy|english|snapshot)'; then exit 1; fi
       - name: Verify Paper 1.21.11 baseline compilation
-        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PbuildVersion=2.0.16 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PbuildVersion=2.0.17 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
       - name: Verify Paper 26.2 compilation
-        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=26.2.build.+ -PtargetJvm=25 -PbuildVersion=2.0.16 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=26.2.build.+ -PtargetJvm=25 -PbuildVersion=2.0.17 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
       - name: Verify Paper 26.3 stable compilation
-        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=26.3.build.+ -PtargetJvm=25 -PbuildVersion=2.0.16 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=26.3.build.+ -PtargetJvm=25 -PbuildVersion=2.0.17 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
       - name: Build universal Java 21 release JAR
-        run: ./gradlew clean build --stacktrace --console=plain -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PbuildVersion=2.0.16 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+        run: ./gradlew clean build --stacktrace --console=plain -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PbuildVersion=2.0.17 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+      - name: Require completed new regression suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PYTEST'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          for name, minimum in {'ModernTextTest': 21, 'GameplayEventCompatibilityTest': 10}.items():
+              reports = list(Path('build/test-results/test').glob('TEST-*.' + name + '.xml'))
+              if len(reports) != 1:
+                  raise SystemExit('Missing required regression suite: ' + name)
+              suite = ET.parse(reports[0]).getroot()
+              if int(suite.get('tests', '0')) < minimum or any(int(suite.get(k, '0')) for k in ('failures', 'errors', 'skipped')):
+                  raise SystemExit('Required regression suite did not pass: ' + name)
+          PYTEST
+      - name: Stage exact native runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p native-deps
+          CORE_JAR=$(find .deps/Slimefun-Legacy/build/libs -maxdepth 1 -name 'Slimefun-*.jar' ! -name '*sources*' | head -n 1)
+          test -s "$CORE_JAR"
+          cp "$CORE_JAR" native-deps/Slimefun-native-core.jar
+          for NAME in kotlin-stdlib kotlin-reflect; do
+            FILE=$(find "$HOME/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/$NAME/2.3.21" -name "$NAME-2.3.21.jar" | head -n 1)
+            test -s "$FILE"
+            cp "$FILE" "native-deps/$NAME-2.3.21.jar"
+          done
+          (cd native-deps && sha256sum *.jar > SHA256SUMS)
+      - name: Retain exact native runtime dependencies
+        uses: actions/upload-artifact@v7
+        with:
+          name: ie2-native-runtime-dependencies
+          path: native-deps/*
+          retention-days: 14
+          if-no-files-found: error
       - name: Retain regression test reports
         if: always()
         uses: actions/upload-artifact@v7
@@ -129,6 +165,8 @@ jobs:
     steps:
       - name: Checkout IE2
         uses: actions/checkout@v6
+      - name: Verify native SQLite encoding and loss-detection contracts
+        run: python3 -m unittest discover -s scripts/runtime/release -p 'test_*.py' -v
       - name: Checkout Slimefun Legacy transport contract
         uses: actions/checkout@v6
         with:
@@ -150,9 +188,73 @@ jobs:
           python3 scripts/verify_mob_sim_modern_cards.py
           python3 scripts/verify_transport_contracts.py --slimefun .deps/Slimefun-Legacy --networks .deps/SF_NetworksExp
 
+  native-runtime:
+    name: Native Paper ${{ matrix.paper }} / Java ${{ matrix.java }}
+    needs: [compatibility]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - paper: '1.21.11'
+            java: '21'
+          - paper: '26.3'
+            java: '25'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - name: Download exact tested addon
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ env.OUTPUT_NAME }}
+          path: native-input
+          skip-decompress: true
+      - name: Download exact core and Kotlin dependencies
+        uses: actions/download-artifact@v8
+        with:
+          name: ie2-native-runtime-dependencies
+          path: native-deps
+      - name: Verify runtime inputs
+        run: |
+          set -euo pipefail
+          (cd native-deps && sha256sum -c SHA256SUMS)
+          test -s "native-input/${OUTPUT_NAME}"
+      - name: Prepare checksum-verified official stable Paper
+        run: python3 scripts/runtime/release/prepare_paper.py --version "${{ matrix.paper }}" --directory .native/paper-cache --java-home "$JAVA_HOME"
+      - name: Native item tests and two live database restart phases
+        run: |
+          python3 scripts/runtime/release/run.py \
+            --runtime .native/server --paper-source .native/paper-cache \
+            --core native-deps/Slimefun-native-core.jar --ie2 "native-input/${OUTPUT_NAME}" \
+            --java-home "$JAVA_HOME" \
+            --kotlin-stdlib native-deps/kotlin-stdlib-2.3.21.jar \
+            --kotlin-reflect native-deps/kotlin-reflect-2.3.21.jar --timeout 300
+      - name: Retain native runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ie2-native-${{ matrix.paper }}-java${{ matrix.java }}
+          include-hidden-files: true
+          path: |
+            .native/paper-cache/official-build.json
+            .native/paper-cache/bootstrap.log
+            .native/server/*.log
+            .native/server/*.json
+            .native/server/*results.txt
+            .native/server/plugins/NativeModernizationProbe/results-*.txt
+            .native/server/plugins/NativeMobCardRefreshProbe/results.txt
+          if-no-files-found: warn
+          retention-days: 14
+
   publish:
     name: Publish validated immutable IE2 release
-    needs: [compatibility, source-safety]
+    needs: [compatibility, source-safety, native-runtime]
     if: github.event_name == 'workflow_dispatch' && inputs.publish == true
     runs-on: ubuntu-latest
     permissions:
