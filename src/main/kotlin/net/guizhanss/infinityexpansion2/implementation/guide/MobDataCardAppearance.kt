@@ -5,6 +5,7 @@ import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.Bukkit
 import net.guizhanss.infinityexpansion2.utils.items.ModernText
+import net.guizhanss.infinityexpansion2.utils.items.ModernItems
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ArmorMeta
 import org.bukkit.inventory.meta.ItemMeta
@@ -25,7 +26,7 @@ internal object MobDataCardAppearance {
     fun texture(configuredTexture: ItemStack?, group: MobDataCardGuideGroup): ItemStack {
         if (configuredTexture == null) return ItemStack(group.material)
         return if (configuredTexture.type.isChestplate() && !hasCustomArtwork(configuredTexture.itemMeta)) {
-            configuredTexture.withType(group.material)
+            ModernItems.withType(configuredTexture, group.material)
         } else {
             configuredTexture.clone()
         }
@@ -88,7 +89,7 @@ internal object MobDataCardAppearance {
         // Chambers call this on their normal process path. Already-current cards need no clone.
         if (!changeMaterial && !changeName && !changeLabel) return null
 
-        val updated = if (changeMaterial) source.withType(current.type) else source.clone()
+        val updated = if (changeMaterial) ModernItems.withType(source, current.type) else source.clone()
         val meta = updated.itemMeta
         if (changeMaterial && updated.maxStackSize != source.maxStackSize) {
             // A carpet used to stack to 64. Changing its icon must not turn a saved stack
@@ -111,7 +112,7 @@ internal object MobDataCardAppearance {
     }
 
     private fun hasCustomArtwork(meta: ItemMeta): Boolean =
-        meta.hasItemModel() || meta.hasCustomModelDataComponent() ||
+        meta.hasItemModel() || ModernItems.hasCustomModel(meta) ||
             (meta is ArmorMeta && meta.hasTrim()) ||
             (meta is LeatherArmorMeta && meta.color != Bukkit.getItemFactory().defaultLeatherColor)
 

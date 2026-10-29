@@ -118,7 +118,7 @@ jobs:
           import xml.etree.ElementTree as ET
           import zipfile
           from pathlib import Path
-          required = {'DoctorCommandColorTest': 3, 'DisplaySubGroupResearchCostTest': 3, 'MachineEnergyAccessTest': 18, 'PluginPermissionMetadataTest': 2, 'PoweredBedrockEnergyTest': 9, 'IndividualMachineEnergyTest': 16, 'LegacyHudEnergyTest': 5, 'GeneratorCallbackDispatchTest': 63, 'TickerCallbackDispatchTest': 40, 'StoredBlockLookupTest': 44, 'MobDataCardStorageLookupTest': 8, 'StoredBlockMenuLookupTest': 24, 'ReactorTextTest': 6}
+          required = {'DoctorCommandColorTest': 3, 'DisplaySubGroupResearchCostTest': 3, 'MachineEnergyAccessTest': 18, 'PluginPermissionMetadataTest': 2, 'PoweredBedrockEnergyTest': 9, 'IndividualMachineEnergyTest': 16, 'LegacyHudEnergyTest': 5, 'GeneratorCallbackDispatchTest': 63, 'TickerCallbackDispatchTest': 40, 'StoredBlockLookupTest': 44, 'MobDataCardStorageLookupTest': 8, 'StoredBlockMenuLookupTest': 24, 'ReactorTextTest': 6, 'ModernTextTest': 21, 'GameplayEventCompatibilityTest': 10}
           for name, minimum in required.items():
               reports = list(Path('build/test-results/test').glob('TEST-*.' + name + '.xml'))
               if len(reports) != 1:
@@ -132,7 +132,7 @@ jobs:
               for key in totals:
                   totals[key] += int(suite.get(key, '0'))
           print('IE2 regression XML totals:', totals)
-          if totals['tests'] < 424 or any(totals[key] for key in ('failures', 'errors', 'skipped')):
+          if totals['tests'] < 455 or any(totals[key] for key in ('failures', 'errors', 'skipped')):
               raise SystemExit('The full regression suite did not execute successfully')
           jars = list(Path('build/libs').glob('*.jar'))
           if len(jars) != 1:

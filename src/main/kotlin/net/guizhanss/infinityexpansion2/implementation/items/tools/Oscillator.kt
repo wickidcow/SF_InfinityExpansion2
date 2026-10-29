@@ -16,6 +16,7 @@ import net.guizhanss.infinityexpansion2.implementation.guide.IEItemGroups
 import net.guizhanss.infinityexpansion2.utils.constant.Keys
 import net.guizhanss.infinityexpansion2.utils.items.toItemStack
 import net.guizhanss.infinityexpansion2.utils.items.ModernText
+import net.guizhanss.infinityexpansion2.utils.items.ModernItems
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
 
@@ -41,7 +42,7 @@ class Oscillator(
         fun getItem(target: String): SlimefunItemStack {
             val original = IEItems.OSCILLATOR.toItem()
             val targetItem = target.toItemStack()
-            val item = original.withType(targetItem.type)
+            val item = ModernItems.withType(original, targetItem.type)
             val meta = item.itemMeta
 
             // set pdc
