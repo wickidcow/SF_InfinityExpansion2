@@ -19,7 +19,8 @@ jobs:
           - paper: '1.21.11-R0.1-SNAPSHOT'
             target: '21'
             test: true
-          - paper: '26.1.build.+'
+          # 26.1.2 is source-compilation advisory only; no runtime/world claim.
+          - paper: '26.1.2.build.64-stable'
             target: '25'
             test: false
           - paper: '26.2.build.+'
