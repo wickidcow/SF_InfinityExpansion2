@@ -150,6 +150,9 @@ jobs:
           subprocess.run(['python3', 'scripts/verify_individual_energy_bytecode.py', str(jars[0])], check=True)
           print('Required tests executed; descriptor bytes, Java 21 target and dependency packaging preserved.')
           PY
+      - name: Audit hidden deprecations in a disposable worktree
+        if: matrix.test
+        run: python3 scripts/audit_hidden_deprecations.py
       - name: Retain candidate compile and test evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -158,6 +161,8 @@ jobs:
           path: |
             candidate-compile.log
             reactor-suppression-inventory.json
+            unsuppressed-compile.log
+            unsuppressed-deprecation-audit.json
             build/test-results/test/TEST-*.xml
           if-no-files-found: warn
           retention-days: 14
