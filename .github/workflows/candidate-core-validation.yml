@@ -71,6 +71,7 @@ jobs:
           test "$(git -C .deps/SF_NetworksExp rev-parse HEAD)" = "$NETWORKS_CANDIDATE"
           test "$(git -C .deps/ie2-generator-baseline rev-parse HEAD)" = "$GENERATOR_BASELINE"
           printf 'IE2 checkout: %s\nCore: %s\nNetworks: %s\nGenerator baseline: %s\n' "$(git rev-parse HEAD)" "$CORE_CANDIDATE" "$NETWORKS_CANDIDATE" "$GENERATOR_BASELINE" >> "$GITHUB_STEP_SUMMARY"
+          python3 scripts/verify_ticker_callback_parity.py
           python3 scripts/verify_generator_callback_parity.py .deps/ie2-generator-baseline
           python3 scripts/verify_legacy_migration.py
           python3 scripts/verify_doctor_bridge_safety.py
@@ -92,6 +93,7 @@ jobs:
           set -euo pipefail
           chmod +x gradlew
           ./gradlew clean compileJava compileKotlin --console=plain --no-daemon -PpaperApiVersion="$PAPER_API" -PtargetJvm="$JVM_TARGET" -PslimefunApiCoordinate=com.github.slimefun:Slimefun:IE2-CANDIDATE-SNAPSHOT 2>&1 | tee candidate-compile.log
+          python3 scripts/verify_ticker_callback_parity.py candidate-compile.log
           python3 - <<'PY'
           import re
           from pathlib import Path
@@ -116,7 +118,7 @@ jobs:
           import xml.etree.ElementTree as ET
           import zipfile
           from pathlib import Path
-          required = {'DoctorCommandColorTest': 3, 'DisplaySubGroupResearchCostTest': 3, 'MachineEnergyAccessTest': 18, 'PluginPermissionMetadataTest': 2, 'PoweredBedrockEnergyTest': 9, 'IndividualMachineEnergyTest': 16, 'LegacyHudEnergyTest': 5, 'GeneratorCallbackDispatchTest': 58}
+          required = {'DoctorCommandColorTest': 3, 'DisplaySubGroupResearchCostTest': 3, 'MachineEnergyAccessTest': 18, 'PluginPermissionMetadataTest': 2, 'PoweredBedrockEnergyTest': 9, 'IndividualMachineEnergyTest': 16, 'LegacyHudEnergyTest': 5, 'GeneratorCallbackDispatchTest': 58, 'TickerCallbackDispatchTest': 40}
           for name, minimum in required.items():
               reports = list(Path('build/test-results/test').glob('TEST-*.' + name + '.xml'))
               if len(reports) != 1:

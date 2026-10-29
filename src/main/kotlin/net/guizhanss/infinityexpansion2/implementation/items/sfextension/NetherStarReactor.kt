@@ -1,5 +1,6 @@
 package net.guizhanss.infinityexpansion2.implementation.items.sfextension
 
+import com.xzavier0722.mc.plugin.slimefun4.storage.controller.SlimefunBlockData
 import io.github.thebusybiscuit.slimefun4.api.items.ItemGroup
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItemStack
@@ -17,7 +18,6 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 import io.github.thebusybiscuit.slimefun4.implementation.items.electric.reactors.NetherStarReactor as SlimefunNetherStarReactor
-import me.mrCookieSlime.CSCoreLibPlugin.Configuration.Config as CSCoreLibConfig
 
 class NetherStarReactor(
     itemGroup: ItemGroup,
@@ -42,7 +42,12 @@ class NetherStarReactor(
         addItemHandler(object : BlockTicker() {
             override fun isSynchronized() = false
 
-            override fun tick(b: Block, sfItem: SlimefunItem, config: CSCoreLibConfig) {
+            override fun tick(b: Block, sfItem: SlimefunItem, data: SlimefunBlockData) {
+                // No per-block work; retain the existing uniqueTick-only cadence.
+            }
+
+            @Deprecated("Compatibility bridge; use the block-data ticker overload")
+            override fun tick(b: Block, sfItem: SlimefunItem, config: me.mrCookieSlime.CSCoreLibPlugin.Configuration.Config) {
                 // nothing to do here
             }
 
