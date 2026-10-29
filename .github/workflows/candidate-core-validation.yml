@@ -84,6 +84,8 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew publishToMavenLocal -PprojectVersion=IE2-CANDIDATE-SNAPSHOT --no-daemon
+      - name: Test strict production deprecation diagnostic contract
+        run: python3 -m unittest discover -s scripts -p 'test_verify_owned_deprecations.py' -v
       - name: Compile combined IE2 against candidate core
         env:
           PAPER_API: ${{ matrix.paper }}
@@ -94,6 +96,7 @@ jobs:
           chmod +x gradlew
           ./gradlew clean compileJava compileKotlin --console=plain --no-daemon -PpaperApiVersion="$PAPER_API" -PtargetJvm="$JVM_TARGET" -PslimefunApiCoordinate=com.github.slimefun:Slimefun:IE2-CANDIDATE-SNAPSHOT 2>&1 | tee candidate-compile.log
           python3 scripts/verify_ticker_callback_parity.py candidate-compile.log
+          python3 scripts/verify_owned_deprecations.py candidate-compile.log
           python3 - <<'PY'
           import re
           from pathlib import Path
