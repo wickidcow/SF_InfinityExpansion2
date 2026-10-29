@@ -60,6 +60,7 @@ class IndividualMachineEnergyTest {
         player = server.addPlayer();
         var plugin = mock(InfinityExpansion2.class);
         when(plugin.getName()).thenReturn("InfinityExpansion2");
+        when(plugin.namespace()).thenReturn("infinityexpansion2");
         replaceService("instance", plugin);
         var localization = mock(LocalizationService.class, call -> {
             if (call.getMethod().getName().equals("getGuiItem")) return new ItemStack(Material.PAPER);
