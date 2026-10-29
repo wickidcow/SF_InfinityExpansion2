@@ -1,7 +1,7 @@
 # Machine energy deprecation migration: shared consumer classes
 
 Parent: IE2 combined candidate #44 at `146da01adf3d8a861fbe1efbf95c70ca84d0ae26`.
-Candidate validation retains core `f5656f43d220de1fac59e1492eb1f5248af129ab` and Networks `7c6a36b26ddb294ee5775454449d996c02cb9dc6`. Normal CI independently retains its prior pinned dependency pair.
+Candidate validation retains core `f505b9f79e8e4598eedf1160b0831dbec758eb78` and Networks `ebdaba23186b0be2328d88726179fe22a1c6f85d`. Normal CI independently retains its prior pinned dependency pair.
 
 ## Scope
 
