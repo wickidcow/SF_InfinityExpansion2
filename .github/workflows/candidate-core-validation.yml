@@ -26,8 +26,8 @@ jobs:
             target: '25'
             test: false
     env:
-      CORE_CANDIDATE: f5656f43d220de1fac59e1492eb1f5248af129ab
-      NETWORKS_CANDIDATE: 7c6a36b26ddb294ee5775454449d996c02cb9dc6
+      CORE_CANDIDATE: f505b9f79e8e4598eedf1160b0831dbec758eb78
+      NETWORKS_CANDIDATE: ebdaba23186b0be2328d88726179fe22a1c6f85d
     steps:
       - name: Checkout combined IE2 candidate
         uses: actions/checkout@v6
