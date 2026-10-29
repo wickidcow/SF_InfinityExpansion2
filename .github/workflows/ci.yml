@@ -55,6 +55,8 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew publishToMavenLocal -PprojectVersion=ALBION-SNAPSHOT --no-daemon
+      - name: Regression-test Java 21 distribution gate
+        run: python3 -m unittest discover -s scripts -p 'test_verify_java21_distribution.py' -v
       - name: Verify canonical release identity
         shell: bash
         run: |
@@ -122,21 +124,7 @@ jobs:
           JAR="build/libs/${OUTPUT_NAME}"
           test -s "$JAR"
           test "$(find build/libs -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 1
-          python3 - <<'PY'
-          import os, struct, zipfile
-          jar=os.environ['OUTPUT_NAME']
-          path=f'build/libs/{jar}'
-          majors=set()
-          with zipfile.ZipFile(path) as z:
-              for name in z.namelist():
-                  if name.endswith('.class'):
-                      data=z.read(name)[:8]
-                      if len(data)==8 and data[:4]==b'\xca\xfe\xba\xbe':
-                          majors.add(struct.unpack('>H', data[6:8])[0])
-          if 65 not in majors or any(m > 65 for m in majors):
-              raise SystemExit(f'Expected only Java 21-or-older plugin classes; saw {sorted(majors)}')
-          print('Verified Java 21-compatible plugin classes.')
-          PY
+          python3 scripts/verify_java21_distribution.py "$JAR"
           jar tf "$JAR" | grep -Fxq 'plugin.yml'
           jar tf "$JAR" | grep -Fxq 'mob-simulation-modern.yml'
           jar tf "$JAR" | grep -Fxq 'net/guizhanss/infinityexpansion2/libs/guizhanlib/slimefun/addon/AbstractAddon.class'
