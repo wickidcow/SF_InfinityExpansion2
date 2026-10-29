@@ -2,6 +2,7 @@
 """Run the existing native card suite, then real database/menu seed and restart verification."""
 import argparse
 import base64
+import contextlib
 import hashlib
 import json
 import os
@@ -52,7 +53,7 @@ def stored_unknown_snapshot(runtime):
     database=runtime/'data-storage/Slimefun/block-storage.db'
     if database.is_symlink() or not database.is_file():
         raise AssertionError('Native Slimefun SQLite database is missing or linked')
-    with sqlite3.connect(database.as_uri()+'?mode=ro',uri=True) as connection:
+    with contextlib.closing(sqlite3.connect(database.as_uri()+'?mode=ro',uri=True)) as connection:
         connection.execute('PRAGMA query_only=ON')
         records=connection.execute('SELECT loc, chunk, sf_id FROM block_record WHERE sf_id=?',
             ('IE2_NATIVE_UNKNOWN_ID',)).fetchall()
