@@ -1,4 +1,4 @@
-package net.guizhanss.infinityexpansion2.implementation.items.machines;
+package net.guizhanss.infinityexpansion2.implementation.items.machines.abstracts;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -20,7 +20,7 @@ import net.guizhanss.infinityexpansion2.core.services.ConfigService;
 import net.guizhanss.infinityexpansion2.core.services.DebugService;
 import net.guizhanss.infinityexpansion2.core.services.IntegrationService;
 import net.guizhanss.infinityexpansion2.core.services.LocalizationService;
-import net.guizhanss.infinityexpansion2.implementation.items.machines.abstracts.AbstractTickingMachine;
+import net.guizhanss.infinityexpansion2.implementation.items.machines.AdvancedAnvil;
 import net.guizhanss.infinityexpansion2.implementation.items.mobsim.MobDataCard;
 import net.guizhanss.infinityexpansion2.implementation.items.mobsim.MobSimulationChamber;
 import net.guizhanss.infinityexpansion2.utils.constant.Keys;
@@ -70,7 +70,7 @@ class IndividualMachineEnergyTest {
         replaceService("debugService", mock(DebugService.class));
         replaceService("integrationService", mock(IntegrationService.class));
         config = mock(ConfigService.class, RETURNS_DEEP_STUBS);
-        when(config.getMobSimRefreshCardAppearance().getValue()).thenReturn(false);
+        when(config.getMobSimRefreshCardAppearance$InfinityExpansion2().getValue()).thenReturn(false);
         when(config.getMobSimAllowStackedCard().getValue()).thenReturn(true);
         when(config.getMobSimChargeCardEnergy().getValue()).thenReturn(true);
         when(config.getMobSimInterval().getValue()).thenReturn(2);
@@ -175,7 +175,7 @@ class IndividualMachineEnergyTest {
     void chamberCompatibilityModeChargesBaseOnlyAndNeverDoubleDebits() throws Exception {
         when(config.getMobSimChargeCardEnergy().getValue()).thenReturn(false);
         var chamber = chamber(100L);
-        chamber.tick(block, menu);
+        tick(chamber);
         verify(chamber, times(1)).removeCharge(location, 100L);
         verify(chamber, times(1)).getChargeLong(location);
         assertModernDispatch(chamber);
@@ -184,7 +184,7 @@ class IndividualMachineEnergyTest {
     @Test
     void chamberExactStackedCardDemandDebitsOnce() throws Exception {
         var chamber = chamber(160L);
-        chamber.tick(block, menu);
+        tick(chamber);
         verify(chamber).removeCharge(location, 160L);
         verify(chamber, times(2)).getChargeLong(location);
         assertEquals(3, card.getAmount());
@@ -195,7 +195,7 @@ class IndividualMachineEnergyTest {
     @Test
     void chamberOneShortOfCardDemandDoesNotDebitOrUpdateExperience() throws Exception {
         var chamber = chamber(159L);
-        chamber.tick(block, menu);
+        tick(chamber);
         verify(chamber, never()).removeCharge(any(Location.class), anyLong());
         storage.verify(() -> BlockStorage.getLocationInfo(location, "xp"), never());
         verify(menu, never()).replaceExistingItem(eq(8), any(ItemStack.class));
@@ -206,7 +206,7 @@ class IndividualMachineEnergyTest {
     void chamberDisabledStackingKeepsSingleCardCost() throws Exception {
         when(config.getMobSimAllowStackedCard().getValue()).thenReturn(false);
         var chamber = chamber(120L);
-        chamber.tick(block, menu);
+        tick(chamber);
         verify(chamber).removeCharge(location, 120L);
         assertEquals(3, card.getAmount());
         assertModernDispatch(chamber);
@@ -216,7 +216,7 @@ class IndividualMachineEnergyTest {
     void chamberCapacityGateStillPrecedesAdditionalEnergyRead() throws Exception {
         var chamber = chamber(160L);
         doReturn(150).when(chamber).getCapacity();
-        chamber.tick(block, menu);
+        tick(chamber);
         verify(chamber, times(1)).getChargeLong(location);
         verify(chamber, never()).removeCharge(any(Location.class), anyLong());
         assertModernDispatch(chamber);
@@ -226,7 +226,7 @@ class IndividualMachineEnergyTest {
     void chamberMalformedNegativeCardEnergyIsRejected() throws Exception {
         var chamber = chamber(1000L);
         when(props.getEnergy()).thenReturn(-1);
-        chamber.tick(block, menu);
+        tick(chamber);
         verify(chamber, never()).removeCharge(any(Location.class), anyLong());
         storage.verify(() -> BlockStorage.getLocationInfo(location, "xp"), never());
     }
@@ -236,7 +236,7 @@ class IndividualMachineEnergyTest {
         var chamber = chamber(Long.MAX_VALUE);
         when(props.getEnergy()).thenReturn(Integer.MAX_VALUE);
         card.setAmount(64);
-        chamber.tick(block, menu);
+        tick(chamber);
         verify(chamber, never()).removeCharge(any(Location.class), anyLong());
         storage.verify(() -> BlockStorage.getLocationInfo(location, "xp"), never());
         assertModernDispatch(chamber);
@@ -246,7 +246,7 @@ class IndividualMachineEnergyTest {
     void chamberAboveIntegerBalanceKeepsCardCostWithoutChangingCapacity() throws Exception {
         var chamber = chamber(3_000_000_000L);
         assertEquals(1000, chamber.getCapacity());
-        chamber.tick(block, menu);
+        tick(chamber);
         verify(chamber).removeCharge(location, 160L);
         assertModernDispatch(chamber);
     }
@@ -256,17 +256,21 @@ class IndividualMachineEnergyTest {
         var chamber = chamber(160L);
         var failure = new IllegalStateException("energy unavailable");
         doThrow(failure).when(chamber).getChargeLong(location);
-        assertSame(failure, assertThrows(IllegalStateException.class, () -> chamber.tick(block, menu)));
+        assertSame(failure, assertThrows(IllegalStateException.class, () -> tick(chamber)));
         verify(chamber, never()).removeCharge(any(Location.class), anyLong());
         verify(menu, never()).pushItem(any(ItemStack.class), any(int[].class));
+    }
+
+    private void tick(AbstractTickingMachine machine) {
+        machine.tick(block, menu);
     }
 
     private AdvancedAnvil anvil(long balance) {
         var machine = mock(AdvancedAnvil.class, CALLS_REAL_METHODS);
         doReturn(100).when(machine).getEnergyConsumptionPerAction();
         doReturn(balance).when(machine).getChargeLong(location);
-        doReturn(new int[]{0, 1}).when(machine).getInputSlots();
-        doReturn(new int[]{2}).when(machine).getOutputSlots();
+        doReturn(new int[]{0, 1}).when((AbstractTickingActionMachine) machine).getInputSlots();
+        doReturn(new int[]{2}).when((AbstractTickingActionMachine) machine).getOutputSlots();
         doNothing().when(machine).removeCharge(any(Location.class), anyLong());
         return machine;
     }
@@ -292,7 +296,7 @@ class IndividualMachineEnergyTest {
         var machine = mock(MobSimulationChamber.class, CALLS_REAL_METHODS);
         var layout = AbstractTickingMachine.class.getDeclaredField("layout");
         layout.setAccessible(true);
-        layout.set(machine, MenuLayout.SINGLE_INPUT);
+        layout.set(machine, MenuLayout.Companion.getSINGLE_INPUT());
         doReturn(100).when(machine).getEnergyConsumptionPerTick();
         doReturn(1000).when(machine).getCapacity();
         doReturn(1).when(machine).getCustomTickRate();
@@ -310,7 +314,7 @@ class IndividualMachineEnergyTest {
         card.setItemMeta(meta);
         var registered = mock(MobDataCard.class);
         items.when(() -> SlimefunItem.getByItem(card)).thenReturn(registered);
-        when(menu.getItemInSlot(MenuLayout.SINGLE_INPUT.getInputSlots()[0])).thenReturn(card);
+        when(menu.getItemInSlot(MenuLayout.Companion.getSINGLE_INPUT().getInputSlots()[0])).thenReturn(card);
         return machine;
     }
 
