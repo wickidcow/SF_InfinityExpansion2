@@ -65,8 +65,21 @@ jobs:
           test "$OUTPUT_NAME" = "SF_InfinityExpansion${VERSION}.jar"
           grep -Fq 'archiveFileName.set("SF_InfinityExpansion${project.version}.jar")' build.gradle.kts
           if printf '%s\n%s\n' "$VERSION" "$OUTPUT_NAME" | grep -Eiq '(legacy|english|snapshot)'; then exit 1; fi
-      - name: Verify Paper 1.21.11 baseline compilation
-        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PbuildVersion=2.0.17 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+      - name: Regression-test production compiler deprecation allowlist
+        run: python3 -m unittest discover -s scripts -p 'test_verify_owned_deprecations.py' -v
+      - name: Verify Paper 1.21.11 baseline compilation and known ABI diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PbuildVersion=2.0.17 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT 2>&1 | tee baseline-compile.log
+          python3 scripts/verify_owned_deprecations.py baseline-compile.log
+      - name: Retain compiler deprecation evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ie2-baseline-compiler-diagnostics
+          path: baseline-compile.log
+          if-no-files-found: warn
       - name: Verify Paper 26.2 compilation
         run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=26.2.build.+ -PtargetJvm=25 -PbuildVersion=2.0.17 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
       - name: Verify Paper 26.3 stable compilation
