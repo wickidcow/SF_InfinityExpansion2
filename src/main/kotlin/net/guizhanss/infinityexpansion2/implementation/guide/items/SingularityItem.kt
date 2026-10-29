@@ -1,5 +1,3 @@
-@file:Suppress("deprecation")
-
 package net.guizhanss.infinityexpansion2.implementation.guide.items
 
 import io.github.thebusybiscuit.slimefun4.api.player.PlayerProfile

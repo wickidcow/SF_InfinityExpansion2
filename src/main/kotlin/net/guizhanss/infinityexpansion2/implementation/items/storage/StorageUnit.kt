@@ -1,5 +1,6 @@
 package net.guizhanss.infinityexpansion2.implementation.items.storage
 
+import com.xzavier0722.mc.plugin.slimefun4.storage.controller.SlimefunBlockData
 import io.github.schntgaispock.slimehud.waila.HudRequest
 import io.github.thebusybiscuit.slimefun4.api.items.ItemGroup
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem
@@ -9,7 +10,6 @@ import io.github.thebusybiscuit.slimefun4.core.attributes.DistinctiveItem
 import io.github.thebusybiscuit.slimefun4.libraries.dough.blocks.BlockPosition
 import io.github.thebusybiscuit.slimefun4.libraries.dough.data.persistent.PersistentDataAPI
 import io.github.thebusybiscuit.slimefun4.utils.ChestMenuUtils
-import me.mrCookieSlime.CSCoreLibPlugin.Configuration.Config
 import me.mrCookieSlime.Slimefun.Objects.handlers.BlockTicker
 import me.mrCookieSlime.Slimefun.api.inventory.BlockMenu
 import me.mrCookieSlime.Slimefun.api.inventory.BlockMenuPreset
@@ -68,7 +68,12 @@ class StorageUnit(
             // thread; this does not change storage data or recipe behavior.
             override fun isSynchronized() = true
 
-            override fun tick(b: Block, item: SlimefunItem, data: Config) {
+            override fun tick(b: Block, item: SlimefunItem, data: SlimefunBlockData) {
+                tick(b)
+            }
+
+            @Deprecated("Compatibility bridge; use the block-data ticker overload")
+            override fun tick(b: Block, item: SlimefunItem, data: me.mrCookieSlime.CSCoreLibPlugin.Configuration.Config) {
                 tick(b)
             }
         })

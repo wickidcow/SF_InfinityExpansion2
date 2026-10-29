@@ -1,5 +1,3 @@
-@file:Suppress("deprecation")
-
 package net.guizhanss.infinityexpansion2.core.menu
 
 import io.github.thebusybiscuit.slimefun4.api.items.groups.FlexItemGroup

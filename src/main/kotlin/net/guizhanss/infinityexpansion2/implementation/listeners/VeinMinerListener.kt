@@ -1,9 +1,8 @@
-@file:Suppress("deprecation")
-
 package net.guizhanss.infinityexpansion2.implementation.listeners
 
 import io.github.thebusybiscuit.slimefun4.libraries.dough.data.persistent.PersistentDataAPI
-import me.mrCookieSlime.Slimefun.api.BlockStorage
+import net.guizhanss.infinityexpansion2.utils.storage.StoredBlockLookup
+import net.guizhanss.infinityexpansion2.utils.items.ModernText
 import net.guizhanss.guizhanlib.kt.minecraft.extensions.isAir
 import net.guizhanss.guizhanlib.kt.slimefun.extensions.getSlimefunItem
 import net.guizhanss.guizhanlib.kt.slimefun.extensions.isSlimefunItem
@@ -71,7 +70,7 @@ class VeinMinerListener(plugin: InfinityExpansion2) : Listener {
 
         // no sf block vein mining
         val loc = b.location
-        if (BlockStorage.hasBlockInfo(loc)) return
+        if (StoredBlockLookup.hasBlockInfo(loc)) return
 
         val foundBlocks = mutableSetOf<Block>()
         val checkedLocations = mutableSetOf<Location>()
@@ -100,7 +99,7 @@ class VeinMinerListener(plugin: InfinityExpansion2) : Listener {
         }
 
         if (Random.nextBoolean()) {
-            val event = FoodLevelChangeEvent(p, p.foodLevel - 1)
+            val event = FoodLevelChangeEvent(p, p.foodLevel - 1, null)
             Bukkit.getPluginManager().callEvent(event)
             if (!event.isCancelled) {
                 p.foodLevel = event.foodLevel
@@ -172,9 +171,7 @@ class VeinMinerListener(plugin: InfinityExpansion2) : Listener {
 
         PersistentDataAPI.setBoolean(meta, Keys.VEIN_MINER, true)
 
-        val lore = meta.lore ?: mutableListOf()
-        lore.add(InfinityExpansion2.integrationService.getLore(p, "vein-miner"))
-        meta.lore = lore
+        ModernText.appendLore(meta, InfinityExpansion2.integrationService.getLore(p, "vein-miner"))
 
         item.itemMeta = meta
     }
@@ -185,7 +182,7 @@ class VeinMinerListener(plugin: InfinityExpansion2) : Listener {
         }
 
         getAdjacentLocations(l).forEach { loc ->
-            if (checked.add(loc) && loc.block.type == block.type && !BlockStorage.hasBlockInfo(block)) {
+            if (checked.add(loc) && loc.block.type == block.type && !StoredBlockLookup.hasBlockInfo(block.location)) {
                 found.add(block)
                 getVein(checked, found, loc, loc.block)
             }

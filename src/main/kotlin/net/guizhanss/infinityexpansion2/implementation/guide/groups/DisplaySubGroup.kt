@@ -2,6 +2,7 @@ package net.guizhanss.infinityexpansion2.implementation.guide.groups
 
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem
 import io.github.thebusybiscuit.slimefun4.api.player.PlayerProfile
+import io.github.thebusybiscuit.slimefun4.api.researches.Research
 import io.github.thebusybiscuit.slimefun4.core.guide.SlimefunGuideMode
 import io.github.thebusybiscuit.slimefun4.implementation.Slimefun
 import io.github.thebusybiscuit.slimefun4.utils.ChestMenuUtils
@@ -55,6 +56,9 @@ class DisplaySubGroup(
 
     companion object {
 
+        internal fun researchCostLore(research: Research): String =
+            "&7Cost: &b" + research.levelCost + " Level(s)"
+
         private fun getNotResearchedItem(p: Player, sfItem: SlimefunItem) =
             ChestMenuUtils.getNotResearchedItem().edit {
                 name(InfinityExpansion2.Companion.integrationService.getItemName(p, sfItem.id))
@@ -65,7 +69,7 @@ class DisplaySubGroup(
                     "",
                     "&a> Click to unlock",
                     "",
-                    "&7Cost: &b" + sfItem.research!!.cost + " Level(s)"
+                    researchCostLore(sfItem.research!!)
                 )
             }
     }

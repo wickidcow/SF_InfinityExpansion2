@@ -1,12 +1,13 @@
 package net.guizhanss.infinityexpansion2.implementation.items.sfextension
 
+import com.xzavier0722.mc.plugin.slimefun4.storage.controller.SlimefunBlockData
 import io.github.thebusybiscuit.slimefun4.api.items.ItemGroup
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItemStack
 import io.github.thebusybiscuit.slimefun4.api.recipes.RecipeType
 import me.mrCookieSlime.Slimefun.Objects.SlimefunItem.abstractItems.MachineFuel
 import me.mrCookieSlime.Slimefun.Objects.handlers.BlockTicker
-import me.mrCookieSlime.Slimefun.api.BlockStorage
+import net.guizhanss.infinityexpansion2.utils.storage.StoredBlockLookup
 import net.guizhanss.guizhanlib.kt.minecraft.extensions.toItem
 import net.guizhanss.infinityexpansion2.InfinityExpansion2
 import org.bukkit.Location
@@ -17,7 +18,6 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 import io.github.thebusybiscuit.slimefun4.implementation.items.electric.reactors.NetherStarReactor as SlimefunNetherStarReactor
-import me.mrCookieSlime.CSCoreLibPlugin.Configuration.Config as CSCoreLibConfig
 
 class NetherStarReactor(
     itemGroup: ItemGroup,
@@ -42,7 +42,12 @@ class NetherStarReactor(
         addItemHandler(object : BlockTicker() {
             override fun isSynchronized() = false
 
-            override fun tick(b: Block, sfItem: SlimefunItem, config: CSCoreLibConfig) {
+            override fun tick(b: Block, sfItem: SlimefunItem, data: SlimefunBlockData) {
+                // No per-block work; retain the existing uniqueTick-only cadence.
+            }
+
+            @Deprecated("Compatibility bridge; use the block-data ticker overload")
+            override fun tick(b: Block, sfItem: SlimefunItem, config: me.mrCookieSlime.CSCoreLibPlugin.Configuration.Config) {
                 // nothing to do here
             }
 
@@ -68,7 +73,7 @@ class NetherStarReactor(
                         if (result != null) {
                             val hit = result.hitBlock
                             if (hit != null) {
-                                val id = BlockStorage.getLocationInfo(hit.location, "id")
+                                val id = StoredBlockLookup.getId(hit.location)
                                 if (id != null && id.contains("WITHER_PROOF")) {
                                     return@forEach
                                 }

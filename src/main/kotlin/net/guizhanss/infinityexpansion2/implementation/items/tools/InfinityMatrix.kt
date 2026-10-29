@@ -1,5 +1,3 @@
-@file:Suppress("deprecation")
-
 package net.guizhanss.infinityexpansion2.implementation.items.tools
 
 import com.jeff_media.morepersistentdatatypes.DataType

@@ -58,10 +58,10 @@ abstract class AbstractTickingActionMachine(
 
     override fun tick(b: Block, menu: BlockMenu) {
         if (tickCount % getCustomTickRate() != 0) return
-        if (getCharge(menu.location) < getEnergyConsumptionPerAction()) {
+        if (getChargeLong(menu.location) < getEnergyConsumptionPerAction()) {
             menu.setStatus { GuiItems.NO_POWER }
         } else if (process(b, menu)) {
-            removeCharge(menu.location, getEnergyConsumptionPerAction())
+            removeCharge(menu.location, getEnergyConsumptionPerAction().toLong())
         }
     }
 
