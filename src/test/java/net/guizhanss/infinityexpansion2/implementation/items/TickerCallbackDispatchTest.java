@@ -64,7 +64,7 @@ class TickerCallbackDispatchTest {
         location = block.getLocation();
         var plugin = mock(InfinityExpansion2.class);
         when(plugin.getName()).thenReturn("InfinityExpansion2");
-        when(plugin.getNamespace()).thenReturn("infinityexpansion2");
+        when(plugin.namespace()).thenReturn("infinityexpansion2");
         when(plugin.getLogger()).thenReturn(Logger.getLogger("IE2TickerFixture"));
         replaceService("instance", plugin);
         var localization = mock(LocalizationService.class, invocation -> {
