@@ -42,6 +42,9 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter:5.12.2")
     testImplementation("org.mockito:mockito-core:5.18.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.12.2")
+    // IntegrationService exposes optional translation types in private method signatures.
+    // Mockito must resolve them, but tests must not load an older transitive server/core API.
+    testRuntimeOnly("net.guizhanss:SlimefunTranslation:e03b01a7b7") { isTransitive = false }
     testImplementation("org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.110.0")
     // Match MockBukkit independently of the production compile-API override.
     testImplementation("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
