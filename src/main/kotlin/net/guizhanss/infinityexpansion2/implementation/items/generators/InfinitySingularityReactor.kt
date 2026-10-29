@@ -2,6 +2,8 @@
 
 package net.guizhanss.infinityexpansion2.implementation.items.generators
 
+import com.xzavier0722.mc.plugin.slimefun4.storage.controller.ASlimefunDataContainer
+import com.xzavier0722.mc.plugin.slimefun4.storage.controller.SlimefunBlockData
 import io.github.thebusybiscuit.slimefun4.api.items.ItemGroup
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItemStack
 import io.github.thebusybiscuit.slimefun4.api.items.settings.IntRangeSetting
@@ -52,7 +54,19 @@ class InfinitySingularityReactor(
         else intArrayOf()
     }
 
-    override fun getGeneratedOutput(l: Location, data: Config): Int {
+    override fun getGeneratedOutput(l: Location, data: ASlimefunDataContainer): Int {
+        check(data is SlimefunBlockData) { "You must implement getGeneratedOutput for ${data.javaClass.name}" }
+        return generateAt(l)
+    }
+
+    override fun getGeneratedOutputLong(l: Location, data: ASlimefunDataContainer): Long =
+        getGeneratedOutput(l, data).toLong()
+
+    @Deprecated("Compatibility bridge; use getGeneratedOutputLong(Location, ASlimefunDataContainer)")
+    override fun getGeneratedOutput(l: Location, data: Config): Int = generateAt(l)
+
+    // Both APIs execute exactly one copy of the historical fuel/progress logic.
+    private fun generateAt(l: Location): Int {
         val menu = BlockStorage.getInventory(l) ?: return 0
         val progress = l.getProgress()
         val infinitySingInput = menu.getItemInSlot(INPUT)

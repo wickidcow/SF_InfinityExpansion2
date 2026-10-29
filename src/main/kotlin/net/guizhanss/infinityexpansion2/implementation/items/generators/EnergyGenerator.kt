@@ -1,5 +1,7 @@
 package net.guizhanss.infinityexpansion2.implementation.items.generators
 
+import com.xzavier0722.mc.plugin.slimefun4.storage.controller.ASlimefunDataContainer
+import com.xzavier0722.mc.plugin.slimefun4.storage.controller.SlimefunBlockData
 import io.github.thebusybiscuit.slimefun4.api.items.ItemGroup
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItemStack
@@ -7,7 +9,6 @@ import io.github.thebusybiscuit.slimefun4.api.items.settings.IntRangeSetting
 import io.github.thebusybiscuit.slimefun4.api.recipes.RecipeType
 import io.github.thebusybiscuit.slimefun4.core.attributes.EnergyNetProvider
 import io.github.thebusybiscuit.slimefun4.core.handlers.BlockUseHandler
-import me.mrCookieSlime.CSCoreLibPlugin.Configuration.Config
 import me.mrCookieSlime.Slimefun.Objects.handlers.BlockTicker
 import net.guizhanss.guizhanlib.common.utils.StringUtil
 import net.guizhanss.guizhanlib.kt.slimefun.utils.getSfItem
@@ -63,7 +64,21 @@ class EnergyGenerator(
 
     override fun getCustomTickRate() = tickRateSetting.value
 
-    override fun getGeneratedOutput(l: Location, data: Config): Int {
+    // Preserve the block-only contract: this migration does not enable universal storage.
+    override fun getGeneratedOutput(l: Location, data: ASlimefunDataContainer): Int {
+        check(data is SlimefunBlockData) { "You must implement getGeneratedOutput for ${data.javaClass.name}" }
+        return generateAt(l)
+    }
+
+    override fun getGeneratedOutputLong(l: Location, data: ASlimefunDataContainer): Long =
+        getGeneratedOutput(l, data).toLong()
+
+    // Old compiled callers still resolve the exact Config descriptor, without recursion.
+    @Deprecated("Compatibility bridge; use getGeneratedOutputLong(Location, ASlimefunDataContainer)")
+    override fun getGeneratedOutput(l: Location, data: me.mrCookieSlime.CSCoreLibPlugin.Configuration.Config): Int =
+        generateAt(l)
+
+    private fun generateAt(l: Location): Int {
         val sfItem = l.getSfItem()
         if (sfItem !is EnergyGenerator) {
             Debug.log(DebugCase.ENERGY_GENERATOR, "Generator instance is invalid at: $l")
@@ -74,8 +89,18 @@ class EnergyGenerator(
     }
 
     private fun onBlockTick() = object : BlockTicker() {
-        override fun tick(b: Block, item: SlimefunItem, config: Config) {
-            // nothing to do here
+        override fun tick(b: Block, item: SlimefunItem, data: ASlimefunDataContainer) {
+            check(data is SlimefunBlockData) { "BlockTicker is non-universal but item storage is universal" }
+            // Generation remains in EnergyNetProvider, not this per-block callback.
+        }
+
+        override fun tick(b: Block, item: SlimefunItem, data: SlimefunBlockData) {
+            // Concrete block callers must also avoid allocating a legacy Config wrapper.
+        }
+
+        @Deprecated("Compatibility bridge; use the storage-container ticker overload")
+        override fun tick(b: Block, item: SlimefunItem, config: me.mrCookieSlime.CSCoreLibPlugin.Configuration.Config) {
+            // Retain the historical no-op callback for already compiled callers.
         }
 
         override fun uniqueTick() {
