@@ -45,6 +45,7 @@ class GeneratorCallbackDispatchTest {
 
     private final Map<Field, Object> previousServices = new LinkedHashMap<>();
     private final AtomicInteger writes = new AtomicInteger();
+    private IllegalStateException writeFailure;
     private final Map<String, String> state = new LinkedHashMap<>();
     private MockedStatic<BlockStorage> storage;
     private World world;
@@ -69,6 +70,8 @@ class GeneratorCallbackDispatchTest {
         when(world.getEnvironment()).thenReturn(World.Environment.NORMAL);
         block = mock(Block.class);
         when(world.getBlockAt(anyInt(), anyInt(), anyInt())).thenReturn(block);
+        // Bukkit Location#getBlock resolves through World#getBlockAt(Location).
+        when(world.getBlockAt(any(Location.class))).thenReturn(block);
         location = new Location(world, 8, 64, 8);
         when(block.getLocation()).thenReturn(location);
         when(block.getWorld()).thenReturn(world);
@@ -83,6 +86,7 @@ class GeneratorCallbackDispatchTest {
             .thenAnswer(invocation -> state.get("progress"));
         storage.when(() -> BlockStorage.addBlockInfo(eq(location), eq("progress"), anyString()))
             .thenAnswer(invocation -> {
+                if (writeFailure != null) throw writeFailure;
                 writes.incrementAndGet();
                 state.put("progress", invocation.getArgument(2));
                 return null;
@@ -198,10 +202,12 @@ class GeneratorCallbackDispatchTest {
     void progressWriteFailureIsNotHiddenAsSuccessfulGeneration() throws Exception {
         var reactor = infinity();
         var failure = new IllegalStateException("storage write unavailable");
-        storage.when(() -> BlockStorage.addBlockInfo(location, "progress", "2")).thenThrow(failure);
+        // Inject at the existing write boundary, regardless of Mockito's static-stub precedence.
+        writeFailure = failure;
         assertSame(failure, assertThrows(IllegalStateException.class,
             () -> output(reactor, Entry.MODERN_LONG)));
         assertEquals("1", state.get("progress"));
+        assertEquals(0, writes.get());
         verify(reactor, never()).getEnergyProduction();
     }
 
