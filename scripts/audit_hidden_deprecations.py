@@ -14,7 +14,8 @@ import subprocess
 import tempfile
 
 ANNOTATION = re.compile(r'^@file:Suppress\(([^\n]*)\)', re.MULTILINE)
-DIAGNOSTIC = re.compile(r'^w: .*?/src/main/(.+?\.(?:kt|java)):(\d+):(\d+) (.*deprecat.*)$', re.IGNORECASE)
+DIAGNOSTIC = re.compile(r'^w: .*?/src/main/(.+?\.(?:kt|java)):(\d+):(\d+) (.*)$')
+DEPRECATED = re.compile(r'\b(?:deprecated|deprecation|removal)\b', re.IGNORECASE)
 
 
 def expose(text):
@@ -41,9 +42,13 @@ def diagnostics(text):
         match = DIAGNOSTIC.match(line)
         if match:
             path, row, col, reason = match.groups()
-            result.add((path, int(row), int(col), reason))
-        elif '/src/main/' in line and 'deprecat' in line.lower():
-            unlocated.append(line)
+            if DEPRECATED.search(reason):
+                result.add((path, int(row), int(col), reason))
+        elif line.startswith('w:') and '/src/main/' in line:
+            # The disposable directory contains "deprecation"; that is not the diagnostic.
+            message = re.sub(r'^.*?/src/main/\S+\s*', '', line)
+            if DEPRECATED.search(message):
+                unlocated.append(line)
     return sorted(result), unlocated
 
 
@@ -56,6 +61,10 @@ def main():
     assert expose('@file:Suppress("deprecation")\npackage test\n') == ('\npackage test\n', 1)
     assert expose('@file:Suppress("deprecation", "UnstableApiUsage")') == ('@file:Suppress("UnstableApiUsage")', 1)
     assert expose('@file:Suppress("unused")') == ('@file:Suppress("unused")', 0)
+    prefix = 'w: file:///tmp/deprecation-audit/src/main/kotlin/example/Example.kt:'
+    assert diagnostics(prefix + '4:2 Unnecessary safe call on a non-null receiver.') == ([], [])
+    assert diagnostics(prefix + '4:2 API is deprecated.') == ([('kotlin/example/Example.kt', 4, 2, 'API is deprecated.')], [])
+    assert diagnostics(prefix + 'unknown API is deprecated.')[1] == [prefix + 'unknown API is deprecated.']
     root = Path.cwd().resolve()
     before_source = source_hashes(root)
     before_jars = {str(path): hashlib.sha256(path.read_bytes()).hexdigest()
@@ -108,6 +117,8 @@ def main():
             }
             (root / 'unsuppressed-deprecation-audit.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
             print(f'Isolated audit: {len(removed)} files exposed; {len(baseline)} visible -> {len(full)} unsuppressed diagnostics; {sum(added.values())} newly exposed.')
+            if unlocated or baseline_unlocated:
+                raise AssertionError('Unparsed source deprecation messages; counts cannot be certified')
             if completed.returncode:
                 print('\n'.join(log_path.read_text(encoding='utf-8').splitlines()[-80:]))
                 raise RuntimeError('Isolated diagnostic compilation failed; inspect retained log')
