@@ -1,5 +1,3 @@
-@file:Suppress("deprecation")
-
 package net.guizhanss.infinityexpansion2.implementation.items.mobsim
 
 import io.github.thebusybiscuit.slimefun4.api.items.ItemGroup
@@ -26,7 +24,7 @@ import net.guizhanss.infinityexpansion2.implementation.recipes.IERecipeTypes
 import net.guizhanss.infinityexpansion2.utils.constant.Keys
 import net.guizhanss.infinityexpansion2.utils.items.GuiItems
 import net.guizhanss.infinityexpansion2.utils.toId
-import org.bukkit.ChatColor
+import net.guizhanss.infinityexpansion2.utils.items.ModernText
 import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
@@ -70,14 +68,14 @@ class MobDataCard(
             val damageRange = props.getDropDamageRange(index)
             if (amountRange.first != amountRange.last || damageRange != null) {
                 val meta = displayItem.itemMeta
-                val lore = (meta.lore ?: emptyList()).toMutableList()
+                val lore = meta.lore().orEmpty().toMutableList()
                 if (amountRange.first != amountRange.last) {
-                    lore.add("${ChatColor.GRAY}Amount: ${amountRange.first}-${amountRange.last}")
+                    lore.add(ModernText.loreLine("\u00a77Amount: ${amountRange.first}-${amountRange.last}"))
                 }
                 if (damageRange != null) {
-                    lore.add("${ChatColor.GRAY}Damage: ${damageRange.first}-${damageRange.last}")
+                    lore.add(ModernText.loreLine("\u00a77Damage: ${damageRange.first}-${damageRange.last}"))
                 }
-                meta.lore = lore
+                meta.lore(lore)
                 displayItem.itemMeta = meta
             }
             result.add(displayItem)
@@ -107,7 +105,7 @@ class MobDataCard(
                 "${IEItems.MOB_DATA_CARD.itemId}_${id.toId()}",
                 texture,
                 InfinityExpansion2.localization.getItemName("MOB_DATA_CARD"),
-                "${ChatColor.GRAY}${name}"
+                "\u00a77${name}"
             )
             val meta = item.itemMeta
             PersistentDataAPI.setString(meta, Keys.MOB_DATA_ID, id)

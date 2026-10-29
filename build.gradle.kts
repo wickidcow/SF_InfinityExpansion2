@@ -61,7 +61,10 @@ java {
     targetCompatibility = JavaVersion.toVersion(targetJvm)
 }
 
-tasks.withType<JavaCompile>().configureEach { options.release.set(targetJvm) }
+tasks.withType<JavaCompile>().configureEach {
+    options.release.set(targetJvm)
+    if (name == "compileJava") options.compilerArgs.addAll(listOf("-Xlint:deprecation", "-Xlint:removal"))
+}
 
 kotlin {
     jvmToolchain(25)

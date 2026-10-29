@@ -1,5 +1,3 @@
-@file:Suppress("deprecation")
-
 package net.guizhanss.infinityexpansion2.utils.slimefunext
 
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem

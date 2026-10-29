@@ -1,11 +1,10 @@
-@file:Suppress("deprecation")
-
 package net.guizhanss.infinityexpansion2.implementation.items.storage
 
 import io.github.thebusybiscuit.slimefun4.libraries.dough.items.ItemUtils
 import net.guizhanss.guizhanlib.kt.minecraft.extensions.isAir
 import net.guizhanss.infinityexpansion2.InfinityExpansion2
 import net.guizhanss.infinityexpansion2.utils.constant.Strings
+import net.guizhanss.infinityexpansion2.utils.items.ModernText
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
 
@@ -183,19 +182,16 @@ class StorageCache(
         // no need to add lore if the storage unit is empty
         if (isEmpty()) return
 
-        val lore = if (meta.hasLore()) meta.lore!! else mutableListOf()
-
-        lore.add("")
-        lore.add(InfinityExpansion2.localization.getLore("storage.item", ItemUtils.getItemName(itemStack)))
-        lore.add(InfinityExpansion2.localization.getLore("storage.amount", "$amount / $limit"))
-        lore.add(
+        ModernText.appendLore(
+            meta,
+            "",
+            InfinityExpansion2.localization.getLore("storage.item", ItemUtils.getItemName(itemStack)),
+            InfinityExpansion2.localization.getLore("storage.amount", "$amount / $limit"),
             InfinityExpansion2.localization.getLore(
                 "storage.void-excess",
                 if (voidExcess) Strings.CHECK else Strings.CROSS
             )
         )
-
-        meta.lore = lore
     }
 
     override fun toString() = "StorageCache(itemStack=$itemStack, amount=$amount, limit=$limit, voidExcess=$voidExcess)"

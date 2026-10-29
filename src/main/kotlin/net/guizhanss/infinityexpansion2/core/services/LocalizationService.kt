@@ -1,5 +1,3 @@
-@file:Suppress("deprecation")
-
 package net.guizhanss.infinityexpansion2.core.services
 
 import net.guizhanss.guizhanlib.kt.slimefun.items.builder.MaterialType
@@ -9,8 +7,7 @@ import net.guizhanss.guizhanlib.slimefun.addon.SlimefunLocalization
 import net.guizhanss.infinityexpansion2.InfinityExpansion2
 import net.guizhanss.infinityexpansion2.utils.listYmlFilesInJar
 import net.guizhanss.infinityexpansion2.utils.toId
-import net.md_5.bungee.api.ChatMessageType
-import net.md_5.bungee.api.chat.TextComponent
+import net.guizhanss.infinityexpansion2.utils.items.ModernText
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
@@ -68,8 +65,7 @@ class LocalizationService(
     fun sendActionbarMessage(p: Player, key: String, vararg args: Any) {
         val message = MessageFormat.format(getString("messages.$key"), *args)
 
-        val components = TextComponent.fromLegacyText(ChatUtil.color(message))
-        p.spigot().sendMessage(ChatMessageType.ACTION_BAR, *components)
+        p.sendActionBar(ModernText.actionBar(ChatUtil.color(message)))
     }
 
     companion object {

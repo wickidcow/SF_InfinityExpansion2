@@ -15,6 +15,7 @@ import tempfile
 
 ANNOTATION = re.compile(r'^@file:Suppress\(([^\n]*)\)', re.MULTILINE)
 DIAGNOSTIC = re.compile(r'^w: .*?/src/main/(.+?\.(?:kt|java)):(\d+):(\d+) (.*)$')
+JAVA_DIAGNOSTIC = re.compile(r'^.*?/src/main/(java/.+?\.java):(\d+): warning: \[(?:deprecation|removal)\] (.+)$')
 DEPRECATED = re.compile(r'\b(?:deprecated|deprecation|removal)\b', re.IGNORECASE)
 
 
@@ -44,6 +45,9 @@ def diagnostics(text):
             path, row, col, reason = match.groups()
             if DEPRECATED.search(reason):
                 result.add((path, int(row), int(col), reason))
+        elif (java := JAVA_DIAGNOSTIC.match(line)) is not None:
+            path, row, reason = java.groups()
+            result.add((path, int(row), 0, reason))
         elif line.startswith('w:') and '/src/main/' in line:
             # The disposable directory contains "deprecation"; that is not the diagnostic.
             message = re.sub(r'^.*?/src/main/\S+\s*', '', line)
@@ -117,6 +121,8 @@ def main():
             }
             (root / 'unsuppressed-deprecation-audit.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
             print(f'Isolated audit: {len(removed)} files exposed; {len(baseline)} visible -> {len(full)} unsuppressed diagnostics; {sum(added.values())} newly exposed.')
+            if removed or added:
+                raise AssertionError('Hidden deprecated API usage or production suppression returned')
             if unlocated or baseline_unlocated:
                 raise AssertionError('Unparsed source deprecation messages; counts cannot be certified')
             if completed.returncode:

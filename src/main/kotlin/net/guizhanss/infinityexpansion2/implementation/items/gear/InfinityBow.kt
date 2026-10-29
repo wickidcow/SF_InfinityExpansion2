@@ -1,4 +1,4 @@
-@file:Suppress("deprecation", "UnstableApiUsage")
+@file:Suppress("UnstableApiUsage")
 
 package net.guizhanss.infinityexpansion2.implementation.items.gear
 
@@ -24,8 +24,7 @@ import org.bukkit.entity.ArmorStand
 import org.bukkit.entity.Entity
 import org.bukkit.entity.LivingEntity
 import org.bukkit.entity.Player
-import org.bukkit.event.entity.EntityDamageByEntityEvent
-import org.bukkit.event.entity.EntityDamageEvent
+import net.guizhanss.infinityexpansion2.utils.events.BowDamageEvents
 import org.bukkit.inventory.ItemStack
 import org.bukkit.util.Vector
 
@@ -63,10 +62,9 @@ class InfinityBow(
                 val damage = e.damage * (1 - (distanceSquared / (2 * radius * radius)))
 
                 if (entity.uniqueId != target.uniqueId) {
-                    val event = EntityDamageByEntityEvent(
+                    val event = BowDamageEvents.splash(
                         e.damager,
                         entity,
-                        EntityDamageEvent.DamageCause.ENTITY_EXPLOSION,
                         DamageSource.builder(DamageType.EXPLOSION).withCausingEntity(e.damager).build(),
                         damage
                     )

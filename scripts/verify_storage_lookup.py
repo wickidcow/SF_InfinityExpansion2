@@ -36,31 +36,5 @@ def verify_sources():
 
 
 def verify_diagnostics(log):
-    expected = {
-        'EnergyGenerator.kt': 2, 'PoweredBedrock.kt': 1,
-        'NetherStarReactor.kt': 1, 'StorageUnit.kt': 1,
-        # Previously hidden by file-wide suppression; existing public ABI, not new calls.
-        'InfinityReactor.kt': 1, 'InfinitySingularityReactor.kt': 1,
-    }
-    seen = set()
-    pattern = re.compile(r'^w: .*?/src/main/kotlin/(.+?\.kt):(\d+):\d+ (.+)$')
-    for line in Path(log).read_text(encoding='utf-8').splitlines():
-        if '/src/main/' not in line or 'deprecat' not in line.lower():
-            continue
-        match = pattern.match(line)
-        if match is None:
-            raise AssertionError('Unexpected/unparsed production deprecation: ' + line)
-        path, row, reason = match.groups()
-        lines = (Path('src/main/kotlin') / path).read_text(encoding='utf-8').splitlines()
-        index = int(row) - 1
-        bridge = (index > 0 and lines[index - 1].strip().startswith('@Deprecated(')
-                  and lines[index].strip().startswith('override fun ')
-                  and 'me.mrCookieSlime.CSCoreLibPlugin.Configuration.Config' in lines[index])
-        if (Path(path).name not in expected or not bridge
-                or reason != "'class Config : Any' is deprecated. Deprecated in Java."):
-            raise AssertionError('Unexpected production deprecation: ' + line)
-        seen.add((Path(path).name, row))
-    for name, maximum in expected.items():
-        if sum(file == name for file, _ in seen) > maximum:
-            raise AssertionError('Additional deprecated ABI bridges in ' + name)
-    print(f'{len(seen)} retained Config ABI diagnostics; no other visible source deprecation diagnostics')
+    from verify_owned_deprecations import verify
+    return verify(log)

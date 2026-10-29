@@ -1,12 +1,10 @@
-@file:Suppress("deprecation")
-
 package net.guizhanss.infinityexpansion2.implementation.guide
 
 import net.guizhanss.guizhanlib.common.utils.StringUtil
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.Bukkit
-import org.bukkit.ChatColor
+import net.guizhanss.infinityexpansion2.utils.items.ModernText
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ArmorMeta
 import org.bukkit.inventory.meta.ItemMeta
@@ -27,7 +25,7 @@ internal object MobDataCardAppearance {
     fun texture(configuredTexture: ItemStack?, group: MobDataCardGuideGroup): ItemStack {
         if (configuredTexture == null) return ItemStack(group.material)
         return if (configuredTexture.type.isChestplate() && !hasCustomArtwork(configuredTexture.itemMeta)) {
-            configuredTexture.clone().apply { type = group.material }
+            configuredTexture.withType(group.material)
         } else {
             configuredTexture.clone()
         }
@@ -43,7 +41,7 @@ internal object MobDataCardAppearance {
         val repairedBlankName = configuredName != null && !visibleName
         val replacedLegacyCarpet = repairedBlankName && configuredTexture?.type?.isCarpetLike() == true &&
             !hasCustomArtwork(configuredTexture.itemMeta)
-        val name = if (visibleName) configuredName!! else "${ChatColor.BLUE}${StringUtil.humanize(id)}"
+        val name = if (visibleName) configuredName!! else "\u00a79${StringUtil.humanize(id)}"
         val resolvedTexture = texture(if (replacedLegacyCarpet) null else configuredTexture, group)
         return MobDataCardResolvedAppearance(name, resolvedTexture, repairedBlankName, replacedLegacyCarpet)
     }
@@ -56,7 +54,7 @@ internal object MobDataCardAppearance {
      */
     fun refreshLegacyPhysical(source: ItemStack, current: ItemStack): ItemStack? {
         if (!source.type.isCarpetLike() || current.type.isCarpetLike()) return null
-        if (source.itemMeta.lore?.firstOrNull()?.let(::hasVisibleText) == true) return null
+        if (plain(source.itemMeta.lore()?.firstOrNull()).isNotBlank()) return null
 
         return refreshPhysical(source, current, "")
     }
@@ -90,8 +88,7 @@ internal object MobDataCardAppearance {
         // Chambers call this on their normal process path. Already-current cards need no clone.
         if (!changeMaterial && !changeName && !changeLabel) return null
 
-        val updated = source.clone()
-        if (changeMaterial) updated.type = current.type
+        val updated = if (changeMaterial) source.withType(current.type) else source.clone()
         val meta = updated.itemMeta
         if (changeMaterial && updated.maxStackSize != source.maxStackSize) {
             // A carpet used to stack to 64. Changing its icon must not turn a saved stack
@@ -114,7 +111,7 @@ internal object MobDataCardAppearance {
     }
 
     private fun hasCustomArtwork(meta: ItemMeta): Boolean =
-        meta.hasItemModel() || meta.hasCustomModelData() || meta.hasCustomModelDataComponent() ||
+        meta.hasItemModel() || meta.hasCustomModelDataComponent() ||
             (meta is ArmorMeta && meta.hasTrim()) ||
             (meta is LeatherArmorMeta && meta.color != Bukkit.getItemFactory().defaultLeatherColor)
 
@@ -125,11 +122,7 @@ internal object MobDataCardAppearance {
         (component.clickEvent() != null || component.hoverEvent() != null || component.insertion() != null ||
             component.children().any(::hasInteractiveText))
 
-    private fun hasVisibleText(value: String?): Boolean {
-        if (value == null) return false
-        val translated = ChatColor.translateAlternateColorCodes('&', value)
-        return !ChatColor.stripColor(translated).orEmpty().trim().isEmpty()
-    }
+    private fun hasVisibleText(value: String?): Boolean = ModernText.hasVisibleLegacyText(value)
 
     private fun org.bukkit.Material.isCarpetLike() = name.endsWith("_CARPET")
     private fun org.bukkit.Material.isChestplate() = name.endsWith("_CHESTPLATE")
