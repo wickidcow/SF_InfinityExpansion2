@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Run the existing native card suite, then real database/menu seed and restart verification."""
 import argparse
+import base64
 import hashlib
 import json
 import os
@@ -37,8 +38,12 @@ def stored_unknown_snapshot(runtime):
         if len(records)!=1:raise AssertionError('Unknown record not preserved exactly once in native database')
         payload=connection.execute('SELECT data_key, data_val FROM block_data WHERE loc=? ORDER BY data_key',
             (records[0][0],)).fetchall()
-        if ('probe.marker','preserve-unknown-record') not in payload:
-            raise AssertionError('Unknown record payload did not survive native database save')
+        # Slimefun's block-data field encoding is optionally Base64; compare only
+        # the exact expected logical value in its two supported representations.
+        expected='preserve-unknown-record'
+        encodings={expected,base64.b64encode(expected.encode('utf-8')).decode('ascii')}
+        if not any(key=='probe.marker' and value in encodings for key,value in payload):
+            raise AssertionError('Unknown record payload did not survive native database save: '+repr(payload))
     return {'record':records[0],'payload':payload}
 
 
