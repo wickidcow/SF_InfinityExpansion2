@@ -146,7 +146,7 @@ class StoredBlockMenuLookupTest {
 
     @ParameterizedTest @EnumSource(Entry.class)
     void repeatedCallsDoNotCacheThePreviousRecordOrMenu(Entry entry) {
-        when(controller.getBlockData(location)).thenReturn(data, null);
+        when(controller.getBlockData(location)).thenReturn(data, (SlimefunBlockData) null);
         assertSame(menu, read(entry));
         assertNull(read(entry));
         verify(controller, times(2)).getBlockData(location);
