@@ -49,7 +49,7 @@ class PoweredBedrock(
                 if (tickCount % 8L == 0L) return
 
                 val location = b.location
-                val charge = getCharge(location, data)
+                val charge = getChargeLong(location)
 
                 if (charge < energyPerTick) {
                     if (b.type != Material.NETHERITE_BLOCK) {
@@ -64,7 +64,7 @@ class PoweredBedrock(
 
                 // IE1 v140 moved this outside the state-change branch so powered bedrock
                 // continuously consumes charge instead of only charging when it transforms.
-                removeCharge(location, energyPerTick)
+                removeCharge(location, energyPerTick.toLong())
             }
         })
     }

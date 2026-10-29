@@ -80,13 +80,14 @@ jobs:
           chmod +x gradlew
           ./gradlew clean compileJava compileKotlin --console=plain --no-daemon -PpaperApiVersion="$PAPER_API" -PtargetJvm="$JVM_TARGET" -PslimefunApiCoordinate=com.github.slimefun:Slimefun:IE2-CANDIDATE-SNAPSHOT 2>&1 | tee candidate-compile.log
           python3 - <<'PY'
+          import re
           from pathlib import Path
-          targets = ('AbstractTickingMachine.kt:', 'AbstractTickingActionMachine.kt:', 'AbstractEnergyCraftingMachine.kt:')
+          targets = ('AbstractTickingMachine.kt:', 'AbstractTickingActionMachine.kt:', 'AbstractEnergyCraftingMachine.kt:', 'AdvancedAnvil.kt:', 'SingularityConstructor.kt:', 'VoidHarvester.kt:', 'MobSimulationChamber.kt:')
           lines = Path('candidate-compile.log').read_text().splitlines()
-          remaining = [line for line in lines if line.startswith('w:') and 'deprecat' in line.lower() and any(name in line for name in targets)]
+          remaining = [line for line in lines if line.startswith('w:') and 'deprecat' in line.lower() and (any(name in line for name in targets) or ('PoweredBedrock.kt:' in line and re.search(r'fun (getCharge|removeCharge)\(', line)))]
           if remaining:
-              raise SystemExit('Shared machine energy deprecations returned:\n' + '\n'.join(remaining))
-          print('No shared-machine deprecation diagnostics; other addon warnings remain separately tracked.')
+              raise SystemExit('Migrated machine energy deprecations returned:\n' + '\n'.join(remaining))
+          print('No migrated energy deprecation diagnostics; storage/callback warnings remain separately tracked.')
           PY
       - name: Run regression tests and build Java 21 candidate
         if: matrix.test
@@ -98,10 +99,11 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           import struct
+          import subprocess
           import xml.etree.ElementTree as ET
           import zipfile
           from pathlib import Path
-          required = {'DoctorCommandColorTest': 3, 'DisplaySubGroupResearchCostTest': 3, 'MachineEnergyAccessTest': 18, 'PluginPermissionMetadataTest': 2}
+          required = {'DoctorCommandColorTest': 3, 'DisplaySubGroupResearchCostTest': 3, 'MachineEnergyAccessTest': 18, 'PluginPermissionMetadataTest': 2, 'PoweredBedrockEnergyTest': 9, 'IndividualMachineEnergyTest': 16, 'LegacyHudEnergyTest': 5}
           for name, minimum in required.items():
               reports = list(Path('build/test-results/test').glob('TEST-*.' + name + '.xml'))
               if len(reports) != 1:
@@ -122,6 +124,7 @@ jobs:
               majors = {struct.unpack('>H', jar.read(name)[6:8])[0] for name in classes}
               if 65 not in majors or any(major > 65 for major in majors):
                   raise SystemExit('Candidate does not preserve Java 21 bytecode')
+          subprocess.run(['python3', 'scripts/verify_individual_energy_bytecode.py', str(jars[0])], check=True)
           print('Required tests executed; descriptor bytes, Java 21 target and dependency packaging preserved.')
           PY
       - name: Retain candidate compile and test evidence

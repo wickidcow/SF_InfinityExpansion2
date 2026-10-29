@@ -72,7 +72,7 @@ class AdvancedAnvil(
 
     private fun craft(menu: BlockMenu, p: Player) {
         // energy check
-        if (getCharge(menu.location) < getEnergyConsumptionPerAction()) return
+        if (getChargeLong(menu.location) < getEnergyConsumptionPerAction()) return
 
         val input1 = menu.getItemInSlot(inputSlots[0])
         val input2 = menu.getItemInSlot(inputSlots[1])
@@ -114,7 +114,7 @@ class AdvancedAnvil(
         input1.amount--
         input2.amount--
         menu.pushItem(output, *outputSlots)
-        removeCharge(menu.location, getEnergyConsumptionPerAction())
+        removeCharge(menu.location, getEnergyConsumptionPerAction().toLong())
     }
 
     private fun getOutput(input1: ItemStack, input2: ItemStack): ItemStack? {
