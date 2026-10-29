@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import importlib.util
 from pathlib import Path
 import sqlite3
@@ -27,7 +28,7 @@ class NativeSqliteEncodingOracleTests(unittest.TestCase):
         self.config.parent.mkdir(parents=True)
         self.database=self.runtime/'data-storage/Slimefun/block-storage.db'
         self.database.parent.mkdir(parents=True)
-        with sqlite3.connect(self.database) as connection:
+        with contextlib.closing(sqlite3.connect(self.database)) as connection, connection:
             connection.execute('CREATE TABLE block_record(loc TEXT, chunk TEXT, sf_id TEXT)')
             connection.execute('CREATE TABLE block_data(loc TEXT, data_key TEXT, data_val TEXT)')
             connection.execute('INSERT INTO block_record VALUES (?, ?, ?)',
@@ -40,7 +41,7 @@ class NativeSqliteEncodingOracleTests(unittest.TestCase):
         self.config.write_text('storageType: SQLITE\nbase64EncodeVal: '+value+'\n',encoding='utf-8')
 
     def set_marker(self,value):
-        with sqlite3.connect(self.database) as connection:
+        with contextlib.closing(sqlite3.connect(self.database)) as connection, connection:
             connection.execute('UPDATE block_data SET data_val=? WHERE data_key=?',
                 (value,'probe.marker'))
 
@@ -75,20 +76,20 @@ class NativeSqliteEncodingOracleTests(unittest.TestCase):
             oracle.stored_unknown_snapshot(self.runtime)
 
     def test_missing_marker_is_never_a_pass(self):
-        with sqlite3.connect(self.database) as connection:
+        with contextlib.closing(sqlite3.connect(self.database)) as connection, connection:
             connection.execute('DELETE FROM block_data')
         with self.assertRaisesRegex(AssertionError,'marker rows=0'):
             oracle.stored_unknown_snapshot(self.runtime)
 
     def test_duplicate_marker_does_not_pass(self):
-        with sqlite3.connect(self.database) as connection:
+        with contextlib.closing(sqlite3.connect(self.database)) as connection, connection:
             connection.execute('INSERT INTO block_data VALUES (?, ?, ?)',
                 ('world:1,2,3','probe.marker',ENCODED))
         with self.assertRaisesRegex(AssertionError,'marker rows=2'):
             oracle.stored_unknown_snapshot(self.runtime)
 
     def test_missing_unknown_record_is_a_failure(self):
-        with sqlite3.connect(self.database) as connection:
+        with contextlib.closing(sqlite3.connect(self.database)) as connection, connection:
             connection.execute('DELETE FROM block_record')
         with self.assertRaisesRegex(AssertionError,'preserved exactly once'):
             oracle.stored_unknown_snapshot(self.runtime)
@@ -112,7 +113,7 @@ class NativeSqliteEncodingOracleTests(unittest.TestCase):
 
     def test_snapshot_rejects_unrelated_data_drift_across_restart(self):
         before=oracle.stored_unknown_snapshot(self.runtime)
-        with sqlite3.connect(self.database) as connection:
+        with contextlib.closing(sqlite3.connect(self.database)) as connection, connection:
             connection.execute('INSERT INTO block_data VALUES (?, ?, ?)',
                 ('world:1,2,3','other',ENCODED))
         self.assertNotEqual(before,oracle.stored_unknown_snapshot(self.runtime))
