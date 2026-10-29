@@ -79,6 +79,15 @@ jobs:
           set -euo pipefail
           chmod +x gradlew
           ./gradlew clean compileJava compileKotlin --console=plain --no-daemon -PpaperApiVersion="$PAPER_API" -PtargetJvm="$JVM_TARGET" -PslimefunApiCoordinate=com.github.slimefun:Slimefun:IE2-CANDIDATE-SNAPSHOT 2>&1 | tee candidate-compile.log
+          python3 - <<'PY'
+          from pathlib import Path
+          targets = ('AbstractTickingMachine.kt:', 'AbstractTickingActionMachine.kt:', 'AbstractEnergyCraftingMachine.kt:')
+          lines = Path('candidate-compile.log').read_text().splitlines()
+          remaining = [line for line in lines if line.startswith('w:') and 'deprecat' in line.lower() and any(name in line for name in targets)]
+          if remaining:
+              raise SystemExit('Shared machine energy deprecations returned:\n' + '\n'.join(remaining))
+          print('No shared-machine deprecation diagnostics; other addon warnings remain separately tracked.')
+          PY
       - name: Run regression tests and build Java 21 candidate
         if: matrix.test
         run: ./gradlew build --console=plain --no-daemon -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:IE2-CANDIDATE-SNAPSHOT
@@ -92,7 +101,7 @@ jobs:
           import xml.etree.ElementTree as ET
           import zipfile
           from pathlib import Path
-          required = {'DoctorCommandColorTest': 3, 'DisplaySubGroupResearchCostTest': 3}
+          required = {'DoctorCommandColorTest': 3, 'DisplaySubGroupResearchCostTest': 3, 'MachineEnergyAccessTest': 18}
           for name, minimum in required.items():
               reports = list(Path('build/test-results/test').glob('TEST-*.' + name + '.xml'))
               if len(reports) != 1:
@@ -105,7 +114,7 @@ jobs:
               raise SystemExit('Expected one canonical shaded candidate JAR')
           with zipfile.ZipFile(jars[0]) as jar:
               classes = [name for name in jar.namelist() if name.endswith('.class')]
-              forbidden = ('io/github/thebusybiscuit/slimefun4/', 'org/junit/', 'org/mockbukkit/')
+              forbidden = ('io/github/thebusybiscuit/slimefun4/', 'org/junit/', 'org/mockbukkit/', 'org/mockito/', 'net/bytebuddy/', 'org/objenesis/')
               if any(name.startswith(forbidden) for name in classes):
                   raise SystemExit('Core or test-only classes leaked into the plugin JAR')
               majors = {struct.unpack('>H', jar.read(name)[6:8])[0] for name in classes}

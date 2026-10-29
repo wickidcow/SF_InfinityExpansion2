@@ -59,7 +59,10 @@ abstract class AbstractTickingMachine(
 
     override fun tick(b: Block, menu: BlockMenu) {
         val requiredEnergy = getEnergyConsumptionPerTick().toLong()
-        val storedEnergy = getCharge(menu.location).toLong()
+        // Keep the historical status display for out-of-range saved values without
+        // changing the stored balance or using the deprecated integer accessor.
+        val storedEnergy = getChargeLong(menu.location)
+            .coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong())
 
         if (storedEnergy < requiredEnergy) {
             menu.setStatus {
@@ -70,7 +73,7 @@ abstract class AbstractTickingMachine(
                 )
             }
         } else if (tickCount % getCustomTickRate() == 0 && process(b, menu)) {
-            removeCharge(menu.location, getEnergyConsumptionPerTick())
+            removeCharge(menu.location, getEnergyConsumptionPerTick().toLong())
         }
     }
 
