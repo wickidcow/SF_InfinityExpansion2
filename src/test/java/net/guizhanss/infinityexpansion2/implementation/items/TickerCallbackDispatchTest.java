@@ -220,7 +220,7 @@ class TickerCallbackDispatchTest {
         assertEquals(64, slots.get(output).getAmount());
         assertEquals(96, cache.getAmount() + slots.get(output).getAmount());
         assertEquals(before, cache.getItemStack());
-        verify(menu, times(1)).pushItem(any(ItemStack.class), eq(machine.getOutputSlots()));
+        verify(menu, times(1)).pushItem(any(ItemStack.class), eq(new int[]{output}));
         verify(menu, times(1)).markDirty();
         assertFalse(cache.hasBlockedTransfer());
         verifyNoInteractions(data, legacy);
