@@ -60,6 +60,8 @@ def references(data):
 
 def main(path):
     with zipfile.ZipFile(path) as jar:
+        if any(name.startswith('net/guizhanss/slimefuntranslation/') for name in jar.namelist()):
+            raise AssertionError('Optional translation integration leaked from test runtime into the plugin JAR')
         for relative, required in TARGETS.items():
             calls = references(jar.read(ROOT + relative + '.class'))
             forbidden = {call for call in calls if call[0] == 'getCharge'
