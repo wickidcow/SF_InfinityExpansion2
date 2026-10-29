@@ -8,7 +8,6 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  issues: write
 
 concurrency:
   group: ie2-upstream-sync
@@ -25,8 +24,6 @@ jobs:
 
       - name: Merge upstream into a review branch
         id: merge
-        env:
-          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -49,11 +46,11 @@ jobs:
           fi
 
           if ! git merge --no-edit upstream/master; then
+            # Keep the sync red and actionable even when the installation token
+            # cannot create GitHub issues (observed 2026-10-26).
+            # Never automatically resolve Legacy migration/MobSim conflicts.
+            echo "::error title=InfinityExpansion2 upstream sync conflict::Automatic upstream merge failed. Review the conflicting paths in this job's git merge output; preserve Legacy migration guards, Paper compatibility and MobSim behavior."
             git merge --abort || true
-            TITLE="InfinityExpansion2 upstream sync conflict"
-            if ! gh issue list --state open --search "${TITLE} in:title" --json title --jq '.[].title' | grep -Fxq "$TITLE"; then
-              gh issue create --title "$TITLE" --body "Automatic merge from GuizhanCraft/InfinityExpansion2 master conflicted with the Legacy compatibility fork. Review the latest upstream changes manually; preserve src/main/kotlin/net/guizhanss/infinityexpansion2/core/migration and the Paper 26.2/MobSim safety changes."
-            fi
             exit 1
           fi
 
