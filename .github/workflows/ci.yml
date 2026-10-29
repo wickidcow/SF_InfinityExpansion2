@@ -165,6 +165,8 @@ jobs:
     steps:
       - name: Checkout IE2
         uses: actions/checkout@v6
+      - name: Verify native SQLite encoding and loss-detection contracts
+        run: python3 -m unittest discover -s scripts/runtime/release -p 'test_*.py' -v
       - name: Checkout Slimefun Legacy transport contract
         uses: actions/checkout@v6
         with:

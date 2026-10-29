@@ -2,6 +2,7 @@
 """Run the existing native card suite, then real database/menu seed and restart verification."""
 import argparse
 import base64
+import contextlib
 import hashlib
 import json
 import os
@@ -27,24 +28,47 @@ def run_process(command, directory, log, timeout):
         raise RuntimeError('Disposable runtime exited '+str(code))
 
 
+def configured_block_data_base64(runtime):
+    """Use the live Slimefun fixture's top-level encoding mode; never guess either representation."""
+    config=runtime/'plugins/Slimefun/block-storage.yml'
+    if config.is_symlink() or not config.is_file():
+        raise AssertionError('Native Slimefun block-storage.yml is missing or linked')
+    settings=[]
+    for line in config.read_text(encoding='utf-8').splitlines():
+        # The checked-in Slimefun configuration defines this single top-level scalar.
+        # Reject malformed/duplicate settings instead of accepting both database encodings.
+        if not line.startswith((' ', '\t')) and line.split('#',1)[0].strip().startswith('base64EncodeVal:'):
+            value=line.split('#',1)[0].partition(':')[2].strip().lower()
+            if value not in ('true','false'):
+                raise AssertionError('Native Slimefun base64EncodeVal must be an explicit boolean')
+            settings.append(value=='true')
+    if len(settings)!=1:
+        raise AssertionError('Native Slimefun requires exactly one top-level base64EncodeVal setting')
+    return settings[0]
+
+
 def stored_unknown_snapshot(runtime):
-    """Read the actual stopped disposable database; never register, rewrite or repair a record."""
+    """Read the stopped SQLite database verbatim and enforce its configured field encoding."""
+    encoded=configured_block_data_base64(runtime)
     database=runtime/'data-storage/Slimefun/block-storage.db'
-    if not database.is_file():raise AssertionError('Native Slimefun SQLite database is missing')
-    with sqlite3.connect(database.as_uri()+'?mode=ro',uri=True) as connection:
+    if database.is_symlink() or not database.is_file():
+        raise AssertionError('Native Slimefun SQLite database is missing or linked')
+    with contextlib.closing(sqlite3.connect(database.as_uri()+'?mode=ro',uri=True)) as connection:
         connection.execute('PRAGMA query_only=ON')
         records=connection.execute('SELECT loc, chunk, sf_id FROM block_record WHERE sf_id=?',
             ('IE2_NATIVE_UNKNOWN_ID',)).fetchall()
         if len(records)!=1:raise AssertionError('Unknown record not preserved exactly once in native database')
         payload=connection.execute('SELECT data_key, data_val FROM block_data WHERE loc=? ORDER BY data_key',
             (records[0][0],)).fetchall()
-        # Slimefun's block-data field encoding is optionally Base64; compare only
-        # the exact expected logical value in its two supported representations.
         expected='preserve-unknown-record'
-        encodings={expected,base64.b64encode(expected.encode('utf-8')).decode('ascii')}
-        if not any(key=='probe.marker' and value in encodings for key,value in payload):
-            raise AssertionError('Unknown record payload did not survive native database save: '+repr(payload))
-    return {'record':records[0],'payload':payload}
+        if encoded:
+            expected=base64.b64encode(expected.encode('utf-8')).decode('ascii')
+        markers=[value for key,value in payload if key=='probe.marker']
+        if markers!=[expected]:
+            raise AssertionError('Unknown record payload did not survive native database save '
+                                 'in the configured encoding; marker rows='+str(len(markers)))
+    # Keep the raw rows for exact byte-for-byte comparison across the second clean JVM boot.
+    return {'record':records[0],'payload':payload,'base64_encoded':encoded}
 
 
 def main():
