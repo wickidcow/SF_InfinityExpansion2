@@ -79,6 +79,14 @@ class StorageForge(
                     || (raw.has(ie2Key("item")) && !raw.has(ie2Key("item"), DataType.ITEM_STACK))) {
                     return null
                 }
+                // The historical decoder only knows these four fields. An unknown
+                // nested field could contain future or third-party stored state;
+                // rebuilding the cache would silently discard it. Quarantine the
+                // upgrade instead of consuming the original storage unit.
+                val knownKeys = setOf(
+                    ie2Key("item"), ie2Key("amount"), ie2Key("max_amount"), ie2Key("void_excess")
+                )
+                if (raw.keys.any { it !in knownKeys }) return null
                 // Recipes consume one unit at a time. A stacked item carrying a
                 // populated ledger could leave an identical ledger behind.
                 if (stack.amount != 1) return null
