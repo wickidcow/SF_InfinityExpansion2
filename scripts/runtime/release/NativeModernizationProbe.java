@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Objects;
 import me.mrCookieSlime.Slimefun.api.BlockStorage;
 import net.guizhanss.infinityexpansion2.core.persistent.PersistentStorageCacheType;
+import net.guizhanss.infinityexpansion2.core.recipes.MachineRecipe;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageCache;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageForge;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageUnit;
@@ -212,6 +213,25 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             Files.write(snapshot,upgraded.serializeAsBytes());
             menu.replaceExistingItem(1,upgraded.clone());menu.markDirty();
             require(upgraded.equals(menu.getItemInSlot(1)),"upgraded PDC in real persistent menu");
+            // Test the production recipe-consume and real BlockMenu push/persistence
+            // sequence; this remains a rehearsal, not a GUI craft click.
+            var transactionSnapshot=getDataFolder().toPath().resolve("native-forge-transaction.bin");
+            menu.replaceExistingItem(2,source.clone());
+            var actualInput=new ItemStack[]{menu.getItemInSlot(2)};
+            var recipe=MachineRecipe.Companion.of(
+                new ItemStack[]{sourceType.getItem().clone()},targetType.getItem().clone());
+            var staged=StorageForge.transferContents(actualInput,recipe.getOutput().clone(),targetCapacity);
+            require(staged!=null,"native recipe transaction preflight retains stored stock");
+            var failedSource=actualInput[0].clone();
+            require(StorageForge.transferContents(actualInput,recipe.getOutput().clone(),100)==null,
+                "native recipe transaction refuses insufficient target capacity");
+            require(failedSource.equals(actualInput[0]),"failed native transaction preserves input");
+            recipe.consume(actualInput);
+            require(actualInput[0].getAmount()==0,"production recipe consumes exactly one old unit");
+            menu.pushItem(staged,52);
+            menu.markDirty();
+            require(staged.equals(menu.getItemInSlot(52)),"production menu push retains upgraded ledger");
+            Files.write(transactionSnapshot,staged.serializeAsBytes());
         } else {
             require(Files.isRegularFile(snapshot),"prior JVM native Forge item snapshot exists");
             var expected=ItemStack.deserializeBytes(Files.readAllBytes(snapshot));
@@ -226,8 +246,20 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
                 "restarted native item identity and Void Excess retained");
             require(SlimefunItem.getByItem(persisted)==targetType,
                 "restarted upgraded unit retains registered Slimefun identity");
+            var transactionSnapshot=getDataFolder().toPath().resolve("native-forge-transaction.bin");
+            require(Files.isRegularFile(transactionSnapshot),"native recipe transaction snapshot exists");
+            var transactionExpected=ItemStack.deserializeBytes(Files.readAllBytes(transactionSnapshot));
+            var transactionPersisted=menu.getItemInSlot(52);
+            require(transactionPersisted!=null && transactionPersisted.equals(transactionExpected),
+                "production consume/push rehearsal output survives clean server restart");
+            var transactionCache=PersistentDataAPI.get(transactionPersisted.getItemMeta(),
+                StorageUnit.Companion.getSTORAGE_KEY(),PersistentStorageCacheType.getTYPE());
+            require(transactionCache!=null && transactionCache.getAmount()==731
+                && transactionCache.getLimit()==targetCapacity && transactionCache.getVoidExcess()
+                && new ItemStack(Material.DIAMOND).equals(transactionCache.getItemStack()),
+                "native consume/push rehearsal preserves identity, stock and settings after restart");
         }
-        results.add("PASS "+phase+": native Storage Forge PDC preflight and real menu restart (not a craft click)");
+        results.add("PASS "+phase+": native Storage Forge PDC and consume/push rehearsal across real menu restart (not a craft click)");
     }
 
     private void checkHorns() throws Exception {
