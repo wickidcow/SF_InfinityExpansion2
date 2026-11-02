@@ -187,6 +187,57 @@ class StorageForgeUpgradeTest {
             new ItemStack[] {oldUnit}, new ItemStack(Material.BARREL), 64_000));
     }
 
+    @Test
+    void missingOrMistypedNestedFieldsRefuseUpgrade() {
+        for (String required : new String[] {"amount", "max_amount"}) {
+            var damaged = changeNestedField(
+                unitWith(new ItemStack(Material.DIAMOND), 42, 16_000, true), required, false);
+            assertNull(StorageForge.transferContents(
+                new ItemStack[] {damaged}, new ItemStack(Material.BARREL), 64_000),
+                "Missing " + required + " must not become a default balance");
+        }
+        for (String field : new String[] {"amount", "max_amount", "item", "void_excess"}) {
+            var damaged = changeNestedField(
+                unitWith(new ItemStack(Material.DIAMOND), 42, 16_000, true), field, true);
+            assertNull(StorageForge.transferContents(
+                new ItemStack[] {damaged}, new ItemStack(Material.BARREL), 64_000),
+                "Mistyped " + field + " must not be silently replaced");
+        }
+    }
+
+    @Test
+    void historicallyMissingOptionalVoidFlagKeepsStock() {
+        var oldUnit = changeNestedField(
+            unitWith(new ItemStack(Material.DIAMOND), 42, 16_000, false), "void_excess", false);
+        var upgraded = StorageForge.transferContents(
+            new ItemStack[] {oldUnit}, new ItemStack(Material.BARREL), 64_000);
+        assertNotNull(upgraded);
+        var cache = read(upgraded);
+        assertNotNull(cache);
+        assertEquals(42, cache.getAmount());
+        assertEquals(64_000, cache.getLimit());
+        assertEquals(new ItemStack(Material.DIAMOND), cache.getItemStack());
+        assertFalse(cache.getVoidExcess());
+    }
+
+    private static ItemStack changeNestedField(ItemStack unit, String name, boolean mistype) {
+        var meta = unit.getItemMeta();
+        var outer = meta.getPersistentDataContainer();
+        var nested = outer.get(
+            StorageUnit.Companion.getSTORAGE_KEY(), org.bukkit.persistence.PersistentDataType.TAG_CONTAINER);
+        assertNotNull(nested);
+        var key = nested.getKeys().stream().filter(k -> k.getKey().equals(name)).findFirst().orElseThrow();
+        if (mistype) {
+            nested.set(key, org.bukkit.persistence.PersistentDataType.STRING, "corrupt");
+        } else {
+            nested.remove(key);
+        }
+        outer.set(StorageUnit.Companion.getSTORAGE_KEY(),
+            org.bukkit.persistence.PersistentDataType.TAG_CONTAINER, nested);
+        unit.setItemMeta(meta);
+        return unit;
+    }
+
     private static ItemStack unitWith(ItemStack stored, int amount, int limit, boolean voidExcess) {
         var unit = new ItemStack(Material.BARREL);
         var meta = unit.getItemMeta();
