@@ -220,6 +220,8 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             var actualInput=new ItemStack[]{menu.getItemInSlot(2)};
             var recipe=MachineRecipe.Companion.of(
                 new ItemStack[]{sourceType.getItem().clone()},targetType.getItem().clone());
+            require(recipe.check(actualInput,false),
+                "production non-strict Forge recipe matches populated storage PDC");
             var staged=StorageForge.transferContents(actualInput,recipe.getOutput().clone(),targetCapacity);
             require(staged!=null,"native recipe transaction preflight retains stored stock");
             var failedSource=actualInput[0].clone();
