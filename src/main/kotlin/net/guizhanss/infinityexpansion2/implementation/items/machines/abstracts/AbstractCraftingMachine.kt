@@ -70,7 +70,12 @@ abstract class AbstractCraftingMachine(
             return
         }
 
-        val output = recipe.output.clone()
+        val output = prepareOutput(input, recipe.output.clone())
+        if (output == null) {
+            menu.setStatus { GuiItems.INVALID_INPUT }
+            InfinityExpansion2.integrationService.sendMessage(p, "crafting.invalid-input")
+            return
+        }
         if (!menu.fits(output, *outputSlots)) {
             menu.setStatus { GuiItems.NO_ROOM }
             return
@@ -86,6 +91,12 @@ abstract class AbstractCraftingMachine(
         }
         return
     }
+
+    /**
+     * Override this method to adjust the [output] from the actual [input] items before
+     * anything is consumed. Return null to refuse the craft.
+     */
+    protected open fun prepareOutput(input: Array<ItemStack?>, output: ItemStack): ItemStack? = output
 
     /**
      * Override this method to add custom behavior when a craft is successful.
