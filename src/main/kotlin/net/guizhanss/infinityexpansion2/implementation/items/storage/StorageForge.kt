@@ -1,5 +1,6 @@
 package net.guizhanss.infinityexpansion2.implementation.items.storage
 
+import com.jeff_media.morepersistentdatatypes.DataType
 import io.github.thebusybiscuit.slimefun4.api.items.ItemGroup
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItemStack
@@ -9,8 +10,10 @@ import net.guizhanss.infinityexpansion2.core.IERegistry
 import net.guizhanss.infinityexpansion2.core.menu.MenuLayout
 import net.guizhanss.infinityexpansion2.core.persistent.PersistentStorageCacheType
 import net.guizhanss.infinityexpansion2.core.recipes.MachineRecipe
+import net.guizhanss.infinityexpansion2.utils.bukkitext.ie2Key
 import net.guizhanss.infinityexpansion2.implementation.items.machines.abstracts.AbstractCraftingMachine
 import org.bukkit.inventory.ItemStack
+import org.bukkit.persistence.PersistentDataType
 
 class StorageForge(
     itemGroup: ItemGroup,
@@ -63,11 +66,28 @@ class StorageForge(
                 if (!meta.persistentDataContainer.has(StorageUnit.STORAGE_KEY, PersistentStorageCacheType.TYPE)) {
                     return null
                 }
+                // The historical reader supplies defaults for missing fields. In an
+                // upgrade, a missing amount/capacity or malformed optional field
+                // must never silently become zero/false and discard saved state.
+                val raw = meta.persistentDataContainer.get(
+                    StorageUnit.STORAGE_KEY, PersistentDataType.TAG_CONTAINER
+                ) ?: return null
+                if (!raw.has(ie2Key("amount"), PersistentDataType.INTEGER)
+                    || !raw.has(ie2Key("max_amount"), PersistentDataType.INTEGER)
+                    || (raw.has(ie2Key("void_excess"))
+                        && !raw.has(ie2Key("void_excess"), PersistentDataType.BOOLEAN))
+                    || (raw.has(ie2Key("item")) && !raw.has(ie2Key("item"), DataType.ITEM_STACK))) {
+                    return null
+                }
                 // Recipes consume one unit at a time. A stacked item carrying a
                 // populated ledger could leave an identical ledger behind.
                 if (stack.amount != 1) return null
-                val cache = PersistentDataAPI.get(meta, StorageUnit.STORAGE_KEY, PersistentStorageCacheType.TYPE)
-                    ?: return null
+                val cache = try {
+                    PersistentDataAPI.get(meta, StorageUnit.STORAGE_KEY, PersistentStorageCacheType.TYPE)
+                } catch (failure: RuntimeException) {
+                    // Corrupt nested item templates may throw while decoding.
+                    return null
+                } ?: return null
                 if (cache.hasUnassignedItems() || cache.hasInvalidBalance()) return null
                 // A zero-balance unit can still have a seeded item identity and
                 // void-excess setting. Preserve the entire ledger, not just stock.
