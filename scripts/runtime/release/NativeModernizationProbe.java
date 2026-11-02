@@ -228,6 +228,9 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             require(failedSource.equals(actualInput[0]),"failed native transaction preserves input");
             recipe.consume(actualInput);
             require(actualInput[0].getAmount()==0,"production recipe consumes exactly one old unit");
+            var consumedSlot=menu.getItemInSlot(2);
+            require(consumedSlot==null || consumedSlot.getType().isAir() || consumedSlot.getAmount()<=0,
+                "production recipe consumption clears the authoritative native menu input");
             menu.pushItem(staged,52);
             menu.markDirty();
             require(staged.equals(menu.getItemInSlot(52)),"production menu push retains upgraded ledger");
@@ -249,6 +252,10 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             var transactionSnapshot=getDataFolder().toPath().resolve("native-forge-transaction.bin");
             require(Files.isRegularFile(transactionSnapshot),"native recipe transaction snapshot exists");
             var transactionExpected=ItemStack.deserializeBytes(Files.readAllBytes(transactionSnapshot));
+            var sourceAfterRestart=menu.getItemInSlot(2);
+            require(sourceAfterRestart==null || sourceAfterRestart.getType().isAir()
+                || sourceAfterRestart.getAmount()<=0,
+                "native restart must not restore the already-consumed old storage unit");
             var transactionPersisted=menu.getItemInSlot(52);
             require(transactionPersisted!=null && transactionPersisted.equals(transactionExpected),
                 "production consume/push rehearsal output survives clean server restart");
