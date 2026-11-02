@@ -102,6 +102,9 @@ class StorageForge(
                 stored.add(cache)
             }
 
+            // A recipe result carrying its own storage ledger would mint stock without
+            // any source ledger. Never trust a pre-populated output, even for plain inputs.
+            if (output.itemMeta?.persistentDataContainer?.has(StorageUnit.STORAGE_KEY) == true) return null
             if (stored.isEmpty()) return output
             if (stored.size != 1 || stored[0].amount > capacity) return null
             // Never copy one ledger into multiple outputs or overwrite a result
