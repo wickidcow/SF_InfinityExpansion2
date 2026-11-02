@@ -74,6 +74,33 @@ class StorageForgeUpgradeTest {
     }
 
     @Test
+    void plainInputsCannotMintAStorageLedgerFromTheRecipeOutput() {
+        var preloadedOutput = unitWith(new ItemStack(Material.DIAMOND), 500, 64_000, true);
+
+        assertNull(StorageForge.transferContents(
+            new ItemStack[] {new ItemStack(Material.IRON_INGOT)}, preloadedOutput, 64_000),
+            "A preloaded recipe result must not create stored items without a source ledger");
+        assertEquals(500, read(preloadedOutput).getAmount(),
+            "Refusal must not mutate the original recipe output");
+    }
+
+    @Test
+    void plainInputsCannotPassAnUnreadableOutputLedger() {
+        var output = new ItemStack(Material.BARREL);
+        var meta = output.getItemMeta();
+        meta.getPersistentDataContainer().set(
+            StorageUnit.Companion.getSTORAGE_KEY(),
+            org.bukkit.persistence.PersistentDataType.STRING, "invalid-result-ledger");
+        output.setItemMeta(meta);
+
+        assertNull(StorageForge.transferContents(
+            new ItemStack[] {new ItemStack(Material.IRON_INGOT)}, output, 64_000),
+            "A malformed result ledger must not be emitted as an upgraded unit");
+        assertEquals("invalid-result-ledger", output.getItemMeta().getPersistentDataContainer().get(
+            StorageUnit.Companion.getSTORAGE_KEY(), org.bukkit.persistence.PersistentDataType.STRING));
+    }
+
+    @Test
     void emptyStoragePreservesItsSeededIdentityAndSettings() {
         var template = new ItemStack(Material.DIAMOND);
         var oldUnit = unitWith(template, 0, 16_000, true);
