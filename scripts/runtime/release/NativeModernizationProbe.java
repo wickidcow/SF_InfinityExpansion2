@@ -231,10 +231,12 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             var consumedSlot=menu.getItemInSlot(2);
             require(consumedSlot==null || consumedSlot.getType().isAir() || consumedSlot.getAmount()<=0,
                 "production recipe consumption clears the authoritative native menu input");
+            var expectedOutput=staged.clone();
             menu.pushItem(staged,52);
             menu.markDirty();
-            require(staged.equals(menu.getItemInSlot(52)),"production menu push retains upgraded ledger");
-            Files.write(transactionSnapshot,staged.serializeAsBytes());
+            require(expectedOutput.equals(menu.getItemInSlot(52)),
+                "production menu push retains the complete upgraded ledger");
+            Files.write(transactionSnapshot,expectedOutput.serializeAsBytes());
         } else {
             require(Files.isRegularFile(snapshot),"prior JVM native Forge item snapshot exists");
             var expected=ItemStack.deserializeBytes(Files.readAllBytes(snapshot));
