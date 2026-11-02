@@ -63,14 +63,24 @@ class StorageForge(
                 if (!meta.persistentDataContainer.has(StorageUnit.STORAGE_KEY, PersistentStorageCacheType.TYPE)) {
                     return null
                 }
+                // Recipes consume one unit at a time. A stacked item carrying a
+                // populated ledger could leave an identical ledger behind.
+                if (stack.amount != 1) return null
                 val cache = PersistentDataAPI.get(meta, StorageUnit.STORAGE_KEY, PersistentStorageCacheType.TYPE)
                     ?: return null
                 if (cache.hasUnassignedItems() || cache.hasInvalidBalance()) return null
-                if (!cache.isEmpty()) stored.add(cache)
+                // A zero-balance unit can still have a seeded item identity and
+                // void-excess setting. Preserve the entire ledger, not just stock.
+                stored.add(cache)
             }
 
             if (stored.isEmpty()) return output
-            if (stored.size > 1 || stored[0].amount > capacity) return null
+            if (stored.size != 1 || stored[0].amount > capacity) return null
+            // Never copy one ledger into multiple outputs or overwrite a result
+            // that already contains a distinct storage record.
+            if (output.amount != 1 || output.itemMeta?.persistentDataContainer?.has(StorageUnit.STORAGE_KEY) == true) {
+                return null
+            }
 
             val old = stored[0]
             val cache = StorageCache(old.itemStack?.clone(), old.amount, capacity, old.voidExcess)

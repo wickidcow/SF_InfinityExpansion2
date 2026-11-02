@@ -62,15 +62,73 @@ class StorageForgeUpgradeTest {
     }
 
     @Test
-    void emptyOrPlainInputsLeaveOutputUnchanged() {
+    void plainInputsLeaveOutputUnchanged() {
         var output = new ItemStack(Material.BARREL);
         var expected = output.clone();
 
         var result = StorageForge.transferContents(
-            new ItemStack[] {new ItemStack(Material.IRON_INGOT), unitWith(null, 0, 16_000, false)}, output, 64_000);
+            new ItemStack[] {new ItemStack(Material.IRON_INGOT), null}, output, 64_000);
 
         assertEquals(expected, result);
         assertNull(read(result));
+    }
+
+    @Test
+    void emptyStoragePreservesItsSeededIdentityAndSettings() {
+        var template = new ItemStack(Material.DIAMOND);
+        var oldUnit = unitWith(template, 0, 16_000, true);
+
+        var result = StorageForge.transferContents(
+            new ItemStack[] {oldUnit}, new ItemStack(Material.BARREL), 64_000);
+
+        assertNotNull(result);
+        var cache = read(result);
+        assertNotNull(cache);
+        assertEquals(template, cache.getItemStack());
+        assertEquals(0, cache.getAmount());
+        assertEquals(64_000, cache.getLimit());
+        assertTrue(cache.getVoidExcess());
+    }
+
+    @Test
+    void emptyUnassignedStorageStillPreservesItsSettings() {
+        var oldUnit = unitWith(null, 0, 16_000, true);
+
+        var result = StorageForge.transferContents(
+            new ItemStack[] {oldUnit}, new ItemStack(Material.BARREL), 64_000);
+
+        assertNotNull(result);
+        var cache = read(result);
+        assertNotNull(cache);
+        assertNull(cache.getItemStack());
+        assertEquals(0, cache.getAmount());
+        assertEquals(64_000, cache.getLimit());
+        assertTrue(cache.getVoidExcess());
+    }
+
+    @Test
+    void stackedSourceOrMultipleStorageLedgersRefuseUpgrade() {
+        var oldUnit = unitWith(new ItemStack(Material.DIAMOND), 123, 16_000, false);
+        oldUnit.setAmount(2);
+        assertNull(StorageForge.transferContents(
+            new ItemStack[] {oldUnit}, new ItemStack(Material.BARREL), 64_000));
+
+        var emptyFirst = unitWith(null, 0, 16_000, false);
+        var emptySecond = unitWith(null, 0, 16_000, true);
+        assertNull(StorageForge.transferContents(
+            new ItemStack[] {emptyFirst, emptySecond}, new ItemStack(Material.BARREL), 64_000));
+    }
+
+    @Test
+    void multipleOutputsOrExistingResultLedgerRefuseUpgrade() {
+        var oldUnit = unitWith(new ItemStack(Material.DIAMOND), 123, 16_000, false);
+        var stackedOutput = new ItemStack(Material.BARREL, 2);
+        assertNull(StorageForge.transferContents(
+            new ItemStack[] {oldUnit}, stackedOutput, 64_000));
+
+        var populatedOutput = unitWith(new ItemStack(Material.DIRT), 1, 64_000, false);
+        assertNull(StorageForge.transferContents(
+            new ItemStack[] {oldUnit}, populatedOutput, 64_000));
     }
 
     @Test
