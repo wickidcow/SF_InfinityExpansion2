@@ -2,6 +2,7 @@ package verification;
 
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem;
 import io.github.thebusybiscuit.slimefun4.implementation.Slimefun;
+import io.github.thebusybiscuit.slimefun4.libraries.dough.data.persistent.PersistentDataAPI;
 import io.papermc.paper.registry.RegistryAccess;
 import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.registry.RegistryKey;
@@ -11,7 +12,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import me.mrCookieSlime.Slimefun.api.BlockStorage;
+import net.guizhanss.infinityexpansion2.core.persistent.PersistentStorageCacheType;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageCache;
+import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageForge;
+import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageUnit;
 import net.guizhanss.infinityexpansion2.implementation.items.tools.Oscillator;
 import net.guizhanss.infinityexpansion2.utils.events.BowDamageEvents;
 import net.guizhanss.infinityexpansion2.utils.items.ModernText;
@@ -143,6 +147,7 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             require(actual.getItemMeta().lore().getFirst().hoverEvent()!=null,"restart preserves hover event");
             require("keep insertion".equals(actual.getItemMeta().lore().getFirst().insertion()),"restart preserves insertion");
         }
+        checkNativeForgeLedger(menu);
         var oscillator=Oscillator.Companion.getItem("DIAMOND");
         require(oscillator.getType()==Material.DIAMOND,"native oscillator material conversion");
         require("DIAMOND".equals(Oscillator.Companion.getTarget(oscillator)),"oscillator target identity retained");
@@ -165,6 +170,64 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
         } finally { active=null; attacker.remove(); victim.remove(); }
         require(ModernText.actionBar("§x§1§2§a§b§3§4RGB").color().equals(TextColor.color(0x12ab34)),"native Adventure RGB preserved");
         results.add("PASS "+phase+": native metadata, registry, oscillator, cancellable event, stored identity and menu persistence");
+    }
+
+
+    /**
+     * Real registered IE2 Storage Unit PDC upgrade preflight and live menu/database
+     * restart. This is NOT an end-to-end Forge click/ingredient-consumption test.
+     * Never present it as transaction or interrupted-shutdown evidence.
+     */
+    private void checkNativeForgeLedger(me.mrCookieSlime.Slimefun.api.inventory.BlockMenu menu) throws Exception {
+        var sourceType=SlimefunItem.getById("IE_STORAGE_UNIT_1");
+        var targetType=SlimefunItem.getById("IE_STORAGE_UNIT_2");
+        require(sourceType instanceof StorageUnit,"real source Storage Unit registered");
+        require(targetType instanceof StorageUnit,"real target Storage Unit registered");
+        var sourceCapacity=((StorageUnit)sourceType).getCapacity();
+        var targetCapacity=((StorageUnit)targetType).getCapacity();
+        require(sourceCapacity>731 && targetCapacity>sourceCapacity,"registered Forge capacities increase");
+        var snapshot=getDataFolder().toPath().resolve("native-forge-upgrade.bin");
+        if (phase.equals("seed")) {
+            var source=sourceType.getItem().clone();
+            var meta=source.getItemMeta();
+            PersistentDataAPI.set(meta,StorageUnit.Companion.getSTORAGE_KEY(),
+                PersistentStorageCacheType.getTYPE(),
+                new StorageCache(new ItemStack(Material.DIAMOND),731,sourceCapacity,true));
+            require(source.setItemMeta(meta),"native old Storage Unit accepts PDC");
+            var sourceBefore=source.clone();
+            var upgraded=StorageForge.transferContents(
+                new ItemStack[]{source},targetType.getItem().clone(),targetCapacity);
+            require(upgraded!=null,"native registered Storage Unit upgrades without emptying");
+            require(source.equals(sourceBefore),"Forge preflight does not mutate old unit");
+            var cache=PersistentDataAPI.get(upgraded.getItemMeta(),
+                StorageUnit.Companion.getSTORAGE_KEY(),PersistentStorageCacheType.getTYPE());
+            require(cache!=null,"upgraded unit has readable storage ledger");
+            require(cache.getAmount()==731 && cache.getLimit()==targetCapacity,
+                "native upgraded balance and target capacity retained");
+            require(cache.getVoidExcess() && new ItemStack(Material.DIAMOND).equals(cache.getItemStack()),
+                "native upgraded identity and Void Excess retained");
+            require(StorageForge.transferContents(new ItemStack[]{source},
+                targetType.getItem().clone(),100)==null,"insufficient target capacity refuses upgrade");
+            require(source.equals(sourceBefore),"refused upgrade leaves original storage untouched");
+            Files.write(snapshot,upgraded.serializeAsBytes());
+            menu.replaceExistingItem(1,upgraded.clone());menu.markDirty();
+            require(upgraded.equals(menu.getItemInSlot(1)),"upgraded PDC in real persistent menu");
+        } else {
+            require(Files.isRegularFile(snapshot),"prior JVM native Forge item snapshot exists");
+            var expected=ItemStack.deserializeBytes(Files.readAllBytes(snapshot));
+            var persisted=menu.getItemInSlot(1);
+            require(persisted!=null && persisted.equals(expected),
+                "upgraded unit survives real Slimefun menu/database restart");
+            var cache=PersistentDataAPI.get(persisted.getItemMeta(),
+                StorageUnit.Companion.getSTORAGE_KEY(),PersistentStorageCacheType.getTYPE());
+            require(cache!=null && cache.getAmount()==731 && cache.getLimit()==targetCapacity,
+                "restarted native storage amount and capacity retained");
+            require(cache.getVoidExcess() && new ItemStack(Material.DIAMOND).equals(cache.getItemStack()),
+                "restarted native item identity and Void Excess retained");
+            require(SlimefunItem.getByItem(persisted)==targetType,
+                "restarted upgraded unit retains registered Slimefun identity");
+        }
+        results.add("PASS "+phase+": native Storage Forge PDC preflight and real menu restart (not a craft click)");
     }
 
     private void checkHorns() throws Exception {
