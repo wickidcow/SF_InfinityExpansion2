@@ -196,6 +196,40 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
                 new StorageCache(new ItemStack(Material.DIAMOND),731,sourceCapacity,true));
             require(source.setItemMeta(meta),"native old Storage Unit accepts PDC");
             var sourceBefore=source.clone();
+            // Validate the production Forge's registered nine-slot upgrade recipe,
+            // not only a synthetic one-ingredient MachineRecipe fixture.
+            var registeredForge=SlimefunItem.getById("IE_STORAGE_FORGE");
+            require(registeredForge instanceof StorageForge,"real Storage Forge machine registered");
+            var registeredRecipe=((StorageForge)registeredForge).getRecipes().stream()
+                .filter(r->SlimefunItem.getByItem(r.getOutput())==targetType)
+                .findFirst().orElseThrow(()->new AssertionError("registered tier-2 Forge recipe missing"));
+            var registeredInput=java.util.Arrays.stream(registeredRecipe.getInput())
+                .map(stack->stack==null?null:stack.clone()).toArray(ItemStack[]::new);
+            require(registeredInput.length==9,"registered Forge recipe retains nine input slots");
+            int storageIndex=-1;
+            for(int i=0;i<registeredInput.length;i++) {
+                if(registeredInput[i]!=null && SlimefunItem.getByItem(registeredInput[i])==sourceType) {
+                    require(storageIndex<0,"registered Forge recipe has only one source Storage Unit");
+                    storageIndex=i;
+                }
+            }
+            require(storageIndex>=0,"registered Forge recipe contains source Storage Unit");
+            registeredInput[storageIndex]=source.clone();
+            require(registeredRecipe.check(registeredInput,false),
+                "registered non-strict Forge recipe matches populated storage and all real ingredients");
+            var prepare=StorageForge.class.getDeclaredMethod("prepareOutput",ItemStack[].class,ItemStack.class);
+            prepare.setAccessible(true);
+            var prepared=(ItemStack)prepare.invoke(registeredForge,registeredInput,registeredRecipe.getOutput().clone());
+            require(prepared!=null,"registered Forge prepareOutput accepts the real upgrade recipe");
+            var preparedLedger=PersistentDataAPI.get(prepared.getItemMeta(),
+                StorageUnit.Companion.getSTORAGE_KEY(),PersistentStorageCacheType.getTYPE());
+            require(preparedLedger!=null && preparedLedger.getAmount()==731
+                && preparedLedger.getLimit()==targetCapacity && preparedLedger.getVoidExcess()
+                && new ItemStack(Material.DIAMOND).equals(preparedLedger.getItemStack()),
+                "registered Forge prepareOutput retains item identity, stock, capacity and settings");
+            require(prepare.invoke(registeredForge,registeredInput,new ItemStack(Material.DIRT))==null,
+                "registered Forge refuses populated storage when recipe output is not a Storage Unit");
+            require(source.equals(sourceBefore),"registered Forge preflight never mutates source unit");
             var upgraded=StorageForge.transferContents(
                 new ItemStack[]{source},targetType.getItem().clone(),targetCapacity);
             require(upgraded!=null,"native registered Storage Unit upgrades without emptying");
