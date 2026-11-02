@@ -220,6 +220,31 @@ class StorageForgeUpgradeTest {
         assertFalse(cache.getVoidExcess());
     }
 
+    @Test
+    void unknownNestedLedgerFieldsRefuseUpgradeWithoutLosingTheOriginal() {
+        var oldUnit = unitWith(new ItemStack(Material.DIAMOND), 42, 16_000, true);
+        var meta = oldUnit.getItemMeta();
+        var outer = meta.getPersistentDataContainer();
+        var nested = outer.get(
+            StorageUnit.Companion.getSTORAGE_KEY(), org.bukkit.persistence.PersistentDataType.TAG_CONTAINER);
+        assertNotNull(nested);
+        var existing = nested.getKeys().iterator().next();
+        var futureKey = new org.bukkit.NamespacedKey(existing.getNamespace(), "future_owner_receipt");
+        nested.set(futureKey, org.bukkit.persistence.PersistentDataType.STRING, "preserve-me");
+        outer.set(StorageUnit.Companion.getSTORAGE_KEY(),
+            org.bukkit.persistence.PersistentDataType.TAG_CONTAINER, nested);
+        oldUnit.setItemMeta(meta);
+
+        assertNull(StorageForge.transferContents(
+            new ItemStack[] {oldUnit}, new ItemStack(Material.BARREL), 64_000),
+            "Unknown future ledger fields must not be discarded by an upgrade");
+
+        var original = oldUnit.getItemMeta().getPersistentDataContainer().get(
+            StorageUnit.Companion.getSTORAGE_KEY(), org.bukkit.persistence.PersistentDataType.TAG_CONTAINER);
+        assertNotNull(original);
+        assertEquals("preserve-me", original.get(futureKey, org.bukkit.persistence.PersistentDataType.STRING));
+    }
+
     private static ItemStack changeNestedField(ItemStack unit, String name, boolean mistype) {
         var meta = unit.getItemMeta();
         var outer = meta.getPersistentDataContainer();
