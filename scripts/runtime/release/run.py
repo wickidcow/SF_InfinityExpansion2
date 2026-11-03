@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the existing native card suite, then real database/menu seed and restart verification."""
+"""Run native item, restart and deliberately SIGKILLed Forge conservation probes."""
 import argparse
 import base64
 import contextlib
@@ -10,6 +10,7 @@ from pathlib import Path
 import sqlite3
 import subprocess
 import sys
+import time
 import zipfile
 
 
@@ -27,6 +28,32 @@ def run_process(command, directory, log, timeout):
         print('\n'.join(log.read_text(errors='replace').splitlines()[-100:]))
         raise RuntimeError('Disposable runtime exited '+str(code))
 
+
+
+def kill_exact_disposable_process_after_result(command,directory,log,result,timeout):
+    """SIGKILL only the locally spawned test server after its craft receipt."""
+    with log.open('w') as output:
+        process=subprocess.Popen(command,cwd=directory,stdout=output,
+                                 stderr=subprocess.STDOUT,stdin=subprocess.DEVNULL)
+        try:
+            deadline=time.monotonic()+timeout
+            while time.monotonic()<deadline:
+                if result.is_file():
+                    report=result.read_text(errors='replace')
+                    if 'PASS crash:' not in report or 'failures: 0' not in report:
+                        raise AssertionError('Forge crash probe did not finish validly: '+report)
+                    process.kill()
+                    process.wait(timeout=20)
+                    print('SIGKILL applied to disposable Forge test JVM after craft receipt.')
+                    return
+                if process.poll() is not None:
+                    raise RuntimeError('Forge crash JVM exited before receipt; log='+str(log))
+                time.sleep(0.025)
+            raise TimeoutError('Forge crash JVM timed out before receipt: '+str(log))
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.wait(timeout=20)
 
 def configured_block_data_base64(runtime):
     """Use the live Slimefun fixture's top-level encoding mode; never guess either representation."""
@@ -123,8 +150,45 @@ def main():
         elif stored!=evidence['unknown_record_database_snapshot']:
             raise AssertionError('Unknown-ID database record or payload changed across restart')
         print('Read-only SQLite evidence: unknown-ID record and payload preserved after '+phase)
+    # A separate isolated three-phase Forge fixture preserves a populated
+    # old-unit recipe across an intentionally SIGKILLed full craft process.
+    crash_source=Path(__file__).with_name('NativeForgeCrashProbe.java')
+    crash_classes=runtime/'forge-crash-classes';crash_classes.mkdir()
+    crash_javac=['--release','21','-cp',os.pathsep.join(map(str,jars)),
+                 '-d',str(crash_classes),str(crash_source)]
+    crash_argfile=runtime/'forge-crash-javac.args'
+    crash_argfile.write_text('\\n'.join(json.dumps(arg) for arg in crash_javac))
+    subprocess.run([str(args.java_home/'bin/javac'),'@'+str(crash_argfile)],check=True)
+    with zipfile.ZipFile(runtime/'plugins/NativeForgeCrashProbe.jar','w',zipfile.ZIP_DEFLATED) as jar:
+        for compiled in crash_classes.rglob('*.class'):
+            jar.write(compiled,compiled.relative_to(crash_classes))
+        jar.writestr('plugin.yml',
+                     'name: NativeForgeCrashProbe\\nversion: 1.0\\n'
+                     'main: verification.NativeForgeCrashProbe\\n'
+                     'api-version: "1.21"\\ndepend: [Slimefun, InfinityExpansion2]\\n')
+    evidence['forge_crash_probe_sha256']=hashlib.sha256(crash_source.read_bytes()).hexdigest()
+    evidence['forge_crash_phases']={}
+    for phase in ('seed','crash','verify'):
+        result=runtime/f'plugins/NativeForgeCrashProbe/results-{phase}.txt'
+        if result.exists():raise AssertionError('Refusing stale crash fixture '+str(result))
+        command=[str(args.java_home/'bin/java'),'-Xms256M','-Xmx1G',
+                 '-XX:ActiveProcessorCount=2','-Dterminal.jline=false',
+                 '-Dterminal.ansi=false','-Die2.forge.crash=disposable',
+                 '-Die2.forge.phase='+phase,'-jar','server.jar','--nogui']
+        log=runtime/f'forge-crash-{phase}.log'
+        if phase=='crash':
+            kill_exact_disposable_process_after_result(command,runtime,log,result,args.timeout)
+        else:
+            run_process(command,runtime,log,args.timeout)
+        if not result.is_file():
+            print('\\n'.join(log.read_text(errors='replace').splitlines()[-100:]))
+            raise AssertionError('Native Forge crash phase wrote no result: '+phase)
+        report=result.read_text();print(report)
+        if 'PASS '+phase+':' not in report or 'failures: 0' not in report:
+            raise AssertionError('Native Forge crash phase failed: '+phase)
+        evidence['forge_crash_phases'][phase]=report
     (runtime/'release-runtime-evidence.json').write_text(json.dumps(evidence,indent=2)+'\n')
-    print('Native card suite and both live database/menu persistence phases passed; three clean JVM boots.')
+    print('Native card suite, clean restart and post-craft SIGKILL Forge conservation checks passed.')
     return 0
 
 if __name__=='__main__':raise SystemExit(main())
