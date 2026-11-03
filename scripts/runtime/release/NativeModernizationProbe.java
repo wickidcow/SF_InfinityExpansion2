@@ -470,7 +470,7 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
                 var nested=malformedPdc.get(StorageUnit.Companion.getSTORAGE_KEY(),
                     PersistentDataType.TAG_CONTAINER);
                 require(nested!=null,"missing-field fixture has nested ledger");
-                nested.remove(new NamespacedKey("ie2",missing));
+                nested.remove(new NamespacedKey(StorageUnit.Companion.getSTORAGE_KEY().getNamespace(),missing));
                 malformedPdc.set(StorageUnit.Companion.getSTORAGE_KEY(),
                     PersistentDataType.TAG_CONTAINER,nested);
                 require(malformed.setItemMeta(malformedMeta),
@@ -488,7 +488,7 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             var flagLedger=flagPdc.get(StorageUnit.Companion.getSTORAGE_KEY(),
                 PersistentDataType.TAG_CONTAINER);
             require(flagLedger!=null,"wrong-type fixture has nested ledger");
-            flagLedger.set(new NamespacedKey("ie2","void_excess"),
+            flagLedger.set(new NamespacedKey(StorageUnit.Companion.getSTORAGE_KEY().getNamespace(),"void_excess"),
                 PersistentDataType.STRING,"true");
             flagPdc.set(StorageUnit.Companion.getSTORAGE_KEY(),
                 PersistentDataType.TAG_CONTAINER,flagLedger);
