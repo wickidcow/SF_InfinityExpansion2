@@ -80,13 +80,19 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
             @Override public void run() {
                 try {
                     var menu=StoredBlockLookup.getInventory(location);
-                    if(menu!=null && menu.getMenuClickHandler(((StorageForge)forge).getCraftSlot())!=null) {
+                    var handler=menu==null?null:menu.getMenuClickHandler(((StorageForge)forge).getCraftSlot());
+                    // A saved menu may expose its decorative button handler
+                    // before the owning-region callback is restored. Do not
+                    // click the placeholder and mistake delayed setup for a
+                    // failed craft. Fail after a bounded wait if it never heals.
+                    if(handler!=null && handler.getClass().getName().contains("AbstractCraftingMachine")) {
                         cancel();
                         runPhase((StorageForge)forge,menu);
                         finish();
                     } else if(++attempts>100) {
                         cancel();
-                        fail(new AssertionError("Native crash Forge menu/handler did not load"));
+                        fail(new AssertionError("Real Forge click handler not restored on loaded menu; observed="
+                            +(handler==null?"null":handler.getClass().getName())));
                     }
                 } catch(Throwable failure) {cancel();fail(failure);}
             }
