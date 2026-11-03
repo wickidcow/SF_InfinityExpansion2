@@ -5,9 +5,22 @@ import org.bukkit.inventory.ItemStack
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.AfterEach
+import org.mockbukkit.mockbukkit.MockBukkit
 
 /** Regression for /infinityexpansion2 giverecipe with placeholder-only recipes. */
 class GiveRecipeIngredientTest {
+
+    @BeforeEach
+    fun setUpBukkit() {
+        MockBukkit.mock()
+    }
+
+    @AfterEach
+    fun tearDownBukkit() {
+        MockBukkit.unmock()
+    }
 
     @Test
     fun nullRecipeSlotsDoNotReachInventoryPush() {
