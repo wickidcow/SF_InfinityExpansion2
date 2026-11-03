@@ -395,6 +395,24 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
                 PersistentStorageCacheType.getTYPE(),
                 new StorageCache(new ItemStack(Material.DIAMOND),731,sourceCapacity,true));
             require(source.setItemMeta(meta),"Forge click source unit contains the stored ledger");
+            // A zero-balance unit may still carry an assigned item identity and
+            // void-excess preference. The upgrade must preserve both, not
+            // normalize it to a fresh unassigned unit.
+            var emptyAssigned=mutableRecipeStack(sourceType.getItem());
+            var emptyMeta=emptyAssigned.getItemMeta();
+            PersistentDataAPI.set(emptyMeta,StorageUnit.Companion.getSTORAGE_KEY(),
+                PersistentStorageCacheType.getTYPE(),
+                new StorageCache(new ItemStack(Material.DIAMOND),0,sourceCapacity,true));
+            require(emptyAssigned.setItemMeta(emptyMeta),"zero-balance Forge fixture keeps assigned identity");
+            var emptyUpgrade=StorageForge.transferContents(
+                new ItemStack[]{emptyAssigned},mutableRecipeStack(targetType.getItem()),targetCapacity);
+            require(emptyUpgrade!=null,"zero-balance assigned Forge unit upgrades safely");
+            var emptyLedger=PersistentDataAPI.get(emptyUpgrade.getItemMeta(),
+                StorageUnit.Companion.getSTORAGE_KEY(),PersistentStorageCacheType.getTYPE());
+            require(emptyLedger!=null && emptyLedger.getAmount()==0
+                && emptyLedger.getLimit()==targetCapacity && emptyLedger.getVoidExcess()
+                && new ItemStack(Material.DIAMOND).equals(emptyLedger.getItemStack()),
+                "zero-balance upgrade preserves item identity, capacity and void-excess");
             ingredients[sourceIndex]=source;
             for(int i=0;i<slots.length;i++) {
                 forgeMenu.replaceExistingItem(slots[i],ingredients[i]);
