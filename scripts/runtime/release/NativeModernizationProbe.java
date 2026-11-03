@@ -460,6 +460,46 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
                 "Forge refuses to erase unknown nested storage metadata");
             require(future.equals(futureBefore),
                 "unknown-field refusal preserves exact original PDC");
+            // Historical storage fields must retain their exact PDC types. A
+            // decoder default must not convert missing stock/capacity into an
+            // apparently empty unit or discard a malformed optional setting.
+            for (String missing : new String[]{"amount","max_amount"}) {
+                var malformed=source.clone();
+                var malformedMeta=malformed.getItemMeta();
+                var malformedPdc=malformedMeta.getPersistentDataContainer();
+                var nested=malformedPdc.get(StorageUnit.Companion.getSTORAGE_KEY(),
+                    PersistentDataType.TAG_CONTAINER);
+                require(nested!=null,"missing-field fixture has nested ledger");
+                nested.remove(new NamespacedKey("ie2",missing));
+                malformedPdc.set(StorageUnit.Companion.getSTORAGE_KEY(),
+                    PersistentDataType.TAG_CONTAINER,nested);
+                require(malformed.setItemMeta(malformedMeta),
+                    "missing-field fixture retains malformed ledger "+missing);
+                var unchanged=malformed.clone();
+                require(StorageForge.transferContents(new ItemStack[]{malformed},
+                    mutableRecipeStack(targetType.getItem()),targetCapacity)==null,
+                    "Forge refuses missing historical storage field "+missing);
+                require(malformed.equals(unchanged),
+                    "missing-field refusal preserves exact original ledger "+missing);
+            }
+            var malformedFlag=source.clone();
+            var flagMeta=malformedFlag.getItemMeta();
+            var flagPdc=flagMeta.getPersistentDataContainer();
+            var flagLedger=flagPdc.get(StorageUnit.Companion.getSTORAGE_KEY(),
+                PersistentDataType.TAG_CONTAINER);
+            require(flagLedger!=null,"wrong-type fixture has nested ledger");
+            flagLedger.set(new NamespacedKey("ie2","void_excess"),
+                PersistentDataType.STRING,"true");
+            flagPdc.set(StorageUnit.Companion.getSTORAGE_KEY(),
+                PersistentDataType.TAG_CONTAINER,flagLedger);
+            require(malformedFlag.setItemMeta(flagMeta),
+                "wrong-type fixture retains malformed optional flag");
+            var flagBefore=malformedFlag.clone();
+            require(StorageForge.transferContents(new ItemStack[]{malformedFlag},
+                mutableRecipeStack(targetType.getItem()),targetCapacity)==null,
+                "Forge refuses wrong-type persisted void-excess setting");
+            require(malformedFlag.equals(flagBefore),
+                "wrong-type optional field refusal preserves original ledger");
             ingredients[sourceIndex]=source;
             for(int i=0;i<slots.length;i++) {
                 forgeMenu.replaceExistingItem(slots[i],ingredients[i]);
