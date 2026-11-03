@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import me.mrCookieSlime.Slimefun.api.BlockStorage;
+import net.guizhanss.infinityexpansion2.core.menu.MenuLayout;
 import net.guizhanss.infinityexpansion2.core.persistent.PersistentStorageCacheType;
 import net.guizhanss.infinityexpansion2.core.recipes.MachineRecipe;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageCache;
@@ -351,9 +352,10 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             "Forge click executes on an actual registered Forge block");
         var handler=forgeMenu.getMenuClickHandler(forge.getCraftSlot());
         require(handler!=null,"Forge crafting button has a live registered click handler");
-        var slots=forge.getInputSlots();
+        var layout=MenuLayout.Companion.getCRAFTING_DEFAULT();
+        var slots=layout.getInputSlots();
         require(slots.length==9,"Forge click uses all nine physical recipe slots");
-        int outputSlot=forge.getOutputSlots()[0];
+        int outputSlot=layout.getOutputSlots()[0];
         var recipe=forge.getRecipes().stream()
             .filter(r->SlimefunItem.getByItem(r.getOutput())==targetType)
             .findFirst().orElseThrow(()->new AssertionError("registered Forge upgrade recipe missing"));
