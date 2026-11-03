@@ -29,9 +29,14 @@ class GiveRecipeIngredientTest {
 
     @Test
     fun airAndZeroAmountPlaceholdersDoNotReachInventoryPush() {
+        // The Bukkit ItemStack constructor rejects zero-sized items. Model a
+        // damaged legacy recipe entry without constructing an invalid stack.
+        val zeroAmount = org.mockito.Mockito.mock(ItemStack::class.java)
+        org.mockito.Mockito.`when`(zeroAmount.type).thenReturn(Material.DIAMOND)
+        org.mockito.Mockito.`when`(zeroAmount.amount).thenReturn(0)
         val recipe = arrayOf<ItemStack?>(
             ItemStack(Material.AIR),
-            ItemStack(Material.DIAMOND, 0),
+            zeroAmount,
             null,
         )
 
