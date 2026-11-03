@@ -52,6 +52,13 @@ class GiveRecipeCommand(parent: AbstractCommand) : AbstractSubCommand(
             return
         }
 
+        // Empty or placeholder-only recipes cannot be pushed into an inventory.
+        val ingredients = sfItem.recipe.filterNotNull().filter { !it.type.isAir && it.amount > 0 }
+        if (ingredients.isEmpty()) {
+            InfinityExpansion2.integrationService.sendMessage(p, "commands.invalid-item")
+            return
+        }
+
         // give the recipe
         InfinityExpansion2.integrationService.sendMessage(
             p,
@@ -64,12 +71,6 @@ class GiveRecipeCommand(parent: AbstractCommand) : AbstractSubCommand(
             "commands.giverecipe.to-target",
             InfinityExpansion2.integrationService.getTranslatedItemName(target, sfItem.item)
         )
-
-        val ingredients = sfItem.recipe.filterNotNull().filter { !it.type.isAir && it.amount > 0 }
-        if (ingredients.isEmpty()) {
-            InfinityExpansion2.integrationService.sendMessage(p, "commands.invalid-item")
-            return
-        }
 
         InventoryUtil.push(target, *ingredients.toTypedArray())
     }
