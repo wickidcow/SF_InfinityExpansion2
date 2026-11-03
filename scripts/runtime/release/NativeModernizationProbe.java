@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import me.mrCookieSlime.Slimefun.api.BlockStorage;
+import me.mrCookieSlime.Slimefun.api.inventory.BlockMenu;
 import net.guizhanss.infinityexpansion2.core.menu.MenuLayout;
 import net.guizhanss.infinityexpansion2.core.persistent.PersistentStorageCacheType;
 import net.guizhanss.infinityexpansion2.core.recipes.MachineRecipe;
