@@ -428,6 +428,21 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
                 require(java.util.Objects.equals(ingredients[i],forgeMenu.getItemInSlot(slots[i])),
                     "blocked Forge click leaves every recipe input untouched: "+i);
             }
+            // An occupied slot with a byte-identical upgraded ledger must
+            // not merge two backed Storage Units into an indistinguishable stack.
+            var existingLedger=StorageForge.transferContents(
+                new ItemStack[]{source},mutableRecipeStack(targetType.getItem()),targetCapacity);
+            require(existingLedger!=null,"existing backed output unit can be prepared independently");
+            forgeMenu.replaceExistingItem(outputSlot,existingLedger.clone());
+            require(!handler.onClick(player,forge.getCraftSlot(),
+                forgeMenu.getItemInSlot(forge.getCraftSlot()),new ClickAction(false,false)),
+                "occupied backed output click remains non-movable");
+            require(existingLedger.equals(forgeMenu.getItemInSlot(outputSlot)),
+                "occupied backed output is not stacked or overwritten");
+            for(int i=0;i<slots.length;i++) {
+                require(java.util.Objects.equals(ingredients[i],forgeMenu.getItemInSlot(slots[i])),
+                    "occupied backed output preserves all stored input ingredients: "+i);
+            }
             forgeMenu.replaceExistingItem(outputSlot,new ItemStack(Material.AIR));
             // This is the same handler registered by onNewInstance(), not a
             // reflected prepareOutput() invocation or synthetic recipe consume.
@@ -447,6 +462,18 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
                 var remaining=forgeMenu.getItemInSlot(slots[i]);
                 require(remaining==null || remaining.getType().isAir() || remaining.getAmount()==0,
                     "registered Forge click consumes each required input exactly once: "+i);
+            }
+            // Repeated clicks must not re-consume ingredients or create a
+            // second populated ledger after the first successful upgrade.
+            require(!handler.onClick(player,forge.getCraftSlot(),
+                forgeMenu.getItemInSlot(forge.getCraftSlot()),new ClickAction(false,false)),
+                "repeated Forge click remains non-movable");
+            require(actual.equals(forgeMenu.getItemInSlot(outputSlot)),
+                "repeated Forge click does not mint extra stored stock");
+            for(int i=0;i<slots.length;i++) {
+                var remaining=forgeMenu.getItemInSlot(slots[i]);
+                require(remaining==null || remaining.getType().isAir() || remaining.getAmount()==0,
+                    "repeated Forge click cannot restore a consumed ingredient: "+i);
             }
             forgeMenu.markDirty();
             Files.write(snapshot,actual.serializeAsBytes());
