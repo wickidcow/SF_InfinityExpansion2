@@ -3,6 +3,7 @@ package verification;
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem;
 import io.github.thebusybiscuit.slimefun4.implementation.Slimefun;
 import io.github.thebusybiscuit.slimefun4.libraries.dough.data.persistent.PersistentDataAPI;
+import io.github.thebusybiscuit.slimefun4.utils.itemstack.ItemStackWrapper;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -168,6 +169,13 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
                 .toArray(ItemStack[]::new);
             require(recipe.check(reread,false),
                 "saved nine-slot Forge recipe still matches after clean server restart");
+            var wrapped=ItemStackWrapper.wrapArray(reread);
+            var registeredMatches=forge.getRecipes().stream()
+                .filter(candidate->candidate.check(wrapped,false)).toList();
+            require(!registeredMatches.isEmpty(),
+                "production wrapped recipe matching accepts the reloaded input");
+            require(registeredMatches.getFirst()==recipe,
+                "production wrapped recipe selects the same Storage Unit tier");
             var recoveredCache=PersistentDataAPI.get(menu.getItemInSlot(slots[sourceIndex]).getItemMeta(),
                 StorageUnit.Companion.getSTORAGE_KEY(),PersistentStorageCacheType.getTYPE());
             require(recoveredCache!=null && recoveredCache.getAmount()==STORED_DIAMONDS,
@@ -189,7 +197,10 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
             require(!handler.onClick(player,forge.getCraftSlot(),
                     menu.getItemInSlot(forge.getCraftSlot()),new ClickAction(false,false)),
                 "real crafting button handles crash fixture");
-            require(upgraded(menu.getItemInSlot(outputSlot),(StorageUnit)target),
+            var actualOutput=menu.getItemInSlot(outputSlot);
+            results.add("DEBUG postclick: output="+actualOutput+"; firstInput="
+                +menu.getItemInSlot(slots[sourceIndex])+"; target="+target.getId());
+            require(upgraded(actualOutput,(StorageUnit)target),
                 "real craft creates exactly 731 backed diamonds");
             for(int slot:slots)require(isEmpty(menu.getItemInSlot(slot)),
                 "real craft consumes every input before crash");
