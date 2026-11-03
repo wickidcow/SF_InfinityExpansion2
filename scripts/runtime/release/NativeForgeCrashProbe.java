@@ -258,7 +258,19 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
         } else {
             for(int slot:slots)require(isEmpty(menu.getItemInSlot(slot)),
                 "committed new output must have consumed every old ingredient");
-            results.add("PASS verify: complete new 731-diamond ledger recovered after SIGKILL");
+            // The committed-output branch must be idempotent too: a repeated
+            // registered click cannot mint a second ledger from empty inputs.
+            var committedHandler=menu.getMenuClickHandler(forge.getCraftSlot());
+            require(committedHandler!=null && committedHandler.getClass().getName().contains("AbstractCraftingMachine"),
+                "committed restart retains the real Forge handler");
+            require(!committedHandler.onClick(probePlayer(),forge.getCraftSlot(),
+                    menu.getItemInSlot(forge.getCraftSlot()),new ClickAction(false,false)),
+                "committed restart repeated click is handled");
+            require(upgraded(menu.getItemInSlot(outputSlot),(StorageUnit)target),
+                "committed restart repeated click preserves exactly one backed output");
+            for(int slot:slots)require(isEmpty(menu.getItemInSlot(slot)),
+                "committed restart repeated click cannot restore consumed ingredients");
+            results.add("PASS verify: complete new 731-diamond ledger recovered; repeated click cannot duplicate");
         }
     }
 
