@@ -413,6 +413,14 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
                 && emptyLedger.getLimit()==targetCapacity && emptyLedger.getVoidExcess()
                 && new ItemStack(Material.DIAMOND).equals(emptyLedger.getItemStack()),
                 "zero-balance upgrade preserves item identity, capacity and void-excess");
+            // An upgrade with a destination too small for the persisted stock
+            // must refuse without rewriting the source ledger or minting output.
+            var sourceBeforeCapacityRefusal=source.clone();
+            require(StorageForge.transferContents(new ItemStack[]{source},
+                mutableRecipeStack(targetType.getItem()),730)==null,
+                "Forge refuses target capacity below persisted 731-item balance");
+            require(source.equals(sourceBeforeCapacityRefusal),
+                "capacity refusal leaves source PDC and stack unchanged");
             ingredients[sourceIndex]=source;
             for(int i=0;i<slots.length;i++) {
                 forgeMenu.replaceExistingItem(slots[i],ingredients[i]);
