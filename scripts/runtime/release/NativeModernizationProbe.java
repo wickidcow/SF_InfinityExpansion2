@@ -439,6 +439,27 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
                 require(invalid.equals(beforeInvalid),
                     "malformed ledger refusal leaves source PDC unchanged "+invalidAmount);
             }
+            // An unknown nested field may belong to a future writer or another
+            // addon. The Forge must not silently discard it when reconstructing
+            // a legacy storage ledger during a tier upgrade.
+            var future=source.clone();
+            var futureMeta=future.getItemMeta();
+            var futurePdc=futureMeta.getPersistentDataContainer();
+            var rawLedger=futurePdc.get(StorageUnit.Companion.getSTORAGE_KEY(),
+                PersistentDataType.TAG_CONTAINER);
+            require(rawLedger!=null,"future-field fixture has a nested ledger");
+            rawLedger.set(new NamespacedKey("ie2","future_ledger_field"),
+                PersistentDataType.STRING,"keep-me");
+            futurePdc.set(StorageUnit.Companion.getSTORAGE_KEY(),
+                PersistentDataType.TAG_CONTAINER,rawLedger);
+            require(future.setItemMeta(futureMeta),
+                "future-field fixture retains nested unknown PDC field");
+            var futureBefore=future.clone();
+            require(StorageForge.transferContents(new ItemStack[]{future},
+                mutableRecipeStack(targetType.getItem()),targetCapacity)==null,
+                "Forge refuses to erase unknown nested storage metadata");
+            require(future.equals(futureBefore),
+                "unknown-field refusal preserves exact original PDC");
             ingredients[sourceIndex]=source;
             for(int i=0;i<slots.length;i++) {
                 forgeMenu.replaceExistingItem(slots[i],ingredients[i]);
