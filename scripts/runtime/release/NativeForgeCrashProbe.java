@@ -144,6 +144,10 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
             Files.write(snapshot,encoded,StandardCharsets.UTF_8);
             menu.markDirty();
             require(isEmpty(menu.getItemInSlot(outputSlot)),"seed output remains empty");
+            var seedHandler=menu.getMenuClickHandler(forge.getCraftSlot());
+            require(seedHandler!=null,"newly registered Forge has the craft button handler");
+            results.add("DEBUG seed callback="+seedHandler.getClass().getName()
+                +"; menuLocked="+menu.locked());
             results.add("PASS seed: persisted full nine-input Forge recipe with 731 old-unit diamonds");
             return;
         }
@@ -194,6 +198,10 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
                 "physical output slot accepts the prepared ledger before craft");
             var handler=menu.getMenuClickHandler(forge.getCraftSlot());
             require(handler!=null,"registered Forge button callback exists");
+            results.add("DEBUG restarted callback="+handler.getClass().getName()
+                +"; menuLocked="+menu.locked());
+            require(handler.getClass().getName().contains("AbstractCraftingMachine"),
+                "hydrated Forge menu must restore the registered craft handler, not a placeholder");
             require(!handler.onClick(player,forge.getCraftSlot(),
                     menu.getItemInSlot(forge.getCraftSlot()),new ClickAction(false,false)),
                 "real crafting button handles crash fixture");
