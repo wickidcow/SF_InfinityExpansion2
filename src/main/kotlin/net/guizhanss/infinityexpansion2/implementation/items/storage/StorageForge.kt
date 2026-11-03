@@ -83,6 +83,34 @@ class StorageForge(
         val originals = input.map { it?.clone() }
         try {
             recipe.consume(input)
+            // A successful output write must never be acknowledged unless every
+            // required ingredient was actually debited. The recipe consumer
+            // mutates the menu-backed ItemStacks in place and returns no receipt.
+            // Compare both the mutated references and physical menu readback;
+            // on any mismatch the empty-output rollback below restores inputs.
+            val debited = recipe.recipe.indices.all { index ->
+                val required = recipe.recipe[index]?.amount ?: 0
+                val original = originals[index]
+                val expectedAmount = (original?.amount ?: 0) - required
+                val actual = menu.getItemInSlot(inputSlots[index])
+                val reference = input[index]
+                expectedAmount >= 0 && if (expectedAmount == 0) {
+                    (actual == null || actual.type.isAir) &&
+                        (reference == null || reference.type.isAir || reference.amount == 0)
+                } else {
+                    original != null && actual != null && reference != null &&
+                        actual.amount == expectedAmount && reference.amount == expectedAmount &&
+                        actual.isSimilar(original) && reference.isSimilar(original)
+                }
+            }
+            if (!debited) {
+                InfinityExpansion2.log(
+                    Level.SEVERE,
+                    IllegalStateException("Forge ingredient debit readback mismatch"),
+                    "Refusing output delivery; attempting exact input rollback"
+                )
+                return rollbackUncommittedForgeInputs(menu, originals)
+            }
             // This is an owned machine-output slot, not a network insertion.
             // Direct replacement avoids a silent rejected push/remainder.
             menu.replaceExistingItem(destination, output.clone())
@@ -121,6 +149,25 @@ class StorageForge(
             false
         } catch (failure: Exception) {
             InfinityExpansion2.log(Level.SEVERE, failure, "Forge input rollback failed; manual recovery required")
+            false
+        }
+    }
+
+    private fun rollbackUncommittedForgeInputs(menu: BlockMenu, originals: List<ItemStack?>): Boolean {
+        return try {
+            originals.forEachIndexed { index, original ->
+                menu.replaceExistingItem(inputSlots[index], original?.clone() ?: ItemStack(Material.AIR))
+            }
+            if (!originals.indices.all { originals[it] == menu.getItemInSlot(inputSlots[it]) }) {
+                InfinityExpansion2.log(
+                    Level.SEVERE,
+                    IllegalStateException("Forge ingredient rollback readback mismatch"),
+                    "Forge recovery needs manual inspection"
+                )
+            }
+            false
+        } catch (failure: Exception) {
+            InfinityExpansion2.log(Level.SEVERE, failure, "Forge ingredient rollback failed; manual recovery required")
             false
         }
     }
