@@ -444,6 +444,40 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
                     "occupied backed output preserves all stored input ingredients: "+i);
             }
             forgeMenu.replaceExistingItem(outputSlot,new ItemStack(Material.AIR));
+            // Fault injection: simulate a stale recipe quantity after matching,
+            // so the storage-only commit sees a debit it cannot fulfill.
+            // The actual registered click below still uses the original recipe.
+            var staleRecipeInput=java.util.Arrays.stream(recipe.getInput())
+                .map(NativeModernizationProbe::mutableRecipeStack).toArray(ItemStack[]::new);
+            int shortIndex=-1;
+            for(int i=0;i<staleRecipeInput.length;i++) {
+                if(staleRecipeInput[i]!=null && i!=sourceIndex) {
+                    shortIndex=i;
+                    break;
+                }
+            }
+            require(shortIndex>=0,"Forge fault fixture has a non-ledger ingredient");
+            staleRecipeInput[shortIndex].setAmount(ingredients[shortIndex].getAmount()+1);
+            var staleRecipe=net.guizhanss.infinityexpansion2.core.recipes.MachineRecipe.Companion
+                .of(staleRecipeInput,mutableRecipeStack(recipe.getOutput()));
+            var backedOutput=StorageForge.transferContents(
+                new ItemStack[]{source},mutableRecipeStack(targetType.getItem()),targetCapacity);
+            require(backedOutput!=null,"Forge fault fixture prepares a backed target");
+            var commit=StorageForge.class.getDeclaredMethod("commitCraft",BlockMenu.class,
+                net.guizhanss.infinityexpansion2.core.recipes.MachineRecipe.class,
+                ItemStack[].class,ItemStack.class);
+            commit.setAccessible(true);
+            var staleMenuInputs=java.util.Arrays.stream(slots)
+                .mapToObj(forgeMenu::getItemInSlot).toArray(ItemStack[]::new);
+            require(!((Boolean)commit.invoke(forge,forgeMenu,staleRecipe,staleMenuInputs,backedOutput)),
+                "Forge refuses a partially fulfillable stale ingredient debit");
+            require(forgeMenu.getItemInSlot(outputSlot)==null
+                    || forgeMenu.getItemInSlot(outputSlot).getType().isAir(),
+                "failed Forge ingredient debit cannot mint a backed output");
+            for(int i=0;i<slots.length;i++) {
+                require(java.util.Objects.equals(ingredients[i],forgeMenu.getItemInSlot(slots[i])),
+                    "failed Forge debit restores exact source and ingredient snapshot: "+i);
+            }
             // This is the same handler registered by onNewInstance(), not a
             // reflected prepareOutput() invocation or synthetic recipe consume.
             require(!handler.onClick(player,forge.getCraftSlot(),
