@@ -424,7 +424,7 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             // A malformed legacy ledger can report a negative balance or more
             // items than its own declared capacity. Neither is permission to
             // silently normalize stock during a tier upgrade.
-            for (long invalidAmount : new long[]{-1L, (long)sourceCapacity+1L}) {
+            for (int invalidAmount : new int[]{-1, sourceCapacity+1}) {
                 var invalid=mutableRecipeStack(sourceType.getItem());
                 var invalidMeta=invalid.getItemMeta();
                 PersistentDataAPI.set(invalidMeta,StorageUnit.Companion.getSTORAGE_KEY(),
