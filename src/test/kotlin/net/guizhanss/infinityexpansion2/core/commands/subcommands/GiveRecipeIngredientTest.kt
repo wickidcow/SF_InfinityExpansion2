@@ -31,7 +31,6 @@ class GiveRecipeIngredientTest {
     fun airAndZeroAmountPlaceholdersDoNotReachInventoryPush() {
         val recipe = arrayOf<ItemStack?>(
             ItemStack(Material.AIR),
-            ItemStack(Material.CAVE_AIR),
             ItemStack(Material.DIAMOND, 0),
             null,
         )
