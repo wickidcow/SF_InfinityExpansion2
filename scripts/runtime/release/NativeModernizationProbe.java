@@ -7,6 +7,9 @@ import io.papermc.paper.registry.RegistryAccess;
 import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.registry.RegistryKey;
 import java.nio.file.Files;
+import java.lang.reflect.Proxy;
+import java.util.UUID;
+import me.mrCookieSlime.CSCoreLibPlugin.general.Inventory.ClickAction;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +32,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Cow;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
@@ -49,6 +53,7 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
     private String phase;
     private Location recordLocation;
     private Location menuLocation;
+    private Location forgeLocation;
     private EntityDamageByEntityEvent active;
 
     @Override public void onEnable() {
@@ -68,11 +73,13 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
         var world=Bukkit.getWorlds().getFirst();
         recordLocation=new Location(world,128,100,128);
         menuLocation=new Location(world,132,100,128);
-        recordLocation.getChunk().load(); menuLocation.getChunk().load();
+        forgeLocation=new Location(world,136,100,128);
+        recordLocation.getChunk().load(); menuLocation.getChunk().load(); forgeLocation.getChunk().load();
         var controller=Slimefun.getDatabaseManager().getBlockDataController();
         if (phase.equals("seed")) {
             require(!StoredBlockLookup.hasBlockInfo(recordLocation),"new record fixture");
             require(!StoredBlockLookup.hasBlockInfo(menuLocation),"new menu fixture");
+            require(!StoredBlockLookup.hasBlockInfo(forgeLocation),"new Storage Forge fixture");
             recordLocation.getBlock().setType(Material.STONE);
             var record=controller.createBlock(recordLocation,"IE2_NATIVE_UNKNOWN_ID");
             if (!record.isDataLoaded()) controller.loadBlockData(record);
@@ -83,15 +90,21 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             var data=controller.createBlock(menuLocation,item.getId());
             if (!data.isDataLoaded()) controller.loadBlockData(data);
             data.setData("probe.marker","preserve-menu-record");
+            var forge=SlimefunItem.getById("IE_STORAGE_FORGE");
+            require(forge instanceof StorageForge,"registered Storage Forge exists for click fixture");
+            forgeLocation.getBlock().setType(forge.getItem().getType());
+            var forgeData=controller.createBlock(forgeLocation,forge.getId());
+            if (!forgeData.isDataLoaded()) controller.loadBlockData(forgeData);
         }
         new BukkitRunnable() {
             int attempts;
             @Override public void run() {
                 try {
-                    if (StoredBlockLookup.getInventory(menuLocation)!=null) {
+                    if (StoredBlockLookup.getInventory(menuLocation)!=null
+                        && StoredBlockLookup.getInventory(forgeLocation)!=null) {
                         cancel(); checkNative(); finish();
                     } else if (++attempts>100) {
-                        cancel(); fail(new AssertionError("Native workbench inventory did not load"));
+                        cancel(); fail(new AssertionError("Native workbench or Storage Forge inventory did not load"));
                     }
                 } catch(Throwable failure) { cancel(); fail(failure); }
             }
@@ -149,6 +162,7 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             require("keep insertion".equals(actual.getItemMeta().lore().getFirst().insertion()),"restart preserves insertion");
         }
         checkNativeForgeLedger(menu);
+        checkRegisteredForgeClick();
         var oscillator=Oscillator.Companion.getItem("DIAMOND");
         require(oscillator.getType()==Material.DIAMOND,"native oscillator material conversion");
         require("DIAMOND".equals(Oscillator.Companion.getTarget(oscillator)),"oscillator target identity retained");
@@ -317,6 +331,133 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
                 "native consume/push rehearsal preserves identity, stock and settings after restart");
         }
         results.add("PASS "+phase+": native Storage Forge PDC and consume/push rehearsal across real menu restart (not a craft click)");
+    }
+
+    /**
+     * Dispatch the registered Forge's real crafting-button callback on a native
+     * BlockMenu using all nine production recipe slots. No Bukkit network
+     * InventoryClickEvent is emitted; this proves the installed handler path,
+     * consumption and clean restart, NOT an interrupted-operation rollback.
+     */
+    private void checkRegisteredForgeClick() throws Exception {
+        var sourceType=SlimefunItem.getById("IE_STORAGE_UNIT_1");
+        var targetType=SlimefunItem.getById("IE_STORAGE_UNIT_2");
+        var forge=(StorageForge)SlimefunItem.getById("IE_STORAGE_FORGE");
+        require(sourceType instanceof StorageUnit && targetType instanceof StorageUnit,
+            "registered Forge click Storage Unit tiers exist");
+        var forgeMenu=StoredBlockLookup.getInventory(forgeLocation);
+        require(forgeMenu!=null,"real registered Forge menu is persisted");
+        require("IE_STORAGE_FORGE".equals(StoredBlockLookup.getId(forgeLocation)),
+            "Forge click executes on an actual registered Forge block");
+        var handler=forgeMenu.getMenuClickHandler(forge.getCraftSlot());
+        require(handler!=null,"Forge crafting button has a live registered click handler");
+        var slots=forge.getInputSlots();
+        require(slots.length==9,"Forge click uses all nine physical recipe slots");
+        int outputSlot=forge.getOutputSlots()[0];
+        var recipe=forge.getRecipes().stream()
+            .filter(r->SlimefunItem.getByItem(r.getOutput())==targetType)
+            .findFirst().orElseThrow(()->new AssertionError("registered Forge upgrade recipe missing"));
+        var ingredients=java.util.Arrays.stream(recipe.getInput())
+            .map(NativeModernizationProbe::mutableRecipeStack).toArray(ItemStack[]::new);
+        require(ingredients.length==slots.length,"Forge click recipe/layout dimensions agree");
+        int sourceIndex=-1;
+        for(int i=0;i<ingredients.length;i++) {
+            if(ingredients[i]!=null && SlimefunItem.getByItem(ingredients[i])==sourceType) {
+                require(sourceIndex<0,"Forge click recipe has one source unit");
+                sourceIndex=i;
+            }
+        }
+        require(sourceIndex>=0,"Forge click recipe locates source Storage Unit");
+        var snapshot=getDataFolder().toPath().resolve("native-forge-click-output.bin");
+        var sourceCapacity=((StorageUnit)sourceType).getCapacity();
+        var targetCapacity=((StorageUnit)targetType).getCapacity();
+        if (phase.equals("seed")) {
+            var source=mutableRecipeStack(sourceType.getItem());
+            var meta=source.getItemMeta();
+            PersistentDataAPI.set(meta,StorageUnit.Companion.getSTORAGE_KEY(),
+                PersistentStorageCacheType.getTYPE(),
+                new StorageCache(new ItemStack(Material.DIAMOND),731,sourceCapacity,true));
+            require(source.setItemMeta(meta),"Forge click source unit contains the stored ledger");
+            ingredients[sourceIndex]=source;
+            for(int i=0;i<slots.length;i++) {
+                forgeMenu.replaceExistingItem(slots[i],ingredients[i]);
+            }
+            require(recipe.check(java.util.Arrays.stream(slots)
+                .mapToObj(forgeMenu::getItemInSlot).toArray(ItemStack[]::new),false),
+                "all nine real Forge menu slots match the registered upgrade recipe");
+            var player=forgeClickProbePlayer();
+            // This is the same handler registered by onNewInstance(), not a
+            // reflected prepareOutput() invocation or synthetic recipe consume.
+            require(!handler.onClick(player,forge.getCraftSlot(),
+                forgeMenu.getItemInSlot(forge.getCraftSlot()),new ClickAction(false,false)),
+                "registered Forge button rejects moving the button item");
+            var actual=forgeMenu.getItemInSlot(outputSlot);
+            require(actual!=null && SlimefunItem.getByItem(actual)==targetType,
+                "registered Forge click produces the correct new Storage Unit");
+            var ledger=PersistentDataAPI.get(actual.getItemMeta(),
+                StorageUnit.Companion.getSTORAGE_KEY(),PersistentStorageCacheType.getTYPE());
+            require(ledger!=null && ledger.getAmount()==731
+                && ledger.getLimit()==targetCapacity && ledger.getVoidExcess()
+                && new ItemStack(Material.DIAMOND).equals(ledger.getItemStack()),
+                "registered Forge click conserves identity, count, capacity and settings");
+            for(int i=0;i<slots.length;i++) {
+                var remaining=forgeMenu.getItemInSlot(slots[i]);
+                require(remaining==null || remaining.getType().isAir() || remaining.getAmount()==0,
+                    "registered Forge click consumes each required input exactly once: "+i);
+            }
+            forgeMenu.markDirty();
+            Files.write(snapshot,actual.serializeAsBytes());
+        } else {
+            require(Files.isRegularFile(snapshot),"prior registered Forge click snapshot exists");
+            var expected=ItemStack.deserializeBytes(Files.readAllBytes(snapshot));
+            var actual=forgeMenu.getItemInSlot(outputSlot);
+            require(actual!=null && actual.equals(expected),
+                "registered Forge click output survives clean native database restart");
+            for(int i=0;i<slots.length;i++) {
+                var remaining=forgeMenu.getItemInSlot(slots[i]);
+                require(remaining==null || remaining.getType().isAir() || remaining.getAmount()==0,
+                    "registered Forge click inputs remain consumed after restart: "+i);
+            }
+            var ledger=PersistentDataAPI.get(actual.getItemMeta(),
+                StorageUnit.Companion.getSTORAGE_KEY(),PersistentStorageCacheType.getTYPE());
+            require(ledger!=null && ledger.getAmount()==731
+                && ledger.getLimit()==targetCapacity && ledger.getVoidExcess()
+                && new ItemStack(Material.DIAMOND).equals(ledger.getItemStack()),
+                "registered Forge click keeps stored identity/stock/settings after restart");
+        }
+        results.add("PASS "+phase+": registered Storage Forge click handler, real slots and clean database restart (not an interrupted craft)");
+    }
+
+    /** A minimal permissible player interface for the disposable native click callback. */
+    private Player forgeClickProbePlayer() {
+        return (Player)Proxy.newProxyInstance(Player.class.getClassLoader(),
+            new Class<?>[]{Player.class},(proxy,method,args)->{
+                return switch(method.getName()) {
+                    case "getName" -> "NativeForgeProbe";
+                    case "getUniqueId" -> new UUID(0,731);
+                    case "getWorld" -> forgeLocation.getWorld();
+                    case "getLocation" -> forgeLocation.clone();
+                    case "getServer" -> Bukkit.getServer();
+                    case "hasPermission","isOp","isOnline" -> true;
+                    case "getLocale" -> "en_us";
+                    case "locale" -> java.util.Locale.US;
+                    case "equals" -> proxy==args[0];
+                    case "hashCode" -> System.identityHashCode(proxy);
+                    case "toString" -> "NativeForgeProbe(player-interface)";
+                    default -> {
+                        var type=method.getReturnType();
+                        if (type==boolean.class) yield false;
+                        if (type==int.class) yield 0;
+                        if (type==long.class) yield 0L;
+                        if (type==float.class) yield 0f;
+                        if (type==double.class) yield 0d;
+                        if (type==byte.class) yield (byte)0;
+                        if (type==short.class) yield (short)0;
+                        if (type==char.class) yield (char)0;
+                        yield null;
+                    }
+                };
+            });
     }
 
     private void checkHorns() throws Exception {
