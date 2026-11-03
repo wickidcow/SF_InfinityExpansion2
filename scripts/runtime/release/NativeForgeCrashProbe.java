@@ -233,7 +233,28 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
             for(int i=0;i<slots.length;i++)
                 require(equalItem(oldInputs[i],menu.getItemInSlot(slots[i])),
                     "rolled-back old transaction must retain all inputs: "+i);
-            results.add("PASS verify: complete pre-craft ledger and ingredients recovered after SIGKILL");
+            // A rolled-back transaction must remain craftable exactly once.
+            // This checks retry conservation after an interrupted prior craft;
+            // it is not a substitute for fault injection inside commitCraft.
+            var retryHandler=menu.getMenuClickHandler(forge.getCraftSlot());
+            require(retryHandler!=null && retryHandler.getClass().getName().contains("AbstractCraftingMachine"),
+                "rollback retry uses the registered Forge handler");
+            require(!retryHandler.onClick(probePlayer(),forge.getCraftSlot(),
+                    menu.getItemInSlot(forge.getCraftSlot()),new ClickAction(false,false)),
+                "rollback retry click is handled");
+            require(upgraded(menu.getItemInSlot(outputSlot),(StorageUnit)target),
+                "rollback retry delivers exactly one backed 731-diamond output");
+            for(int slot:slots)require(isEmpty(menu.getItemInSlot(slot)),
+                "rollback retry consumes each restored ingredient exactly once");
+            // Clicking a second time must not mint another ledger.
+            require(!retryHandler.onClick(probePlayer(),forge.getCraftSlot(),
+                    menu.getItemInSlot(forge.getCraftSlot()),new ClickAction(false,false)),
+                "repeated rollback retry click is handled");
+            require(upgraded(menu.getItemInSlot(outputSlot),(StorageUnit)target),
+                "second retry cannot duplicate the backed output");
+            for(int slot:slots)require(isEmpty(menu.getItemInSlot(slot)),
+                "second retry cannot restore consumed ingredients");
+            results.add("PASS verify: complete pre-craft ledger recovered; retry commits once without duplicate");
         } else {
             for(int slot:slots)require(isEmpty(menu.getItemInSlot(slot)),
                 "committed new output must have consumed every old ingredient");
