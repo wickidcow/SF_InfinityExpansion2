@@ -11,6 +11,7 @@ import net.guizhanss.infinityexpansion2.core.commands.AbstractSubCommand
 import net.guizhanss.infinityexpansion2.implementation.recipes.IERecipeTypes
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
+import org.bukkit.inventory.ItemStack
 import java.util.Locale
 
 /**
@@ -52,6 +53,13 @@ class GiveRecipeCommand(parent: AbstractCommand) : AbstractSubCommand(
             return
         }
 
+        // Empty or placeholder-only recipes cannot be pushed into an inventory.
+        val ingredients = usableRecipeIngredients(sfItem.recipe)
+        if (ingredients.isEmpty()) {
+            InfinityExpansion2.integrationService.sendMessage(p, "commands.invalid-item")
+            return
+        }
+
         // give the recipe
         InfinityExpansion2.integrationService.sendMessage(
             p,
@@ -65,7 +73,7 @@ class GiveRecipeCommand(parent: AbstractCommand) : AbstractSubCommand(
             InfinityExpansion2.integrationService.getTranslatedItemName(target, sfItem.item)
         )
 
-        InventoryUtil.push(target, *sfItem.recipe.filterNotNull().toTypedArray())
+        InventoryUtil.push(target, *ingredients.toTypedArray())
     }
 
     override fun onTab(sender: CommandSender, args: Array<String>): List<String>? {
@@ -83,3 +91,7 @@ class GiveRecipeCommand(parent: AbstractCommand) : AbstractSubCommand(
         }
     }
 }
+
+/** Excludes null and placeholder stacks before GuizhanLib's non-empty inventory push. */
+internal fun usableRecipeIngredients(recipe: Array<out ItemStack?>): List<ItemStack> =
+    recipe.filterNotNull().filter { !it.type.isAir && it.amount > 0 }
