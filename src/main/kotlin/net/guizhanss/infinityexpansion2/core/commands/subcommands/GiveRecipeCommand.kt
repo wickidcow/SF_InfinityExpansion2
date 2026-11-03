@@ -65,7 +65,13 @@ class GiveRecipeCommand(parent: AbstractCommand) : AbstractSubCommand(
             InfinityExpansion2.integrationService.getTranslatedItemName(target, sfItem.item)
         )
 
-        InventoryUtil.push(target, *sfItem.recipe.filterNotNull().toTypedArray())
+        val ingredients = sfItem.recipe.filterNotNull().filter { !it.type.isAir && it.amount > 0 }
+        if (ingredients.isEmpty()) {
+            InfinityExpansion2.integrationService.sendMessage(p, "commands.invalid-item")
+            return
+        }
+
+        InventoryUtil.push(target, *ingredients.toTypedArray())
     }
 
     override fun onTab(sender: CommandSender, args: Array<String>): List<String>? {
