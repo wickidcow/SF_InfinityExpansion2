@@ -157,15 +157,15 @@ def main():
     crash_javac=['--release','21','-cp',os.pathsep.join(map(str,jars)),
                  '-d',str(crash_classes),str(crash_source)]
     crash_argfile=runtime/'forge-crash-javac.args'
-    crash_argfile.write_text('\\n'.join(json.dumps(arg) for arg in crash_javac))
+    crash_argfile.write_text('\n'.join(json.dumps(arg) for arg in crash_javac))
     subprocess.run([str(args.java_home/'bin/javac'),'@'+str(crash_argfile)],check=True)
     with zipfile.ZipFile(runtime/'plugins/NativeForgeCrashProbe.jar','w',zipfile.ZIP_DEFLATED) as jar:
         for compiled in crash_classes.rglob('*.class'):
             jar.write(compiled,compiled.relative_to(crash_classes))
         jar.writestr('plugin.yml',
-                     'name: NativeForgeCrashProbe\\nversion: 1.0\\n'
-                     'main: verification.NativeForgeCrashProbe\\n'
-                     'api-version: "1.21"\\ndepend: [Slimefun, InfinityExpansion2]\\n')
+                     'name: NativeForgeCrashProbe\nversion: 1.0\n'
+                     'main: verification.NativeForgeCrashProbe\n'
+                     'api-version: "1.21"\ndepend: [Slimefun, InfinityExpansion2]\n')
     evidence['forge_crash_probe_sha256']=hashlib.sha256(crash_source.read_bytes()).hexdigest()
     evidence['forge_crash_phases']={}
     for phase in ('seed','crash','verify'):
@@ -181,7 +181,7 @@ def main():
         else:
             run_process(command,runtime,log,args.timeout)
         if not result.is_file():
-            print('\\n'.join(log.read_text(errors='replace').splitlines()[-100:]))
+            print('\n'.join(log.read_text(errors='replace').splitlines()[-100:]))
             raise AssertionError('Native Forge crash phase wrote no result: '+phase)
         report=result.read_text();print(report)
         if 'PASS '+phase+':' not in report or 'failures: 0' not in report:
