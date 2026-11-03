@@ -175,6 +175,18 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
 
 
     /**
+     * Recipe inputs may be Slimefun ItemStackWrapper instances. Their clone() is
+     * still immutable, so a native crafting rehearsal must copy metadata onto a
+     * genuine mutable Bukkit stack before placing it in a live inventory.
+     */
+    private static ItemStack mutableRecipeStack(ItemStack original) {
+        if (original == null) return null;
+        var copy = new ItemStack(original.getType(), original.getAmount());
+        if (original.hasItemMeta()) copy.setItemMeta(original.getItemMeta());
+        return copy;
+    }
+
+    /**
      * Real registered IE2 Storage Unit PDC upgrade preflight and live menu/database
      * restart. This is NOT an end-to-end Forge click/ingredient-consumption test.
      * Never present it as transaction or interrupted-shutdown evidence.
@@ -204,7 +216,7 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
                 .filter(r->SlimefunItem.getByItem(r.getOutput())==targetType)
                 .findFirst().orElseThrow(()->new AssertionError("registered tier-2 Forge recipe missing"));
             var registeredInput=java.util.Arrays.stream(registeredRecipe.getInput())
-                .map(stack->stack==null?null:stack.clone()).toArray(ItemStack[]::new);
+                .map(NativeModernizationProbe::mutableRecipeStack).toArray(ItemStack[]::new);
             require(registeredInput.length==9,"registered Forge recipe retains nine input slots");
             int storageIndex=-1;
             for(int i=0;i<registeredInput.length;i++) {
@@ -219,7 +231,7 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
                 "registered non-strict Forge recipe matches populated storage and all real ingredients");
             var prepare=StorageForge.class.getDeclaredMethod("prepareOutput",ItemStack[].class,ItemStack.class);
             prepare.setAccessible(true);
-            var prepared=(ItemStack)prepare.invoke(registeredForge,registeredInput,registeredRecipe.getOutput().clone());
+            var prepared=(ItemStack)prepare.invoke(registeredForge,registeredInput,mutableRecipeStack(registeredRecipe.getOutput()));
             require(prepared!=null,"registered Forge prepareOutput accepts the real upgrade recipe");
             var preparedLedger=PersistentDataAPI.get(prepared.getItemMeta(),
                 StorageUnit.Companion.getSTORAGE_KEY(),PersistentStorageCacheType.getTYPE());
