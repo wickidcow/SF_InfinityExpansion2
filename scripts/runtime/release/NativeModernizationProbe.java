@@ -272,6 +272,20 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             require(StorageForge.transferContents(new ItemStack[]{source},
                 targetType.getItem().clone(),100)==null,"insufficient target capacity refuses upgrade");
             require(source.equals(sourceBefore),"refused upgrade leaves original storage untouched");
+            // Two independently backed inputs must never be collapsed into one
+            // upgraded unit: that would discard one ledger or clone its stock.
+            var secondLedger=source.clone();
+            require(StorageForge.transferContents(new ItemStack[]{source,secondLedger},
+                targetType.getItem().clone(),targetCapacity)==null,
+                "two backed source ledgers refuse a single-result upgrade");
+            require(source.equals(sourceBefore) && secondLedger.equals(sourceBefore),
+                "multiple-ledger refusal preserves both exact source PDC items");
+            // An output already bearing a ledger is not an empty destination.
+            require(StorageForge.transferContents(new ItemStack[]{source},
+                upgraded.clone(),targetCapacity)==null,
+                "preloaded backed result cannot overwrite or duplicate its ledger");
+            require(source.equals(sourceBefore),
+                "preloaded-output refusal preserves the original ledger");
             Files.write(snapshot,upgraded.serializeAsBytes());
             menu.replaceExistingItem(1,upgraded.clone());menu.markDirty();
             require(upgraded.equals(menu.getItemInSlot(1)),"upgraded PDC in real persistent menu");
