@@ -416,6 +416,24 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             require(rejected==null || rejected.getType().isAir(),
                 "invalid ledger click does not mint an empty upgrade");
             forgeMenu.replaceExistingItem(slots[sourceIndex],source);
+            // A stacked source with a populated ledger represents multiple
+            // backed units. The upgrade must not consume one and leave a clone.
+            var stackedSource=source.clone();
+            stackedSource.setAmount(2);
+            forgeMenu.replaceExistingItem(slots[sourceIndex],stackedSource);
+            require(!handler.onClick(player,forge.getCraftSlot(),
+                forgeMenu.getItemInSlot(forge.getCraftSlot()),new ClickAction(false,false)),
+                "stacked-ledger Forge button remains non-movable");
+            require(stackedSource.equals(forgeMenu.getItemInSlot(slots[sourceIndex])),
+                "stacked-ledger refusal preserves both source units and their PDC");
+            for(int i=0;i<slots.length;i++) {
+                if(i!=sourceIndex)require(java.util.Objects.equals(ingredients[i],forgeMenu.getItemInSlot(slots[i])),
+                    "stacked-ledger refusal preserves other ingredients: "+i);
+            }
+            require(forgeMenu.getItemInSlot(outputSlot)==null
+                    || forgeMenu.getItemInSlot(outputSlot).getType().isAir(),
+                "stacked-ledger refusal creates no upgraded output");
+            forgeMenu.replaceExistingItem(slots[sourceIndex],source);
             // A full unrelated output slot must also refuse the transaction
             // before consuming the source or other recipe ingredients.
             var blockedOutput=new ItemStack(Material.BEDROCK,64);
