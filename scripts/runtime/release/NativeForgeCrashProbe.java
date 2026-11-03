@@ -164,9 +164,29 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
                 require(equalItem(oldInputs[i],menu.getItemInSlot(slots[i])),
                     "precrash source ingredient persisted intact: "+i);
             require(isEmpty(menu.getItemInSlot(outputSlot)),"precrash output is empty");
+            var reread=Arrays.stream(slots).mapToObj(menu::getItemInSlot)
+                .toArray(ItemStack[]::new);
+            require(recipe.check(reread,false),
+                "saved nine-slot Forge recipe still matches after clean server restart");
+            var recoveredCache=PersistentDataAPI.get(menu.getItemInSlot(slots[sourceIndex]).getItemMeta(),
+                StorageUnit.Companion.getSTORAGE_KEY(),PersistentStorageCacheType.getTYPE());
+            require(recoveredCache!=null && recoveredCache.getAmount()==STORED_DIAMONDS,
+                "stored source PDC still decodes to all 731 diamonds");
+            var player=probePlayer();
+            require(recipe.check(player),"test player can use the registered upgrade result");
+            var prepare=StorageForge.class.getDeclaredMethod(
+                "prepareOutput",ItemStack[].class,ItemStack.class);
+            prepare.setAccessible(true);
+            var prepared=(ItemStack)prepare.invoke(forge,reread,mutable(recipe.getOutput()));
+            require(prepared!=null,
+                "production Forge preflight accepts PDC ledger after saved-menu reload");
+            require(upgraded(prepared,(StorageUnit)target),
+                "prepared restarted Forge result retains exact stock and Slimefun identity");
+            require(menu.fits(prepared,outputSlot),
+                "physical output slot accepts the prepared ledger before craft");
             var handler=menu.getMenuClickHandler(forge.getCraftSlot());
             require(handler!=null,"registered Forge button callback exists");
-            require(!handler.onClick(probePlayer(),forge.getCraftSlot(),
+            require(!handler.onClick(player,forge.getCraftSlot(),
                     menu.getItemInSlot(forge.getCraftSlot()),new ClickAction(false,false)),
                 "real crafting button handles crash fixture");
             require(upgraded(menu.getItemInSlot(outputSlot),(StorageUnit)target),
@@ -222,7 +242,7 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
             new Class<?>[]{Player.class},(proxy,method,args)->{
                 return switch(method.getName()) {
                     case "getName" -> "NativeForgeCrashProbe";
-                    case "getUniqueId" -> new UUID(0,732);
+                    case "getUniqueId" -> new UUID(0,731);
                     case "getWorld" -> location.getWorld();
                     case "getLocation" -> location.clone();
                     case "getServer" -> Bukkit.getServer();
