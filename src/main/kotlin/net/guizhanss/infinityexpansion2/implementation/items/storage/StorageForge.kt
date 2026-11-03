@@ -7,11 +7,15 @@ import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItemStack
 import io.github.thebusybiscuit.slimefun4.api.recipes.RecipeType
 import io.github.thebusybiscuit.slimefun4.libraries.dough.data.persistent.PersistentDataAPI
 import net.guizhanss.infinityexpansion2.core.IERegistry
+import net.guizhanss.infinityexpansion2.InfinityExpansion2
 import net.guizhanss.infinityexpansion2.core.menu.MenuLayout
 import net.guizhanss.infinityexpansion2.core.persistent.PersistentStorageCacheType
 import net.guizhanss.infinityexpansion2.core.recipes.MachineRecipe
 import net.guizhanss.infinityexpansion2.utils.bukkitext.ie2Key
 import net.guizhanss.infinityexpansion2.implementation.items.machines.abstracts.AbstractCraftingMachine
+import me.mrCookieSlime.Slimefun.api.inventory.BlockMenu
+import org.bukkit.Material
+import java.util.logging.Level
 import org.bukkit.inventory.ItemStack
 import org.bukkit.persistence.PersistentDataType
 
@@ -43,6 +47,82 @@ class StorageForge(
             }
         }
         return transferContents(input, output, target.capacity)
+    }
+
+    /**
+     * A stored ledger must never be merged into another output stack. The
+     * generic push path can return a remainder after ingredients have already
+     * been debited (MENU_FIT and MENU_INSERT have different admission checks).
+     * For ledger-bearing upgrades, use the Forge's single physical output slot
+     * and verify the *actual* full PDC item before acknowledging consumption.
+     * Other recipes keep their original crafting behavior.
+     *
+     * All operations here run in the owning menu handler. This can recover a
+     * synchronous rejected write, but is not a crash-atomic database transaction.
+     */
+    override fun commitCraft(
+        menu: BlockMenu,
+        recipe: MachineRecipe,
+        input: Array<ItemStack?>,
+        output: ItemStack,
+    ): Boolean {
+        if (input.none { it?.itemMeta?.persistentDataContainer?.has(StorageUnit.STORAGE_KEY) == true }) {
+            return super.commitCraft(menu, recipe, input, output)
+        }
+
+        // A ledger-bearing output is uniquely owned by one unit. Stacking it
+        // would clone its stored items even when the normal fit check says yes.
+        val destination = outputSlots.singleOrNull() ?: return false
+        val occupied = menu.getItemInSlot(destination)
+        if (occupied != null && !occupied.type.isAir) return false
+        if (output.amount != 1
+            || output.itemMeta?.persistentDataContainer?.has(StorageUnit.STORAGE_KEY, PersistentStorageCacheType.TYPE)
+                != true
+        ) return false
+
+        val originals = input.map { it?.clone() }
+        try {
+            recipe.consume(input)
+            // This is an owned machine-output slot, not a network insertion.
+            // Direct replacement avoids a silent rejected push/remainder.
+            menu.replaceExistingItem(destination, output.clone())
+            if (menu.getItemInSlot(destination) == output) return true
+        } catch (failure: Exception) {
+            InfinityExpansion2.log(Level.SEVERE, failure, "Storage Forge output commit failed; attempting in-memory recovery")
+        }
+
+        // A partially written or unexpectedly changed output must not be
+        // deleted speculatively: it could be the only remaining copy of stock.
+        val actual = menu.getItemInSlot(destination)
+        if (actual == output) return true
+        if (actual != null && !actual.type.isAir) {
+            InfinityExpansion2.log(
+                Level.SEVERE,
+                IllegalStateException("Unexpected nonempty Forge output during recovery"),
+                "Quarantining uncertain Forge output rather than duplicating a source ledger"
+            )
+            return false
+        }
+
+        // The output slot is still empty. Restore *every* exact ingredient
+        // snapshot; no output means the input is the only safe stock holder.
+        return try {
+            originals.forEachIndexed { i, original ->
+                menu.replaceExistingItem(inputSlots[i], original?.clone() ?: ItemStack(Material.AIR))
+            }
+            val restored = originals.indices.all { originals[it] == menu.getItemInSlot(inputSlots[it]) }
+            if (!restored) {
+                InfinityExpansion2.log(
+                    Level.SEVERE,
+                    IllegalStateException("Forge input rollback readback mismatch"),
+                    "Forge recovery needs manual inspection"
+                )
+            }
+            false
+        } catch (failure: Exception) {
+            InfinityExpansion2.log(Level.SEVERE, failure, "Forge input rollback failed; manual recovery required")
+            false
+        }
     }
 
     companion object {
