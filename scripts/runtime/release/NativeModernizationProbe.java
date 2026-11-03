@@ -388,6 +388,47 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
                 .mapToObj(forgeMenu::getItemInSlot).toArray(ItemStack[]::new),false),
                 "all nine real Forge menu slots match the registered upgrade recipe");
             var player=forgeClickProbePlayer();
+            // A populated ledger without item identity must not disappear when
+            // the real button is clicked. The recipe itself still matches by
+            // non-strict identity; only the Forge safety preflight rejects it.
+            var corrupt=mutableRecipeStack(source);
+            var corruptMeta=corrupt.getItemMeta();
+            PersistentDataAPI.set(corruptMeta,StorageUnit.Companion.getSTORAGE_KEY(),
+                PersistentStorageCacheType.getTYPE(),
+                new StorageCache(null,731,sourceCapacity,true));
+            require(corrupt.setItemMeta(corruptMeta),"corrupt native Forge fixture retains missing identity");
+            forgeMenu.replaceExistingItem(slots[sourceIndex],corrupt);
+            require(recipe.check(java.util.Arrays.stream(slots)
+                .mapToObj(forgeMenu::getItemInSlot).toArray(ItemStack[]::new),false),
+                "identity-less old ledger still reaches Forge safety preflight");
+            var beforeRefusal=java.util.Arrays.stream(slots)
+                .mapToObj(forgeMenu::getItemInSlot)
+                .map(item->item==null?null:item.clone()).toArray(ItemStack[]::new);
+            require(!handler.onClick(player,forge.getCraftSlot(),
+                forgeMenu.getItemInSlot(forge.getCraftSlot()),new ClickAction(false,false)),
+                "invalid-ledger Forge button remains non-movable");
+            for(int i=0;i<slots.length;i++) {
+                require(java.util.Objects.equals(beforeRefusal[i],forgeMenu.getItemInSlot(slots[i])),
+                    "invalid ledger click must not consume any input: "+i);
+            }
+            var rejected=forgeMenu.getItemInSlot(outputSlot);
+            require(rejected==null || rejected.getType().isAir(),
+                "invalid ledger click does not mint an empty upgrade");
+            forgeMenu.replaceExistingItem(slots[sourceIndex],source);
+            // A full unrelated output slot must also refuse the transaction
+            // before consuming the source or other recipe ingredients.
+            var blockedOutput=new ItemStack(Material.BEDROCK,64);
+            forgeMenu.replaceExistingItem(outputSlot,blockedOutput);
+            require(!handler.onClick(player,forge.getCraftSlot(),
+                forgeMenu.getItemInSlot(forge.getCraftSlot()),new ClickAction(false,false)),
+                "blocked-output Forge button remains non-movable");
+            require(blockedOutput.equals(forgeMenu.getItemInSlot(outputSlot)),
+                "blocked Forge click retains the original output stack");
+            for(int i=0;i<slots.length;i++) {
+                require(java.util.Objects.equals(ingredients[i],forgeMenu.getItemInSlot(slots[i])),
+                    "blocked Forge click leaves every recipe input untouched: "+i);
+            }
+            forgeMenu.replaceExistingItem(outputSlot,new ItemStack(Material.AIR));
             // This is the same handler registered by onNewInstance(), not a
             // reflected prepareOutput() invocation or synthetic recipe consume.
             require(!handler.onClick(player,forge.getCraftSlot(),
