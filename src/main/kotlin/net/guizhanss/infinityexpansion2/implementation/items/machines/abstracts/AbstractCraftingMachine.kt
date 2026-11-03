@@ -81,8 +81,10 @@ abstract class AbstractCraftingMachine(
             return
         }
 
-        recipe.consume(input)
-        menu.pushItem(output, *outputSlots)
+        if (!commitCraft(menu, recipe, input, output)) {
+            menu.setStatus { GuiItems.NO_ROOM }
+            return
+        }
         menu.setStatus { GuiItems.SUCCESS }
         try {
             onSuccessfulCraft(menu, output, p)
@@ -90,6 +92,22 @@ abstract class AbstractCraftingMachine(
             InfinityExpansion2.log(Level.SEVERE, e, "An error occurred while processing a successful craft")
         }
         return
+    }
+
+    /**
+     * Override only for machines that require stronger delivery guarantees.
+     * The default remains the historic consume-then-push behavior so unrelated
+     * crafting machines retain their original item counts and slot ordering.
+     */
+    protected open fun commitCraft(
+        menu: BlockMenu,
+        recipe: MachineRecipe,
+        input: Array<ItemStack?>,
+        output: ItemStack,
+    ): Boolean {
+        recipe.consume(input)
+        menu.pushItem(output, *outputSlots)
+        return true
     }
 
     /**
