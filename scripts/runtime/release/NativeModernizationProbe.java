@@ -421,6 +421,24 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
                 "Forge refuses target capacity below persisted 731-item balance");
             require(source.equals(sourceBeforeCapacityRefusal),
                 "capacity refusal leaves source PDC and stack unchanged");
+            // A malformed legacy ledger can report a negative balance or more
+            // items than its own declared capacity. Neither is permission to
+            // silently normalize stock during a tier upgrade.
+            for (long invalidAmount : new long[]{-1L, (long)sourceCapacity+1L}) {
+                var invalid=mutableRecipeStack(sourceType.getItem());
+                var invalidMeta=invalid.getItemMeta();
+                PersistentDataAPI.set(invalidMeta,StorageUnit.Companion.getSTORAGE_KEY(),
+                    PersistentStorageCacheType.getTYPE(),
+                    new StorageCache(new ItemStack(Material.DIAMOND),invalidAmount,sourceCapacity,true));
+                require(invalid.setItemMeta(invalidMeta),
+                    "malformed legacy Forge fixture retains its exact ledger");
+                var beforeInvalid=invalid.clone();
+                require(StorageForge.transferContents(new ItemStack[]{invalid},
+                    mutableRecipeStack(targetType.getItem()),targetCapacity)==null,
+                    "Forge refuses malformed persisted source amount "+invalidAmount);
+                require(invalid.equals(beforeInvalid),
+                    "malformed ledger refusal leaves source PDC unchanged "+invalidAmount);
+            }
             ingredients[sourceIndex]=source;
             for(int i=0;i<slots.length;i++) {
                 forgeMenu.replaceExistingItem(slots[i],ingredients[i]);
