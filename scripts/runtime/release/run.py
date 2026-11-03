@@ -187,6 +187,11 @@ def main():
         if 'PASS '+phase+':' not in report or 'failures: 0' not in report:
             raise AssertionError('Native Forge crash phase failed: '+phase)
         evidence['forge_crash_phases'][phase]=report
+    # The crash probe must not damage an unrelated existing SQLite record.
+    post_crash_unknown=stored_unknown_snapshot(runtime)
+    if post_crash_unknown!=evidence['unknown_record_database_snapshot']:
+        raise AssertionError('Unrelated stored Slimefun record changed across crash recovery')
+    evidence['unknown_record_after_forge_sigkill']=post_crash_unknown
     (runtime/'release-runtime-evidence.json').write_text(json.dumps(evidence,indent=2)+'\n')
     print('Native card suite, clean restart and post-craft SIGKILL Forge conservation checks passed.')
     return 0
