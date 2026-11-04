@@ -88,6 +88,15 @@ class StorageForge(
                 menu.getItemInSlot(inputSlots[index]) != input[index]
             }) return false
 
+        // Never trust a stale recipe whose required amounts no longer fit the
+        // physical inputs. This preflight is independent of the earlier menu
+        // matcher because the inventory may have changed before commit.
+        if (recipe.recipe.indices.any { index ->
+                val required = recipe.recipe[index]?.amount ?: 0
+                val available = input[index]?.amount ?: 0
+                required < 0 || required > available
+            }) return false
+
         val originals = input.map { it?.clone() }
         try {
             recipe.consume(input)
