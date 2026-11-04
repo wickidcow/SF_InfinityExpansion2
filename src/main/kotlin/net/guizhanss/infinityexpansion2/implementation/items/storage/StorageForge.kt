@@ -92,9 +92,13 @@ class StorageForge(
         // physical inputs. This preflight is independent of the earlier menu
         // matcher because the inventory may have changed before commit.
         if (recipe.recipe.indices.any { index ->
-                val required = recipe.recipe[index]?.amount ?: 0
+                val requiredStack = recipe.recipe[index]
+                val required = requiredStack?.amount ?: 0
                 val available = input[index]?.amount ?: 0
-                required < 0 || required > available
+                // An AIR or zero-quantity ingredient is not a debit; reject
+                // malformed negative requirements and insufficient real stock.
+                required < 0 || required > available ||
+                    (required > 0 && (input[index] == null || input[index]?.type?.isAir == true))
             }) return false
 
         val originals = input.map { it?.clone() }
