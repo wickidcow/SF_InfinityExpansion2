@@ -5,6 +5,7 @@ import io.github.thebusybiscuit.slimefun4.api.items.ItemGroup
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItemStack
 import io.github.thebusybiscuit.slimefun4.api.recipes.RecipeType
+import io.github.thebusybiscuit.slimefun4.utils.itemstack.ItemStackWrapper
 import io.github.thebusybiscuit.slimefun4.libraries.dough.data.persistent.PersistentDataAPI
 import net.guizhanss.infinityexpansion2.core.IERegistry
 import net.guizhanss.infinityexpansion2.InfinityExpansion2
@@ -87,6 +88,11 @@ class StorageForge(
         if (inputSlots.indices.any { index ->
                 menu.getItemInSlot(inputSlots[index]) != input[index]
             }) return false
+        // Re-run the actual recipe matcher against the current menu state,
+        // not only the snapshot selected earlier by craft(). A player or
+        // another handler may have replaced an ingredient with the same count
+        // but a different identity between matching and ledger commitment.
+        if (!recipe.check(ItemStackWrapper.wrapArray(input), strictIngredientCheck)) return false
 
         // Never trust a stale recipe whose required amounts no longer fit the
         // physical inputs. This preflight is independent of the earlier menu
