@@ -165,6 +165,19 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
             Files.move(temporarySnapshot,snapshot,
                 java.nio.file.StandardCopyOption.ATOMIC_MOVE,
                 java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            // Verify the oracle itself before the clean shutdown. A corrupt
+            // snapshot would make a later old-or-new verdict meaningless.
+            var persistedSnapshot=Files.readAllLines(snapshot,StandardCharsets.UTF_8);
+            require(persistedSnapshot.size()==slots.length,
+                "seed oracle contains exactly nine serialized slots");
+            for(int i=0;i<slots.length;i++) {
+                var expected=menu.getItemInSlot(slots[i]);
+                var serialized=persistedSnapshot.get(i);
+                var decoded="-".equals(serialized)?null:
+                    ItemStack.deserializeBytes(Base64.getDecoder().decode(serialized));
+                require(equalItem(expected,decoded),
+                    "seed oracle round-trips the complete ingredient at slot "+i);
+            }
             menu.markDirty();
             require(isEmpty(menu.getItemInSlot(outputSlot)),"seed output remains empty");
             var seedHandler=menu.getMenuClickHandler(forge.getCraftSlot());
