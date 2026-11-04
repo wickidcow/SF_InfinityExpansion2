@@ -147,7 +147,13 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
                 encoded.add(item==null||item.getType().isAir() ? "-"
                     :Base64.getEncoder().encodeToString(item.serializeAsBytes()));
             }
-            Files.write(snapshot,encoded,StandardCharsets.UTF_8);
+            // Publish the seed oracle only when every serialized slot is ready.
+            // A truncated fixture must never be accepted as historical state.
+            var temporarySnapshot=snapshot.resolveSibling(snapshot.getFileName()+".tmp");
+            Files.write(temporarySnapshot,encoded,StandardCharsets.UTF_8);
+            Files.move(temporarySnapshot,snapshot,
+                java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
             menu.markDirty();
             require(isEmpty(menu.getItemInSlot(outputSlot)),"seed output remains empty");
             var seedHandler=menu.getMenuClickHandler(forge.getCraftSlot());
