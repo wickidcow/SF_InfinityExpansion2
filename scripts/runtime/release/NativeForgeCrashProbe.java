@@ -178,6 +178,21 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
                 require(equalItem(expected,decoded),
                     "seed oracle round-trips the complete ingredient at slot "+i);
             }
+            // Round-tripping item metadata alone is insufficient: a fixture
+            // with a missing/empty ledger would still compare equal. Prove the
+            // source snapshot carries the full historical-format balance.
+            var serializedSource=persistedSnapshot.get(sourceIndex);
+            require(!"-".equals(serializedSource),
+                "seed oracle retains the populated source unit");
+            var decodedSource=ItemStack.deserializeBytes(
+                Base64.getDecoder().decode(serializedSource));
+            var decodedLedger=PersistentDataAPI.get(decodedSource.getItemMeta(),
+                StorageUnit.Companion.getSTORAGE_KEY(),PersistentStorageCacheType.getTYPE());
+            require(decodedLedger!=null && decodedLedger.getAmount()==STORED_DIAMONDS
+                && decodedLedger.getLimit()==((StorageUnit)source).getCapacity()
+                && decodedLedger.getVoidExcess()
+                && new ItemStack(Material.DIAMOND).equals(decodedLedger.getItemStack()),
+                "seed oracle preserves all 731 diamonds, capacity, identity and void-excess");
             menu.markDirty();
             require(isEmpty(menu.getItemInSlot(outputSlot)),"seed output remains empty");
             var seedHandler=menu.getMenuClickHandler(forge.getCraftSlot());
