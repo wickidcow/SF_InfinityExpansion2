@@ -80,6 +80,14 @@ class StorageForge(
                 != true
         ) return false
 
+        // Refuse a stale or shifted menu snapshot before mutating any inventory.
+        // Recipe consumption operates on the supplied ItemStack references, so a
+        // different physical slot value could otherwise debit an obsolete copy.
+        if (input.size != inputSlots.size || recipe.recipe.size != inputSlots.size) return false
+        if (inputSlots.indices.any { index ->
+                menu.getItemInSlot(inputSlots[index]) != input[index]
+            }) return false
+
         val originals = input.map { it?.clone() }
         try {
             recipe.consume(input)
