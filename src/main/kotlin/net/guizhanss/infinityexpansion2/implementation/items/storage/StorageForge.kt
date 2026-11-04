@@ -93,6 +93,12 @@ class StorageForge(
         // another handler may have replaced an ingredient with the same count
         // but a different identity between matching and ledger commitment.
         if (!recipe.check(ItemStackWrapper.wrapArray(input), strictIngredientCheck)) return false
+        // The prepared output was computed earlier in craft(). Even when the
+        // recipe still matches, a different storage unit with the same tier may
+        // now occupy the input slot. Rebuild the ledger from the CURRENT source
+        // and refuse to deliver an output carrying the previous unit's stock.
+        val refreshedOutput = prepareOutput(input, recipe.output.clone()) ?: return false
+        if (refreshedOutput != output) return false
 
         // Never trust a stale recipe whose required amounts no longer fit the
         // physical inputs. This preflight is independent of the earlier menu
