@@ -56,6 +56,17 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
             fail(new IllegalArgumentException("Unknown crash probe phase"));
             return;
         }
+        // A prior disposable run may have left a completed PASS marker.
+        // Clear only this phase's markers before scheduling work, so the
+        // external observer cannot SIGKILL this JVM based on stale evidence.
+        try {
+            var directory=getDataFolder().toPath();
+            Files.deleteIfExists(directory.resolve("results-"+phase+".txt"));
+            Files.deleteIfExists(directory.resolve("results-"+phase+".txt.tmp"));
+        } catch(Exception failure) {
+            fail(failure);
+            return;
+        }
         Bukkit.getScheduler().runTaskLater(this,()->{
             try { begin(); } catch(Throwable failure) { fail(failure); }
         },40L);
