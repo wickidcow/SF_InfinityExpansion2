@@ -339,8 +339,16 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
         try {
             getDataFolder().mkdirs();
             results.add("Assertions: "+assertions+"; failures: "+failures);
-            Files.write(getDataFolder().toPath().resolve("results-"+phase+".txt"),results,
-                StandardCharsets.UTF_8);
+            // The external SIGKILL harness polls for this file. Publish a
+            // complete result atomically so it never observes a partial PASS
+            // and terminates the JVM before all assertions are recorded.
+            var directory=getDataFolder().toPath();
+            var destination=directory.resolve("results-"+phase+".txt");
+            var temporary=directory.resolve("results-"+phase+".txt.tmp");
+            Files.write(temporary,results,StandardCharsets.UTF_8);
+            Files.move(temporary,destination,
+                java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
         } catch(Exception failure) {
             getLogger().log(Level.SEVERE,"Cannot persist crash-probe results",failure);
         }
