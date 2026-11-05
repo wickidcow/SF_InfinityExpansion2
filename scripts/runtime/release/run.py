@@ -6,6 +6,7 @@ import contextlib
 import hashlib
 import json
 import os
+import shutil
 from pathlib import Path
 import sqlite3
 import subprocess
@@ -98,6 +99,45 @@ def stored_unknown_snapshot(runtime):
     return {'record':records[0],'payload':payload,'base64_encoded':encoded}
 
 
+
+# Immutable published artifact, used only to seed a disposable native world.
+# The published 2.0.17 JAR is never modified or republished.
+HISTORICAL_IE2_URL = ('https://github.com/wickidcow/SF_InfinityExpansion2/releases/'
+                      'download/v2.0.17/SF_InfinityExpansion2.0.17.jar')
+HISTORICAL_IE2_SIZE = 1734055
+HISTORICAL_IE2_SHA256 = '02aa79bc84444a28aa292cc216450a9a44ae62fa7377b86787a70d2c5758f33a'
+
+
+def verify_historical_ie2_jar(path, expected_size=HISTORICAL_IE2_SIZE,
+                               expected_sha256=HISTORICAL_IE2_SHA256):
+    """Fail closed unless the historical artifact has the pinned bytes and plugin ZIP structure."""
+    path=Path(path)
+    if path.is_symlink() or not path.is_file() or path.stat().st_size!=expected_size:
+        raise AssertionError('Historical IE2 JAR is missing, linked, or has the wrong byte size')
+    digest=hashlib.sha256(path.read_bytes()).hexdigest()
+    if digest!=expected_sha256:
+        raise AssertionError('Historical IE2 JAR SHA-256 does not match published asset')
+    try:
+        with zipfile.ZipFile(path) as jar:
+            if jar.testzip() is not None:
+                raise AssertionError('Historical IE2 JAR failed ZIP CRC verification')
+            if not ({'plugin.yml','paper-plugin.yml'} & set(jar.namelist())):
+                raise AssertionError('Historical IE2 JAR has no plugin descriptor')
+    except (zipfile.BadZipFile,OSError) as error:
+        raise AssertionError('Historical IE2 JAR is not a readable plugin ZIP') from error
+    return digest
+
+
+def download_historical_ie2_jar(destination):
+    """Download exact publicly released legacy bytes; never silently use the candidate as old data."""
+    if destination.exists() or destination.is_symlink():
+        raise AssertionError('Refusing preexisting historical native test artifact')
+    subprocess.run(['curl','--fail','--show-error','--silent','--location',
+                    '--retry','2','--proto','=https','--proto-redir','=https',
+                    '--tlsv1.2','--connect-timeout','20','--max-time','240',
+                    '-o',str(destination),HISTORICAL_IE2_URL],check=True)
+    return verify_historical_ie2_jar(destination)
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     for name in ('runtime','paper-source','core','ie2','java-home','kotlin-stdlib','kotlin-reflect'):
@@ -168,6 +208,20 @@ def main():
                      'api-version: "1.21"\ndepend: [Slimefun, InfinityExpansion2]\n')
     evidence['forge_crash_probe_sha256']=hashlib.sha256(crash_source.read_bytes()).hexdigest()
     evidence['forge_crash_phases']={}
+    # Preserve an actual v2.0.17-created saved inventory across an addon JAR
+    # upgrade. Only this disposable test JVM ever loads the historical release.
+    historical_jar=runtime/'historical-ie2-v2.0.17.jar'
+    historical_digest=download_historical_ie2_jar(historical_jar)
+    active_addon=runtime/'plugins/InfinityExpansion2.jar'
+    candidate_digest=hashlib.sha256(args.ie2.read_bytes()).hexdigest()
+    if hashlib.sha256(active_addon.read_bytes()).hexdigest()!=candidate_digest:
+        raise AssertionError('Current native candidate JAR changed unexpectedly')
+    evidence['historical_forge_seed']={
+        'published_tag':'v2.0.17',
+        'published_asset_sha256':historical_digest,
+        'candidate_sha256':candidate_digest,
+        'seeded_with_published_jar':True,
+    }
     for phase in ('seed','crash','verify'):
         result=runtime/f'plugins/NativeForgeCrashProbe/results-{phase}.txt'
         if result.exists():raise AssertionError('Refusing stale crash fixture '+str(result))
@@ -176,10 +230,23 @@ def main():
                  '-Dterminal.ansi=false','-Die2.forge.crash=disposable',
                  '-Die2.forge.phase='+phase,'-jar','server.jar','--nogui']
         log=runtime/f'forge-crash-{phase}.log'
-        if phase=='crash':
-            kill_exact_disposable_process_after_result(command,runtime,log,result,args.timeout)
+        if phase=='seed':
+            shutil.copyfile(historical_jar,active_addon)
+            expected_digest=historical_digest
         else:
-            run_process(command,runtime,log,args.timeout)
+            expected_digest=candidate_digest
+        if hashlib.sha256(active_addon.read_bytes()).hexdigest()!=expected_digest:
+            raise AssertionError('Forge phase loaded an unexpected addon binary: '+phase)
+        try:
+            if phase=='crash':
+                kill_exact_disposable_process_after_result(command,runtime,log,result,args.timeout)
+            else:
+                run_process(command,runtime,log,args.timeout)
+        finally:
+            # Even if the historical seed fails, restore the candidate in the
+            # disposable fixture. Never leave a legacy binary in later phases.
+            if phase=='seed':
+                shutil.copyfile(args.ie2,active_addon)
         if not result.is_file():
             print('\n'.join(log.read_text(errors='replace').splitlines()[-100:]))
             raise AssertionError('Native Forge crash phase wrote no result: '+phase)
