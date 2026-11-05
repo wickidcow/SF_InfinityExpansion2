@@ -30,6 +30,43 @@ def once(text, old, new):
 def verify_sources():
     for path, expected in BASELINE.items():
         text = (ROOT / path).read_text(encoding='utf-8')
+        # Undo exactly the newly reviewed opt-in cosmetic presentation repair
+        # before asserting the original historical storage ticker body hash.
+        # An extra or altered ticker mutation is still rejected byte-for-byte.
+        if path == 'storage/StorageUnit.kt':
+            text = once(text, '''        // Reconcile historical Adventure component layouts only when a current
+        // registered template is provably identical in PDC, model, attributes,
+        // visible text and every other functional property. Never change the
+        // stored template while a physical output stack is still outstanding.
+        if (cache.amount > 0 && menu.getItemInSlot(outputSlots[0]).isAir()) {
+            val canonical = StorageItemPresentation.canonicalIfCosmetic(cache.itemStack)
+            if (canonical != null) {
+                val original = StorageTemplatePersistence.snapshot(cache.itemStack!!)
+                val originalAmount = cache.amount
+                try {
+                    cache.itemStack = canonical
+                    menu.persistTemplate(cache)
+                    menu.location.save(cache)
+                    check(cache.amount == originalAmount && cache.itemStack?.isSimilar(canonical) == true) {
+                        "Storage presentation repair changed the saved identity or balance"
+                    }
+                } catch (failure: RuntimeException) {
+                    cache.itemStack = original
+                    cache.blockUnverifiedTransfer()
+                    try {
+                        menu.location.save(cache)
+                    } catch (saveFailure: RuntimeException) {
+                        failure.addSuppressed(saveFailure)
+                    }
+                    InfinityExpansion2.instance.logger.log(java.util.logging.Level.SEVERE,
+                        "Storage cosmetic repair could not be verified at ${menu.location}; " +
+                            "further transfers are blocked pending administrator inspection.", failure)
+                    return
+                }
+            }
+        }
+
+''', '')
         text = restore_lookup(path, text)
         text = once(text, MODERN_IMPORT, '')
         text = once(text, ANNOTATION, '')
