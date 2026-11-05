@@ -70,14 +70,21 @@ abstract class AbstractCraftingMachine(
             return
         }
 
-        val output = recipe.output.clone()
+        val output = prepareOutput(input, recipe.output.clone())
+        if (output == null) {
+            menu.setStatus { GuiItems.INVALID_INPUT }
+            InfinityExpansion2.integrationService.sendMessage(p, "crafting.invalid-input")
+            return
+        }
         if (!menu.fits(output, *outputSlots)) {
             menu.setStatus { GuiItems.NO_ROOM }
             return
         }
 
-        recipe.consume(input)
-        menu.pushItem(output, *outputSlots)
+        if (!commitCraft(menu, recipe, input, output)) {
+            menu.setStatus { GuiItems.NO_ROOM }
+            return
+        }
         menu.setStatus { GuiItems.SUCCESS }
         try {
             onSuccessfulCraft(menu, output, p)
@@ -86,6 +93,28 @@ abstract class AbstractCraftingMachine(
         }
         return
     }
+
+    /**
+     * Override only for machines that require stronger delivery guarantees.
+     * The default remains the historic consume-then-push behavior so unrelated
+     * crafting machines retain their original item counts and slot ordering.
+     */
+    protected open fun commitCraft(
+        menu: BlockMenu,
+        recipe: MachineRecipe,
+        input: Array<ItemStack?>,
+        output: ItemStack,
+    ): Boolean {
+        recipe.consume(input)
+        menu.pushItem(output, *outputSlots)
+        return true
+    }
+
+    /**
+     * Override this method to adjust the [output] from the actual [input] items before
+     * anything is consumed. Return null to refuse the craft.
+     */
+    protected open fun prepareOutput(input: Array<ItemStack?>, output: ItemStack): ItemStack? = output
 
     /**
      * Override this method to add custom behavior when a craft is successful.

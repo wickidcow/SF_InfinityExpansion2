@@ -25,8 +25,8 @@ permissions:
 env:
   VERSION: "2.0.17"
   OUTPUT_NAME: "SF_InfinityExpansion2.0.17.jar"
-  CORE_HEAD: a538adddaf58e2f219f383eb2be9bed27da7bafc
-  NETWORKS_HEAD: 80ef42b137b1cd0ff4482ab2f02254c6755f897d
+  CORE_HEAD: c12b12798f7a0edf6ea724ada510ee98f9663cee
+  NETWORKS_HEAD: ed1ba235701b3e5ea5e47b74d855376c084aba8e
 
 jobs:
   compatibility:
@@ -249,6 +249,7 @@ jobs:
             .native/server/*.json
             .native/server/*results.txt
             .native/server/plugins/NativeModernizationProbe/results-*.txt
+            .native/server/plugins/NativeForgeCrashProbe/results-*.txt
             .native/server/plugins/NativeMobCardRefreshProbe/results.txt
           if-no-files-found: warn
           retention-days: 14

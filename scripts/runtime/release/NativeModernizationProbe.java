@@ -2,16 +2,26 @@ package verification;
 
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem;
 import io.github.thebusybiscuit.slimefun4.implementation.Slimefun;
+import io.github.thebusybiscuit.slimefun4.libraries.dough.data.persistent.PersistentDataAPI;
 import io.papermc.paper.registry.RegistryAccess;
 import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.registry.RegistryKey;
 import java.nio.file.Files;
+import java.lang.reflect.Proxy;
+import java.util.UUID;
+import me.mrCookieSlime.CSCoreLibPlugin.general.Inventory.ClickAction;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import me.mrCookieSlime.Slimefun.api.BlockStorage;
+import me.mrCookieSlime.Slimefun.api.inventory.BlockMenu;
+import net.guizhanss.infinityexpansion2.core.menu.MenuLayout;
+import net.guizhanss.infinityexpansion2.core.persistent.PersistentStorageCacheType;
+import net.guizhanss.infinityexpansion2.core.recipes.MachineRecipe;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageCache;
+import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageForge;
+import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageUnit;
 import net.guizhanss.infinityexpansion2.implementation.items.tools.Oscillator;
 import net.guizhanss.infinityexpansion2.utils.events.BowDamageEvents;
 import net.guizhanss.infinityexpansion2.utils.items.ModernText;
@@ -24,6 +34,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Cow;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
@@ -44,6 +55,7 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
     private String phase;
     private Location recordLocation;
     private Location menuLocation;
+    private Location forgeLocation;
     private EntityDamageByEntityEvent active;
 
     @Override public void onEnable() {
@@ -63,11 +75,13 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
         var world=Bukkit.getWorlds().getFirst();
         recordLocation=new Location(world,128,100,128);
         menuLocation=new Location(world,132,100,128);
-        recordLocation.getChunk().load(); menuLocation.getChunk().load();
+        forgeLocation=new Location(world,136,100,128);
+        recordLocation.getChunk().load(); menuLocation.getChunk().load(); forgeLocation.getChunk().load();
         var controller=Slimefun.getDatabaseManager().getBlockDataController();
         if (phase.equals("seed")) {
             require(!StoredBlockLookup.hasBlockInfo(recordLocation),"new record fixture");
             require(!StoredBlockLookup.hasBlockInfo(menuLocation),"new menu fixture");
+            require(!StoredBlockLookup.hasBlockInfo(forgeLocation),"new Storage Forge fixture");
             recordLocation.getBlock().setType(Material.STONE);
             var record=controller.createBlock(recordLocation,"IE2_NATIVE_UNKNOWN_ID");
             if (!record.isDataLoaded()) controller.loadBlockData(record);
@@ -78,15 +92,21 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             var data=controller.createBlock(menuLocation,item.getId());
             if (!data.isDataLoaded()) controller.loadBlockData(data);
             data.setData("probe.marker","preserve-menu-record");
+            var forge=SlimefunItem.getById("IE_STORAGE_FORGE");
+            require(forge instanceof StorageForge,"registered Storage Forge exists for click fixture");
+            forgeLocation.getBlock().setType(forge.getItem().getType());
+            var forgeData=controller.createBlock(forgeLocation,forge.getId());
+            if (!forgeData.isDataLoaded()) controller.loadBlockData(forgeData);
         }
         new BukkitRunnable() {
             int attempts;
             @Override public void run() {
                 try {
-                    if (StoredBlockLookup.getInventory(menuLocation)!=null) {
+                    if (StoredBlockLookup.getInventory(menuLocation)!=null
+                        && StoredBlockLookup.getInventory(forgeLocation)!=null) {
                         cancel(); checkNative(); finish();
                     } else if (++attempts>100) {
-                        cancel(); fail(new AssertionError("Native workbench inventory did not load"));
+                        cancel(); fail(new AssertionError("Native workbench or Storage Forge inventory did not load"));
                     }
                 } catch(Throwable failure) { cancel(); fail(failure); }
             }
@@ -143,6 +163,8 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             require(actual.getItemMeta().lore().getFirst().hoverEvent()!=null,"restart preserves hover event");
             require("keep insertion".equals(actual.getItemMeta().lore().getFirst().insertion()),"restart preserves insertion");
         }
+        checkNativeForgeLedger(menu);
+        checkRegisteredForgeClick();
         var oscillator=Oscillator.Companion.getItem("DIAMOND");
         require(oscillator.getType()==Material.DIAMOND,"native oscillator material conversion");
         require("DIAMOND".equals(Oscillator.Companion.getTarget(oscillator)),"oscillator target identity retained");
@@ -165,6 +187,519 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
         } finally { active=null; attacker.remove(); victim.remove(); }
         require(ModernText.actionBar("§x§1§2§a§b§3§4RGB").color().equals(TextColor.color(0x12ab34)),"native Adventure RGB preserved");
         results.add("PASS "+phase+": native metadata, registry, oscillator, cancellable event, stored identity and menu persistence");
+    }
+
+
+    /**
+     * Recipe inputs may be Slimefun ItemStackWrapper instances. Their clone() is
+     * still immutable, so a native crafting rehearsal must copy metadata onto a
+     * genuine mutable Bukkit stack before placing it in a live inventory.
+     */
+    private static ItemStack mutableRecipeStack(ItemStack original) {
+        if (original == null) return null;
+        var copy = new ItemStack(original.getType(), original.getAmount());
+        if (original.hasItemMeta()) copy.setItemMeta(original.getItemMeta());
+        return copy;
+    }
+
+    /**
+     * Real registered IE2 Storage Unit PDC upgrade preflight and live menu/database
+     * restart. This is NOT an end-to-end Forge click/ingredient-consumption test.
+     * Never present it as transaction or interrupted-shutdown evidence.
+     */
+    private void checkNativeForgeLedger(me.mrCookieSlime.Slimefun.api.inventory.BlockMenu menu) throws Exception {
+        var sourceType=SlimefunItem.getById("IE_STORAGE_UNIT_1");
+        var targetType=SlimefunItem.getById("IE_STORAGE_UNIT_2");
+        require(sourceType instanceof StorageUnit,"real source Storage Unit registered");
+        require(targetType instanceof StorageUnit,"real target Storage Unit registered");
+        var sourceCapacity=((StorageUnit)sourceType).getCapacity();
+        var targetCapacity=((StorageUnit)targetType).getCapacity();
+        require(sourceCapacity>731 && targetCapacity>sourceCapacity,"registered Forge capacities increase");
+        var snapshot=getDataFolder().toPath().resolve("native-forge-upgrade.bin");
+        if (phase.equals("seed")) {
+            var source=sourceType.getItem().clone();
+            var meta=source.getItemMeta();
+            PersistentDataAPI.set(meta,StorageUnit.Companion.getSTORAGE_KEY(),
+                PersistentStorageCacheType.getTYPE(),
+                new StorageCache(new ItemStack(Material.DIAMOND),731,sourceCapacity,true));
+            require(source.setItemMeta(meta),"native old Storage Unit accepts PDC");
+            var sourceBefore=source.clone();
+            // Validate the production Forge's registered nine-slot upgrade recipe,
+            // not only a synthetic one-ingredient MachineRecipe fixture.
+            var registeredForge=SlimefunItem.getById("IE_STORAGE_FORGE");
+            require(registeredForge instanceof StorageForge,"real Storage Forge machine registered");
+            var registeredRecipe=((StorageForge)registeredForge).getRecipes().stream()
+                .filter(r->SlimefunItem.getByItem(r.getOutput())==targetType)
+                .findFirst().orElseThrow(()->new AssertionError("registered tier-2 Forge recipe missing"));
+            var registeredInput=java.util.Arrays.stream(registeredRecipe.getInput())
+                .map(NativeModernizationProbe::mutableRecipeStack).toArray(ItemStack[]::new);
+            require(registeredInput.length==9,"registered Forge recipe retains nine input slots");
+            int storageIndex=-1;
+            for(int i=0;i<registeredInput.length;i++) {
+                if(registeredInput[i]!=null && SlimefunItem.getByItem(registeredInput[i])==sourceType) {
+                    require(storageIndex<0,"registered Forge recipe has only one source Storage Unit");
+                    storageIndex=i;
+                }
+            }
+            require(storageIndex>=0,"registered Forge recipe contains source Storage Unit");
+            registeredInput[storageIndex]=source.clone();
+            require(registeredRecipe.check(registeredInput,false),
+                "registered non-strict Forge recipe matches populated storage and all real ingredients");
+            var prepare=StorageForge.class.getDeclaredMethod("prepareOutput",ItemStack[].class,ItemStack.class);
+            prepare.setAccessible(true);
+            var prepared=(ItemStack)prepare.invoke(registeredForge,registeredInput,mutableRecipeStack(registeredRecipe.getOutput()));
+            require(prepared!=null,"registered Forge prepareOutput accepts the real upgrade recipe");
+            var preparedLedger=PersistentDataAPI.get(prepared.getItemMeta(),
+                StorageUnit.Companion.getSTORAGE_KEY(),PersistentStorageCacheType.getTYPE());
+            require(preparedLedger!=null && preparedLedger.getAmount()==731
+                && preparedLedger.getLimit()==targetCapacity && preparedLedger.getVoidExcess()
+                && new ItemStack(Material.DIAMOND).equals(preparedLedger.getItemStack()),
+                "registered Forge prepareOutput retains item identity, stock, capacity and settings");
+            require(prepare.invoke(registeredForge,registeredInput,new ItemStack(Material.DIRT))==null,
+                "registered Forge refuses populated storage when recipe output is not a Storage Unit");
+            require(source.equals(sourceBefore),"registered Forge preflight never mutates source unit");
+            var upgraded=StorageForge.transferContents(
+                new ItemStack[]{source},targetType.getItem().clone(),targetCapacity);
+            require(upgraded!=null,"native registered Storage Unit upgrades without emptying");
+            require(source.equals(sourceBefore),"Forge preflight does not mutate old unit");
+            var cache=PersistentDataAPI.get(upgraded.getItemMeta(),
+                StorageUnit.Companion.getSTORAGE_KEY(),PersistentStorageCacheType.getTYPE());
+            require(cache!=null,"upgraded unit has readable storage ledger");
+            require(cache.getAmount()==731 && cache.getLimit()==targetCapacity,
+                "native upgraded balance and target capacity retained");
+            require(cache.getVoidExcess() && new ItemStack(Material.DIAMOND).equals(cache.getItemStack()),
+                "native upgraded identity and Void Excess retained");
+            require(StorageForge.transferContents(new ItemStack[]{source},
+                targetType.getItem().clone(),100)==null,"insufficient target capacity refuses upgrade");
+            require(source.equals(sourceBefore),"refused upgrade leaves original storage untouched");
+            // Two independently backed inputs must never be collapsed into one
+            // upgraded unit: that would discard one ledger or clone its stock.
+            var secondLedger=source.clone();
+            require(StorageForge.transferContents(new ItemStack[]{source,secondLedger},
+                targetType.getItem().clone(),targetCapacity)==null,
+                "two backed source ledgers refuse a single-result upgrade");
+            require(source.equals(sourceBefore) && secondLedger.equals(sourceBefore),
+                "multiple-ledger refusal preserves both exact source PDC items");
+            // An output already bearing a ledger is not an empty destination.
+            require(StorageForge.transferContents(new ItemStack[]{source},
+                upgraded.clone(),targetCapacity)==null,
+                "preloaded backed result cannot overwrite or duplicate its ledger");
+            require(source.equals(sourceBefore),
+                "preloaded-output refusal preserves the original ledger");
+            Files.write(snapshot,upgraded.serializeAsBytes());
+            menu.replaceExistingItem(1,upgraded.clone());menu.markDirty();
+            require(upgraded.equals(menu.getItemInSlot(1)),"upgraded PDC in real persistent menu");
+            // Test the production recipe-consume and real BlockMenu push/persistence
+            // sequence; this remains a rehearsal, not a GUI craft click.
+            var transactionSnapshot=getDataFolder().toPath().resolve("native-forge-transaction.bin");
+            menu.replaceExistingItem(2,source.clone());
+            var actualInput=new ItemStack[]{menu.getItemInSlot(2)};
+            var recipe=MachineRecipe.Companion.of(
+                new ItemStack[]{sourceType.getItem().clone()},targetType.getItem().clone());
+            require(recipe.check(actualInput,false),
+                "production non-strict Forge recipe matches populated storage PDC");
+            var staged=StorageForge.transferContents(actualInput,recipe.getOutput().clone(),targetCapacity);
+            require(staged!=null,"native recipe transaction preflight retains stored stock");
+            var failedSource=actualInput[0].clone();
+            require(StorageForge.transferContents(actualInput,recipe.getOutput().clone(),100)==null,
+                "native recipe transaction refuses insufficient target capacity");
+            require(failedSource.equals(actualInput[0]),"failed native transaction preserves input");
+            recipe.consume(actualInput);
+            require(actualInput[0].getAmount()==0,"production recipe consumes exactly one old unit");
+            var consumedSlot=menu.getItemInSlot(2);
+            require(consumedSlot==null || consumedSlot.getType().isAir() || consumedSlot.getAmount()<=0,
+                "production recipe consumption clears the authoritative native menu input");
+            var expectedOutput=staged.clone();
+            menu.pushItem(staged,52);
+            menu.markDirty();
+            require(expectedOutput.equals(menu.getItemInSlot(52)),
+                "production menu push retains the complete upgraded ledger");
+            Files.write(transactionSnapshot,expectedOutput.serializeAsBytes());
+        } else {
+            require(Files.isRegularFile(snapshot),"prior JVM native Forge item snapshot exists");
+            var expected=ItemStack.deserializeBytes(Files.readAllBytes(snapshot));
+            var persisted=menu.getItemInSlot(1);
+            require(persisted!=null && persisted.equals(expected),
+                "upgraded unit survives real Slimefun menu/database restart");
+            var cache=PersistentDataAPI.get(persisted.getItemMeta(),
+                StorageUnit.Companion.getSTORAGE_KEY(),PersistentStorageCacheType.getTYPE());
+            require(cache!=null && cache.getAmount()==731 && cache.getLimit()==targetCapacity,
+                "restarted native storage amount and capacity retained");
+            require(cache.getVoidExcess() && new ItemStack(Material.DIAMOND).equals(cache.getItemStack()),
+                "restarted native item identity and Void Excess retained");
+            require(SlimefunItem.getByItem(persisted)==targetType,
+                "restarted upgraded unit retains registered Slimefun identity");
+            var transactionSnapshot=getDataFolder().toPath().resolve("native-forge-transaction.bin");
+            require(Files.isRegularFile(transactionSnapshot),"native recipe transaction snapshot exists");
+            var transactionExpected=ItemStack.deserializeBytes(Files.readAllBytes(transactionSnapshot));
+            var sourceAfterRestart=menu.getItemInSlot(2);
+            require(sourceAfterRestart==null || sourceAfterRestart.getType().isAir()
+                || sourceAfterRestart.getAmount()<=0,
+                "native restart must not restore the already-consumed old storage unit");
+            var transactionPersisted=menu.getItemInSlot(52);
+            require(transactionPersisted!=null && transactionPersisted.equals(transactionExpected),
+                "production consume/push rehearsal output survives clean server restart");
+            var transactionCache=PersistentDataAPI.get(transactionPersisted.getItemMeta(),
+                StorageUnit.Companion.getSTORAGE_KEY(),PersistentStorageCacheType.getTYPE());
+            require(transactionCache!=null && transactionCache.getAmount()==731
+                && transactionCache.getLimit()==targetCapacity && transactionCache.getVoidExcess()
+                && new ItemStack(Material.DIAMOND).equals(transactionCache.getItemStack()),
+                "native consume/push rehearsal preserves identity, stock and settings after restart");
+        }
+        results.add("PASS "+phase+": native Storage Forge PDC and consume/push rehearsal across real menu restart (not a craft click)");
+    }
+
+    /**
+     * Dispatch the registered Forge's real crafting-button callback on a native
+     * BlockMenu using all nine production recipe slots. No Bukkit network
+     * InventoryClickEvent is emitted; this proves the installed handler path,
+     * consumption and clean restart, NOT an interrupted-operation rollback.
+     */
+    private void checkRegisteredForgeClick() throws Exception {
+        var sourceType=SlimefunItem.getById("IE_STORAGE_UNIT_1");
+        var targetType=SlimefunItem.getById("IE_STORAGE_UNIT_2");
+        var forge=(StorageForge)SlimefunItem.getById("IE_STORAGE_FORGE");
+        require(sourceType instanceof StorageUnit && targetType instanceof StorageUnit,
+            "registered Forge click Storage Unit tiers exist");
+        var forgeMenu=StoredBlockLookup.getInventory(forgeLocation);
+        require(forgeMenu!=null,"real registered Forge menu is persisted");
+        require("IE_STORAGE_FORGE".equals(StoredBlockLookup.getId(forgeLocation)),
+            "Forge click executes on an actual registered Forge block");
+        var handler=forgeMenu.getMenuClickHandler(forge.getCraftSlot());
+        require(handler!=null,"Forge crafting button has a live registered click handler");
+        var layout=MenuLayout.Companion.getCRAFTING_DEFAULT();
+        var slots=layout.getInputSlots();
+        require(slots.length==9,"Forge click uses all nine physical recipe slots");
+        int outputSlot=layout.getOutputSlots()[0];
+        var recipe=forge.getRecipes().stream()
+            .filter(r->SlimefunItem.getByItem(r.getOutput())==targetType)
+            .findFirst().orElseThrow(()->new AssertionError("registered Forge upgrade recipe missing"));
+        var ingredients=java.util.Arrays.stream(recipe.getInput())
+            .map(NativeModernizationProbe::mutableRecipeStack).toArray(ItemStack[]::new);
+        require(ingredients.length==slots.length,"Forge click recipe/layout dimensions agree");
+        int sourceIndex=-1;
+        for(int i=0;i<ingredients.length;i++) {
+            if(ingredients[i]!=null && SlimefunItem.getByItem(ingredients[i])==sourceType) {
+                require(sourceIndex<0,"Forge click recipe has one source unit");
+                sourceIndex=i;
+            }
+        }
+        require(sourceIndex>=0,"Forge click recipe locates source Storage Unit");
+        var snapshot=getDataFolder().toPath().resolve("native-forge-click-output.bin");
+        var sourceCapacity=((StorageUnit)sourceType).getCapacity();
+        var targetCapacity=((StorageUnit)targetType).getCapacity();
+        if (phase.equals("seed")) {
+            var source=mutableRecipeStack(sourceType.getItem());
+            var meta=source.getItemMeta();
+            PersistentDataAPI.set(meta,StorageUnit.Companion.getSTORAGE_KEY(),
+                PersistentStorageCacheType.getTYPE(),
+                new StorageCache(new ItemStack(Material.DIAMOND),731,sourceCapacity,true));
+            require(source.setItemMeta(meta),"Forge click source unit contains the stored ledger");
+            // A zero-balance unit may still carry an assigned item identity and
+            // void-excess preference. The upgrade must preserve both, not
+            // normalize it to a fresh unassigned unit.
+            var emptyAssigned=mutableRecipeStack(sourceType.getItem());
+            var emptyMeta=emptyAssigned.getItemMeta();
+            PersistentDataAPI.set(emptyMeta,StorageUnit.Companion.getSTORAGE_KEY(),
+                PersistentStorageCacheType.getTYPE(),
+                new StorageCache(new ItemStack(Material.DIAMOND),0,sourceCapacity,true));
+            require(emptyAssigned.setItemMeta(emptyMeta),"zero-balance Forge fixture keeps assigned identity");
+            var emptyUpgrade=StorageForge.transferContents(
+                new ItemStack[]{emptyAssigned},mutableRecipeStack(targetType.getItem()),targetCapacity);
+            require(emptyUpgrade!=null,"zero-balance assigned Forge unit upgrades safely");
+            var emptyLedger=PersistentDataAPI.get(emptyUpgrade.getItemMeta(),
+                StorageUnit.Companion.getSTORAGE_KEY(),PersistentStorageCacheType.getTYPE());
+            require(emptyLedger!=null && emptyLedger.getAmount()==0
+                && emptyLedger.getLimit()==targetCapacity && emptyLedger.getVoidExcess()
+                && new ItemStack(Material.DIAMOND).equals(emptyLedger.getItemStack()),
+                "zero-balance upgrade preserves item identity, capacity and void-excess");
+            // An upgrade with a destination too small for the persisted stock
+            // must refuse without rewriting the source ledger or minting output.
+            var sourceBeforeCapacityRefusal=source.clone();
+            require(StorageForge.transferContents(new ItemStack[]{source},
+                mutableRecipeStack(targetType.getItem()),730)==null,
+                "Forge refuses target capacity below persisted 731-item balance");
+            require(source.equals(sourceBeforeCapacityRefusal),
+                "capacity refusal leaves source PDC and stack unchanged");
+            // A malformed legacy ledger can report a negative balance or more
+            // items than its own declared capacity. Neither is permission to
+            // silently normalize stock during a tier upgrade.
+            for (int invalidAmount : new int[]{-1, sourceCapacity+1}) {
+                var invalid=mutableRecipeStack(sourceType.getItem());
+                var invalidMeta=invalid.getItemMeta();
+                PersistentDataAPI.set(invalidMeta,StorageUnit.Companion.getSTORAGE_KEY(),
+                    PersistentStorageCacheType.getTYPE(),
+                    new StorageCache(new ItemStack(Material.DIAMOND),invalidAmount,sourceCapacity,true));
+                require(invalid.setItemMeta(invalidMeta),
+                    "malformed legacy Forge fixture retains its exact ledger");
+                var beforeInvalid=invalid.clone();
+                require(StorageForge.transferContents(new ItemStack[]{invalid},
+                    mutableRecipeStack(targetType.getItem()),targetCapacity)==null,
+                    "Forge refuses malformed persisted source amount "+invalidAmount);
+                require(invalid.equals(beforeInvalid),
+                    "malformed ledger refusal leaves source PDC unchanged "+invalidAmount);
+            }
+            // An unknown nested field may belong to a future writer or another
+            // addon. The Forge must not silently discard it when reconstructing
+            // a legacy storage ledger during a tier upgrade.
+            var future=source.clone();
+            var futureMeta=future.getItemMeta();
+            var futurePdc=futureMeta.getPersistentDataContainer();
+            var rawLedger=futurePdc.get(StorageUnit.Companion.getSTORAGE_KEY(),
+                PersistentDataType.TAG_CONTAINER);
+            require(rawLedger!=null,"future-field fixture has a nested ledger");
+            rawLedger.set(new NamespacedKey("ie2","future_ledger_field"),
+                PersistentDataType.STRING,"keep-me");
+            futurePdc.set(StorageUnit.Companion.getSTORAGE_KEY(),
+                PersistentDataType.TAG_CONTAINER,rawLedger);
+            require(future.setItemMeta(futureMeta),
+                "future-field fixture retains nested unknown PDC field");
+            var futureBefore=future.clone();
+            require(StorageForge.transferContents(new ItemStack[]{future},
+                mutableRecipeStack(targetType.getItem()),targetCapacity)==null,
+                "Forge refuses to erase unknown nested storage metadata");
+            require(future.equals(futureBefore),
+                "unknown-field refusal preserves exact original PDC");
+            // Historical storage fields must retain their exact PDC types. A
+            // decoder default must not convert missing stock/capacity into an
+            // apparently empty unit or discard a malformed optional setting.
+            for (String missing : new String[]{"amount","max_amount"}) {
+                var malformed=source.clone();
+                var malformedMeta=malformed.getItemMeta();
+                var malformedPdc=malformedMeta.getPersistentDataContainer();
+                var nested=malformedPdc.get(StorageUnit.Companion.getSTORAGE_KEY(),
+                    PersistentDataType.TAG_CONTAINER);
+                require(nested!=null,"missing-field fixture has nested ledger");
+                nested.remove(new NamespacedKey(StorageUnit.Companion.getSTORAGE_KEY().getNamespace(),missing));
+                malformedPdc.set(StorageUnit.Companion.getSTORAGE_KEY(),
+                    PersistentDataType.TAG_CONTAINER,nested);
+                require(malformed.setItemMeta(malformedMeta),
+                    "missing-field fixture retains malformed ledger "+missing);
+                var unchanged=malformed.clone();
+                require(StorageForge.transferContents(new ItemStack[]{malformed},
+                    mutableRecipeStack(targetType.getItem()),targetCapacity)==null,
+                    "Forge refuses missing historical storage field "+missing);
+                require(malformed.equals(unchanged),
+                    "missing-field refusal preserves exact original ledger "+missing);
+            }
+            var malformedFlag=source.clone();
+            var flagMeta=malformedFlag.getItemMeta();
+            var flagPdc=flagMeta.getPersistentDataContainer();
+            var flagLedger=flagPdc.get(StorageUnit.Companion.getSTORAGE_KEY(),
+                PersistentDataType.TAG_CONTAINER);
+            require(flagLedger!=null,"wrong-type fixture has nested ledger");
+            flagLedger.set(new NamespacedKey(StorageUnit.Companion.getSTORAGE_KEY().getNamespace(),"void_excess"),
+                PersistentDataType.STRING,"true");
+            flagPdc.set(StorageUnit.Companion.getSTORAGE_KEY(),
+                PersistentDataType.TAG_CONTAINER,flagLedger);
+            require(malformedFlag.setItemMeta(flagMeta),
+                "wrong-type fixture retains malformed optional flag");
+            var flagBefore=malformedFlag.clone();
+            require(StorageForge.transferContents(new ItemStack[]{malformedFlag},
+                mutableRecipeStack(targetType.getItem()),targetCapacity)==null,
+                "Forge refuses wrong-type persisted void-excess setting");
+            require(malformedFlag.equals(flagBefore),
+                "wrong-type optional field refusal preserves original ledger");
+            ingredients[sourceIndex]=source;
+            for(int i=0;i<slots.length;i++) {
+                forgeMenu.replaceExistingItem(slots[i],ingredients[i]);
+            }
+            require(recipe.check(java.util.Arrays.stream(slots)
+                .mapToObj(forgeMenu::getItemInSlot).toArray(ItemStack[]::new),false),
+                "all nine real Forge menu slots match the registered upgrade recipe");
+            var player=forgeClickProbePlayer();
+            // A populated ledger without item identity must not disappear when
+            // the real button is clicked. The recipe itself still matches by
+            // non-strict identity; only the Forge safety preflight rejects it.
+            var corrupt=mutableRecipeStack(source);
+            var corruptMeta=corrupt.getItemMeta();
+            PersistentDataAPI.set(corruptMeta,StorageUnit.Companion.getSTORAGE_KEY(),
+                PersistentStorageCacheType.getTYPE(),
+                new StorageCache(null,731,sourceCapacity,true));
+            require(corrupt.setItemMeta(corruptMeta),"corrupt native Forge fixture retains missing identity");
+            forgeMenu.replaceExistingItem(slots[sourceIndex],corrupt);
+            require(recipe.check(java.util.Arrays.stream(slots)
+                .mapToObj(forgeMenu::getItemInSlot).toArray(ItemStack[]::new),false),
+                "identity-less old ledger still reaches Forge safety preflight");
+            var beforeRefusal=java.util.Arrays.stream(slots)
+                .mapToObj(forgeMenu::getItemInSlot)
+                .map(item->item==null?null:item.clone()).toArray(ItemStack[]::new);
+            require(!handler.onClick(player,forge.getCraftSlot(),
+                forgeMenu.getItemInSlot(forge.getCraftSlot()),new ClickAction(false,false)),
+                "invalid-ledger Forge button remains non-movable");
+            for(int i=0;i<slots.length;i++) {
+                require(java.util.Objects.equals(beforeRefusal[i],forgeMenu.getItemInSlot(slots[i])),
+                    "invalid ledger click must not consume any input: "+i);
+            }
+            var rejected=forgeMenu.getItemInSlot(outputSlot);
+            require(rejected==null || rejected.getType().isAir(),
+                "invalid ledger click does not mint an empty upgrade");
+            forgeMenu.replaceExistingItem(slots[sourceIndex],source);
+            // A stacked source with a populated ledger represents multiple
+            // backed units. The upgrade must not consume one and leave a clone.
+            var stackedSource=source.clone();
+            stackedSource.setAmount(2);
+            forgeMenu.replaceExistingItem(slots[sourceIndex],stackedSource);
+            require(!handler.onClick(player,forge.getCraftSlot(),
+                forgeMenu.getItemInSlot(forge.getCraftSlot()),new ClickAction(false,false)),
+                "stacked-ledger Forge button remains non-movable");
+            require(stackedSource.equals(forgeMenu.getItemInSlot(slots[sourceIndex])),
+                "stacked-ledger refusal preserves both source units and their PDC");
+            for(int i=0;i<slots.length;i++) {
+                if(i!=sourceIndex)require(java.util.Objects.equals(ingredients[i],forgeMenu.getItemInSlot(slots[i])),
+                    "stacked-ledger refusal preserves other ingredients: "+i);
+            }
+            require(forgeMenu.getItemInSlot(outputSlot)==null
+                    || forgeMenu.getItemInSlot(outputSlot).getType().isAir(),
+                "stacked-ledger refusal creates no upgraded output");
+            forgeMenu.replaceExistingItem(slots[sourceIndex],source);
+            // A full unrelated output slot must also refuse the transaction
+            // before consuming the source or other recipe ingredients.
+            var blockedOutput=new ItemStack(Material.BEDROCK,64);
+            forgeMenu.replaceExistingItem(outputSlot,blockedOutput);
+            require(!handler.onClick(player,forge.getCraftSlot(),
+                forgeMenu.getItemInSlot(forge.getCraftSlot()),new ClickAction(false,false)),
+                "blocked-output Forge button remains non-movable");
+            require(blockedOutput.equals(forgeMenu.getItemInSlot(outputSlot)),
+                "blocked Forge click retains the original output stack");
+            for(int i=0;i<slots.length;i++) {
+                require(java.util.Objects.equals(ingredients[i],forgeMenu.getItemInSlot(slots[i])),
+                    "blocked Forge click leaves every recipe input untouched: "+i);
+            }
+            // An occupied slot with a byte-identical upgraded ledger must
+            // not merge two backed Storage Units into an indistinguishable stack.
+            var existingLedger=StorageForge.transferContents(
+                new ItemStack[]{source},mutableRecipeStack(targetType.getItem()),targetCapacity);
+            require(existingLedger!=null,"existing backed output unit can be prepared independently");
+            forgeMenu.replaceExistingItem(outputSlot,existingLedger.clone());
+            require(!handler.onClick(player,forge.getCraftSlot(),
+                forgeMenu.getItemInSlot(forge.getCraftSlot()),new ClickAction(false,false)),
+                "occupied backed output click remains non-movable");
+            require(existingLedger.equals(forgeMenu.getItemInSlot(outputSlot)),
+                "occupied backed output is not stacked or overwritten");
+            for(int i=0;i<slots.length;i++) {
+                require(java.util.Objects.equals(ingredients[i],forgeMenu.getItemInSlot(slots[i])),
+                    "occupied backed output preserves all stored input ingredients: "+i);
+            }
+            forgeMenu.replaceExistingItem(outputSlot,new ItemStack(Material.AIR));
+            // Fault injection: simulate a stale recipe quantity after matching,
+            // so the storage-only commit sees a debit it cannot fulfill.
+            // The actual registered click below still uses the original recipe.
+            var staleRecipeInput=java.util.Arrays.stream(recipe.getInput())
+                .map(NativeModernizationProbe::mutableRecipeStack).toArray(ItemStack[]::new);
+            int shortIndex=-1;
+            for(int i=0;i<staleRecipeInput.length;i++) {
+                if(staleRecipeInput[i]!=null && i!=sourceIndex) {
+                    shortIndex=i;
+                    break;
+                }
+            }
+            require(shortIndex>=0,"Forge fault fixture has a non-ledger ingredient");
+            staleRecipeInput[shortIndex].setAmount(ingredients[shortIndex].getAmount()+1);
+            var staleRecipe=net.guizhanss.infinityexpansion2.core.recipes.MachineRecipe.Companion
+                .of(staleRecipeInput,mutableRecipeStack(recipe.getOutput()));
+            var backedOutput=StorageForge.transferContents(
+                new ItemStack[]{source},mutableRecipeStack(targetType.getItem()),targetCapacity);
+            require(backedOutput!=null,"Forge fault fixture prepares a backed target");
+            var commit=StorageForge.class.getDeclaredMethod("commitCraft",BlockMenu.class,
+                net.guizhanss.infinityexpansion2.core.recipes.MachineRecipe.class,
+                ItemStack[].class,ItemStack.class);
+            commit.setAccessible(true);
+            var staleMenuInputs=java.util.Arrays.stream(slots)
+                .mapToObj(forgeMenu::getItemInSlot).toArray(ItemStack[]::new);
+            require(!((Boolean)commit.invoke(forge,forgeMenu,staleRecipe,staleMenuInputs,backedOutput)),
+                "Forge refuses a partially fulfillable stale ingredient debit");
+            require(forgeMenu.getItemInSlot(outputSlot)==null
+                    || forgeMenu.getItemInSlot(outputSlot).getType().isAir(),
+                "failed Forge ingredient debit cannot mint a backed output");
+            for(int i=0;i<slots.length;i++) {
+                require(java.util.Objects.equals(ingredients[i],forgeMenu.getItemInSlot(slots[i])),
+                    "failed Forge debit restores exact source and ingredient snapshot: "+i);
+            }
+            // This is the same handler registered by onNewInstance(), not a
+            // reflected prepareOutput() invocation or synthetic recipe consume.
+            require(!handler.onClick(player,forge.getCraftSlot(),
+                forgeMenu.getItemInSlot(forge.getCraftSlot()),new ClickAction(false,false)),
+                "registered Forge button rejects moving the button item");
+            var actual=forgeMenu.getItemInSlot(outputSlot);
+            require(actual!=null && SlimefunItem.getByItem(actual)==targetType,
+                "registered Forge click produces the correct new Storage Unit");
+            var ledger=PersistentDataAPI.get(actual.getItemMeta(),
+                StorageUnit.Companion.getSTORAGE_KEY(),PersistentStorageCacheType.getTYPE());
+            require(ledger!=null && ledger.getAmount()==731
+                && ledger.getLimit()==targetCapacity && ledger.getVoidExcess()
+                && new ItemStack(Material.DIAMOND).equals(ledger.getItemStack()),
+                "registered Forge click conserves identity, count, capacity and settings");
+            for(int i=0;i<slots.length;i++) {
+                var remaining=forgeMenu.getItemInSlot(slots[i]);
+                require(remaining==null || remaining.getType().isAir() || remaining.getAmount()==0,
+                    "registered Forge click consumes each required input exactly once: "+i);
+            }
+            // Repeated clicks must not re-consume ingredients or create a
+            // second populated ledger after the first successful upgrade.
+            require(!handler.onClick(player,forge.getCraftSlot(),
+                forgeMenu.getItemInSlot(forge.getCraftSlot()),new ClickAction(false,false)),
+                "repeated Forge click remains non-movable");
+            require(actual.equals(forgeMenu.getItemInSlot(outputSlot)),
+                "repeated Forge click does not mint extra stored stock");
+            for(int i=0;i<slots.length;i++) {
+                var remaining=forgeMenu.getItemInSlot(slots[i]);
+                require(remaining==null || remaining.getType().isAir() || remaining.getAmount()==0,
+                    "repeated Forge click cannot restore a consumed ingredient: "+i);
+            }
+            forgeMenu.markDirty();
+            Files.write(snapshot,actual.serializeAsBytes());
+        } else {
+            require(Files.isRegularFile(snapshot),"prior registered Forge click snapshot exists");
+            var expected=ItemStack.deserializeBytes(Files.readAllBytes(snapshot));
+            var actual=forgeMenu.getItemInSlot(outputSlot);
+            require(actual!=null && actual.equals(expected),
+                "registered Forge click output survives clean native database restart");
+            for(int i=0;i<slots.length;i++) {
+                var remaining=forgeMenu.getItemInSlot(slots[i]);
+                require(remaining==null || remaining.getType().isAir() || remaining.getAmount()==0,
+                    "registered Forge click inputs remain consumed after restart: "+i);
+            }
+            var ledger=PersistentDataAPI.get(actual.getItemMeta(),
+                StorageUnit.Companion.getSTORAGE_KEY(),PersistentStorageCacheType.getTYPE());
+            require(ledger!=null && ledger.getAmount()==731
+                && ledger.getLimit()==targetCapacity && ledger.getVoidExcess()
+                && new ItemStack(Material.DIAMOND).equals(ledger.getItemStack()),
+                "registered Forge click keeps stored identity/stock/settings after restart");
+        }
+        results.add("PASS "+phase+": registered Storage Forge click handler, real slots and clean database restart (not an interrupted craft)");
+    }
+
+    /** A minimal permissible player interface for the disposable native click callback. */
+    private Player forgeClickProbePlayer() {
+        return (Player)Proxy.newProxyInstance(Player.class.getClassLoader(),
+            new Class<?>[]{Player.class},(proxy,method,args)->{
+                return switch(method.getName()) {
+                    case "getName" -> "NativeForgeProbe";
+                    case "getUniqueId" -> new UUID(0,731);
+                    case "getWorld" -> forgeLocation.getWorld();
+                    case "getLocation" -> forgeLocation.clone();
+                    case "getServer" -> Bukkit.getServer();
+                    case "hasPermission","isOp","isOnline" -> true;
+                    case "getLocale" -> "en_us";
+                    case "locale" -> java.util.Locale.US;
+                    case "equals" -> proxy==args[0];
+                    case "hashCode" -> System.identityHashCode(proxy);
+                    case "toString" -> "NativeForgeProbe(player-interface)";
+                    default -> {
+                        var type=method.getReturnType();
+                        if (type==boolean.class) yield false;
+                        if (type==int.class) yield 0;
+                        if (type==long.class) yield 0L;
+                        if (type==float.class) yield 0f;
+                        if (type==double.class) yield 0d;
+                        if (type==byte.class) yield (byte)0;
+                        if (type==short.class) yield (short)0;
+                        if (type==char.class) yield (char)0;
+                        yield null;
+                    }
+                };
+            });
     }
 
     private void checkHorns() throws Exception {

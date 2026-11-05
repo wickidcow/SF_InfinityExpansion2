@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-"""Run the existing native card suite, then real database/menu seed and restart verification."""
+"""Run native item, restart and deliberately SIGKILLed Forge conservation probes."""
 import argparse
 import base64
 import contextlib
 import hashlib
 import json
 import os
+import shutil
 from pathlib import Path
 import sqlite3
 import subprocess
 import sys
+import time
 import zipfile
 
 
@@ -27,6 +29,32 @@ def run_process(command, directory, log, timeout):
         print('\n'.join(log.read_text(errors='replace').splitlines()[-100:]))
         raise RuntimeError('Disposable runtime exited '+str(code))
 
+
+
+def kill_exact_disposable_process_after_result(command,directory,log,result,timeout):
+    """SIGKILL only the locally spawned test server after its craft receipt."""
+    with log.open('w') as output:
+        process=subprocess.Popen(command,cwd=directory,stdout=output,
+                                 stderr=subprocess.STDOUT,stdin=subprocess.DEVNULL)
+        try:
+            deadline=time.monotonic()+timeout
+            while time.monotonic()<deadline:
+                if result.is_file():
+                    report=result.read_text(errors='replace')
+                    if 'PASS crash:' not in report or 'failures: 0' not in report:
+                        raise AssertionError('Forge crash probe did not finish validly: '+report)
+                    process.kill()
+                    process.wait(timeout=20)
+                    print('SIGKILL applied to disposable Forge test JVM after craft receipt.')
+                    return
+                if process.poll() is not None:
+                    raise RuntimeError('Forge crash JVM exited before receipt; log='+str(log))
+                time.sleep(0.025)
+            raise TimeoutError('Forge crash JVM timed out before receipt: '+str(log))
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.wait(timeout=20)
 
 def configured_block_data_base64(runtime):
     """Use the live Slimefun fixture's top-level encoding mode; never guess either representation."""
@@ -70,6 +98,45 @@ def stored_unknown_snapshot(runtime):
     # Keep the raw rows for exact byte-for-byte comparison across the second clean JVM boot.
     return {'record':records[0],'payload':payload,'base64_encoded':encoded}
 
+
+
+# Immutable published artifact, used only to seed a disposable native world.
+# The published 2.0.17 JAR is never modified or republished.
+HISTORICAL_IE2_URL = ('https://github.com/wickidcow/SF_InfinityExpansion2/releases/'
+                      'download/v2.0.17/SF_InfinityExpansion2.0.17.jar')
+HISTORICAL_IE2_SIZE = 1734055
+HISTORICAL_IE2_SHA256 = '02aa79bc84444a28aa292cc216450a9a44ae62fa7377b86787a70d2c5758f33a'
+
+
+def verify_historical_ie2_jar(path, expected_size=HISTORICAL_IE2_SIZE,
+                               expected_sha256=HISTORICAL_IE2_SHA256):
+    """Fail closed unless the historical artifact has the pinned bytes and plugin ZIP structure."""
+    path=Path(path)
+    if path.is_symlink() or not path.is_file() or path.stat().st_size!=expected_size:
+        raise AssertionError('Historical IE2 JAR is missing, linked, or has the wrong byte size')
+    digest=hashlib.sha256(path.read_bytes()).hexdigest()
+    if digest!=expected_sha256:
+        raise AssertionError('Historical IE2 JAR SHA-256 does not match published asset')
+    try:
+        with zipfile.ZipFile(path) as jar:
+            if jar.testzip() is not None:
+                raise AssertionError('Historical IE2 JAR failed ZIP CRC verification')
+            if not ({'plugin.yml','paper-plugin.yml'} & set(jar.namelist())):
+                raise AssertionError('Historical IE2 JAR has no plugin descriptor')
+    except (zipfile.BadZipFile,OSError) as error:
+        raise AssertionError('Historical IE2 JAR is not a readable plugin ZIP') from error
+    return digest
+
+
+def download_historical_ie2_jar(destination):
+    """Download exact publicly released legacy bytes; never silently use the candidate as old data."""
+    if destination.exists() or destination.is_symlink():
+        raise AssertionError('Refusing preexisting historical native test artifact')
+    subprocess.run(['curl','--fail','--show-error','--silent','--location',
+                    '--retry','2','--proto','=https','--proto-redir','=https',
+                    '--tlsv1.2','--connect-timeout','20','--max-time','240',
+                    '-o',str(destination),HISTORICAL_IE2_URL],check=True)
+    return verify_historical_ie2_jar(destination)
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
@@ -123,8 +190,77 @@ def main():
         elif stored!=evidence['unknown_record_database_snapshot']:
             raise AssertionError('Unknown-ID database record or payload changed across restart')
         print('Read-only SQLite evidence: unknown-ID record and payload preserved after '+phase)
+    # A separate isolated three-phase Forge fixture preserves a populated
+    # old-unit recipe across an intentionally SIGKILLed full craft process.
+    crash_source=Path(__file__).with_name('NativeForgeCrashProbe.java')
+    crash_classes=runtime/'forge-crash-classes';crash_classes.mkdir()
+    crash_javac=['--release','21','-cp',os.pathsep.join(map(str,jars)),
+                 '-d',str(crash_classes),str(crash_source)]
+    crash_argfile=runtime/'forge-crash-javac.args'
+    crash_argfile.write_text('\n'.join(json.dumps(arg) for arg in crash_javac))
+    subprocess.run([str(args.java_home/'bin/javac'),'@'+str(crash_argfile)],check=True)
+    with zipfile.ZipFile(runtime/'plugins/NativeForgeCrashProbe.jar','w',zipfile.ZIP_DEFLATED) as jar:
+        for compiled in crash_classes.rglob('*.class'):
+            jar.write(compiled,compiled.relative_to(crash_classes))
+        jar.writestr('plugin.yml',
+                     'name: NativeForgeCrashProbe\nversion: 1.0\n'
+                     'main: verification.NativeForgeCrashProbe\n'
+                     'api-version: "1.21"\ndepend: [Slimefun, InfinityExpansion2]\n')
+    evidence['forge_crash_probe_sha256']=hashlib.sha256(crash_source.read_bytes()).hexdigest()
+    evidence['forge_crash_phases']={}
+    # Preserve an actual v2.0.17-created saved inventory across an addon JAR
+    # upgrade. Only this disposable test JVM ever loads the historical release.
+    historical_jar=runtime/'historical-ie2-v2.0.17.jar'
+    historical_digest=download_historical_ie2_jar(historical_jar)
+    active_addon=runtime/'plugins/InfinityExpansion2.jar'
+    candidate_digest=hashlib.sha256(args.ie2.read_bytes()).hexdigest()
+    if hashlib.sha256(active_addon.read_bytes()).hexdigest()!=candidate_digest:
+        raise AssertionError('Current native candidate JAR changed unexpectedly')
+    evidence['historical_forge_seed']={
+        'published_tag':'v2.0.17',
+        'published_asset_sha256':historical_digest,
+        'candidate_sha256':candidate_digest,
+        'seeded_with_published_jar':True,
+    }
+    for phase in ('seed','crash','verify'):
+        result=runtime/f'plugins/NativeForgeCrashProbe/results-{phase}.txt'
+        if result.exists():raise AssertionError('Refusing stale crash fixture '+str(result))
+        command=[str(args.java_home/'bin/java'),'-Xms256M','-Xmx1G',
+                 '-XX:ActiveProcessorCount=2','-Dterminal.jline=false',
+                 '-Dterminal.ansi=false','-Die2.forge.crash=disposable',
+                 '-Die2.forge.phase='+phase,'-jar','server.jar','--nogui']
+        log=runtime/f'forge-crash-{phase}.log'
+        if phase=='seed':
+            shutil.copyfile(historical_jar,active_addon)
+            expected_digest=historical_digest
+        else:
+            expected_digest=candidate_digest
+        if hashlib.sha256(active_addon.read_bytes()).hexdigest()!=expected_digest:
+            raise AssertionError('Forge phase loaded an unexpected addon binary: '+phase)
+        try:
+            if phase=='crash':
+                kill_exact_disposable_process_after_result(command,runtime,log,result,args.timeout)
+            else:
+                run_process(command,runtime,log,args.timeout)
+        finally:
+            # Even if the historical seed fails, restore the candidate in the
+            # disposable fixture. Never leave a legacy binary in later phases.
+            if phase=='seed':
+                shutil.copyfile(args.ie2,active_addon)
+        if not result.is_file():
+            print('\n'.join(log.read_text(errors='replace').splitlines()[-100:]))
+            raise AssertionError('Native Forge crash phase wrote no result: '+phase)
+        report=result.read_text();print(report)
+        if 'PASS '+phase+':' not in report or 'failures: 0' not in report:
+            raise AssertionError('Native Forge crash phase failed: '+phase)
+        evidence['forge_crash_phases'][phase]=report
+    # The crash probe must not damage an unrelated existing SQLite record.
+    post_crash_unknown=stored_unknown_snapshot(runtime)
+    if post_crash_unknown!=evidence['unknown_record_database_snapshot']:
+        raise AssertionError('Unrelated stored Slimefun record changed across crash recovery')
+    evidence['unknown_record_after_forge_sigkill']=post_crash_unknown
     (runtime/'release-runtime-evidence.json').write_text(json.dumps(evidence,indent=2)+'\n')
-    print('Native card suite and both live database/menu persistence phases passed; three clean JVM boots.')
+    print('Native card suite, clean restart and post-craft SIGKILL Forge conservation checks passed.')
     return 0
 
 if __name__=='__main__':raise SystemExit(main())
