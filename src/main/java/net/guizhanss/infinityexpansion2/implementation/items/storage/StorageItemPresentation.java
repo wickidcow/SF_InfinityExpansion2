@@ -65,7 +65,10 @@ public final class StorageItemPresentation {
         // cosmetic migration and must preserve their historical ticker behavior.
         if (storedTemplate == null || storedTemplate.getType().isAir() || !storedTemplate.hasItemMeta()) return null;
         ItemMeta meta = storedTemplate.getItemMeta();
-        if (meta == null) return null;
+        if (meta == null || meta.getPersistentDataContainer().isEmpty()) return null;
+        // A plain material (including Bukkit/MockBukkit's default ItemMeta)
+        // cannot have a registered Slimefun identity. Avoid optional registry
+        // lookups on vanilla templates during historical ticking.
         String id = Slimefun.getItemDataService().getItemData(meta).orElse(null);
         if (id == null) return null;
         SlimefunItem registered = SlimefunItem.getById(id);

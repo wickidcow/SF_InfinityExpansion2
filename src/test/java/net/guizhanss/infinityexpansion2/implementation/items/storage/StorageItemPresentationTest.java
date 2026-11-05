@@ -61,17 +61,13 @@ class StorageItemPresentationTest {
         assertFalse(StorageItemPresentation.equivalentPresentation(old, altered, "ID", "ID"));
     }
 
-    @Test void customModelOrLoreLengthCannotBeSilentlyDiscarded() {
+    @Test void functionalMetadataOrLoreLengthCannotBeSilentlyDiscarded() {
         ItemStack old = item(true, "owner-a");
-        ItemStack model = item(false, "owner-a");
-        model.editMeta(meta -> {
-            var data = meta.getCustomModelDataComponent();
-            data.setFloats(List.of(123f));
-            meta.setCustomModelDataComponent(data);
-        });
-        assertTrue(model.getItemMeta().hasCustomModelDataComponent(),
-                "A model-component regression must exercise a real model value");
-        assertFalse(StorageItemPresentation.equivalentPresentation(old, model, "ID", "ID"));
+        ItemStack protectedItem = item(false, "owner-a");
+        protectedItem.editMeta(meta -> meta.setUnbreakable(true));
+        assertTrue(protectedItem.getItemMeta().isUnbreakable(),
+                "The regression must exercise a real persisted functional metadata value");
+        assertFalse(StorageItemPresentation.equivalentPresentation(old, protectedItem, "ID", "ID"));
         ItemStack shortened = item(false, "owner-a");
         shortened.editMeta(meta -> meta.lore(List.of()));
         assertFalse(StorageItemPresentation.equivalentPresentation(old, shortened, "ID", "ID"));
