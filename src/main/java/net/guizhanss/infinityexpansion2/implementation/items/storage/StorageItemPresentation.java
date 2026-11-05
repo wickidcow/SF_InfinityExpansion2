@@ -82,7 +82,7 @@ public final class StorageItemPresentation {
         var old = first.getCustomModelDataComponent();
         var now = second.getCustomModelDataComponent();
         return Objects.equals(old.getFloats(), now.getFloats())
-                && Objects.equals(old.getBooleans(), now.getBooleans())
+                && Objects.equals(old.getFlags(), now.getFlags())
                 && Objects.equals(old.getStrings(), now.getStrings())
                 && Objects.equals(old.getColors(), now.getColors());
     }
