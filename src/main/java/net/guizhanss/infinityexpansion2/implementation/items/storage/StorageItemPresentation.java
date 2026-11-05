@@ -22,7 +22,8 @@ public final class StorageItemPresentation {
     private StorageItemPresentation() {}
 
     public static boolean matchesRegistered(ItemStack oldItem, ItemStack newItem) {
-        if (oldItem == null || newItem == null || oldItem.getType() != newItem.getType()) return false;
+        if (oldItem == null || newItem == null || oldItem.getType() != newItem.getType()
+                || !oldItem.hasItemMeta() || !newItem.hasItemMeta()) return false;
         ItemMeta oldMeta = oldItem.getItemMeta();
         ItemMeta newMeta = newItem.getItemMeta();
         if (oldMeta == null || newMeta == null) return false;
@@ -43,7 +44,8 @@ public final class StorageItemPresentation {
         ItemMeta newMeta = newItem.getItemMeta();
         if (oldMeta == null || newMeta == null) return false;
         if (!sameText(oldMeta.displayName(), newMeta.displayName())
-                || !sameLore(oldMeta.lore(), newMeta.lore())) return false;
+                || !sameLore(oldMeta.lore(), newMeta.lore())
+                || !sameCustomModelData(oldMeta, newMeta)) return false;
         ItemStack first = oldItem.clone();
         ItemStack second = newItem.clone();
         ItemMeta firstMeta = first.getItemMeta();
@@ -58,7 +60,10 @@ public final class StorageItemPresentation {
     }
 
     public static ItemStack canonicalIfCosmetic(ItemStack storedTemplate) {
-        if (storedTemplate == null || storedTemplate.getType().isAir()) return null;
+        // Do not query Slimefun's optional live item-data service for ordinary
+        // vanilla materials or empty/unadorned input templates. These never need
+        // cosmetic migration and must preserve their historical ticker behavior.
+        if (storedTemplate == null || storedTemplate.getType().isAir() || !storedTemplate.hasItemMeta()) return null;
         ItemMeta meta = storedTemplate.getItemMeta();
         if (meta == null) return null;
         String id = Slimefun.getItemDataService().getItemData(meta).orElse(null);
@@ -69,6 +74,17 @@ public final class StorageItemPresentation {
         canonical.setAmount(storedTemplate.getAmount());
         if (storedTemplate.isSimilar(canonical) || !matchesRegistered(storedTemplate, canonical)) return null;
         return canonical;
+    }
+
+    private static boolean sameCustomModelData(ItemMeta first, ItemMeta second) {
+        if (first.hasCustomModelDataComponent() != second.hasCustomModelDataComponent()) return false;
+        if (!first.hasCustomModelDataComponent()) return true;
+        var old = first.getCustomModelDataComponent();
+        var now = second.getCustomModelDataComponent();
+        return Objects.equals(old.getFloats(), now.getFloats())
+                && Objects.equals(old.getBooleans(), now.getBooleans())
+                && Objects.equals(old.getStrings(), now.getStrings())
+                && Objects.equals(old.getColors(), now.getColors());
     }
 
     public static boolean sameText(Component first, Component second) {

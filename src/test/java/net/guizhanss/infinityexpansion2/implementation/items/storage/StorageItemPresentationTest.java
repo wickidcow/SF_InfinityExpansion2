@@ -69,6 +69,8 @@ class StorageItemPresentationTest {
             data.setFloats(List.of(123f));
             meta.setCustomModelDataComponent(data);
         });
+        assertTrue(model.getItemMeta().hasCustomModelDataComponent(),
+                "A model-component regression must exercise a real model value");
         assertFalse(StorageItemPresentation.equivalentPresentation(old, model, "ID", "ID"));
         ItemStack shortened = item(false, "owner-a");
         shortened.editMeta(meta -> meta.lore(List.of()));
