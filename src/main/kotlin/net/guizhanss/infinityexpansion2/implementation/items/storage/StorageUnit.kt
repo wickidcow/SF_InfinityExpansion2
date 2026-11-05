@@ -150,6 +150,38 @@ class StorageUnit(
         val cache = _caches[menu.position] ?: return
         if (cache.hasUnassignedItems() || cache.hasBlockedTransfer()) return
 
+        // Reconcile historical Adventure component layouts only when a current
+        // registered template is provably identical in PDC, model, attributes,
+        // visible text and every other functional property. Never change the
+        // stored template while a physical output stack is still outstanding.
+        if (cache.amount > 0 && menu.getItemInSlot(outputSlots[0]).isAir()) {
+            val canonical = StorageItemPresentation.canonicalIfCosmetic(cache.itemStack)
+            if (canonical != null) {
+                val original = StorageTemplatePersistence.snapshot(cache.itemStack!!)
+                val originalAmount = cache.amount
+                try {
+                    cache.itemStack = canonical
+                    menu.persistTemplate(cache)
+                    menu.location.save(cache)
+                    check(cache.amount == originalAmount && cache.itemStack?.isSimilar(canonical) == true) {
+                        "Storage presentation repair changed the saved identity or balance"
+                    }
+                } catch (failure: RuntimeException) {
+                    cache.itemStack = original
+                    cache.blockUnverifiedTransfer()
+                    try {
+                        menu.location.save(cache)
+                    } catch (saveFailure: RuntimeException) {
+                        failure.addSuppressed(saveFailure)
+                    }
+                    InfinityExpansion2.instance.logger.log(java.util.logging.Level.SEVERE,
+                        "Storage cosmetic repair could not be verified at ${menu.location}; " +
+                            "further transfers are blocked pending administrator inspection.", failure)
+                    return
+                }
+            }
+        }
+
         menu.updateDisplay(cache)
 
         // Debit the authoritative physical input slot before crediting storage.

@@ -121,9 +121,11 @@ class StorageCache(
     fun matches(stack: ItemStack?): Boolean {
         if (stack == null) return itemStack == null
 
-        return itemStack?.type == stack.type
-            && (itemMeta != null) == stack.hasItemMeta()
-            && (itemMeta == null || itemMeta == stack.itemMeta)
+        val template = itemStack ?: return false
+        // Compare actual live metadata rather than a memoized ItemMeta snapshot.
+        // The strict exact match wins; only a verified identical Slimefun PDC ID
+        // may fall back to formatting-only Adventure name/lore compatibility.
+        return template.isSimilar(stack) || StorageItemPresentation.matchesRegistered(template, stack)
     }
 
     /**

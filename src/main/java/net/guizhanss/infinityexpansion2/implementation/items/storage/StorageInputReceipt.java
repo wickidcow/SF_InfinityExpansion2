@@ -88,7 +88,8 @@ public final class StorageInputReceipt {
             // the live ItemStack in place. Compare the actual template too.
             ItemStack storedTemplate = cache.getItemStack();
             if (cache.getAmount() != expectedBalance || !cache.matches(original)
-                || storedTemplate == null || !storedTemplate.isSimilar(original)
+                || storedTemplate == null ||
+                !(storedTemplate.isSimilar(original) || StorageItemPresentation.matchesRegistered(storedTemplate, original))
                 || cache.getVoidExcess() != voidAtEntry) {
                 throw new IllegalStateException("Storage balance/identity/void policy changed during input credit");
             }
