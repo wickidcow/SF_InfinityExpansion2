@@ -25,7 +25,7 @@ permissions:
 env:
   VERSION: "2.0.17"
   OUTPUT_NAME: "SF_InfinityExpansion2.0.17.jar"
-  CORE_HEAD: 9ac9f05eba9885434c845dc78e88b2ca3c66985d
+  CORE_HEAD: 34f2c0d4b0c18a89b14cc285a78266df85117e9e
   NETWORKS_HEAD: ed1ba235701b3e5ea5e47b74d855376c084aba8e
 
 jobs:
