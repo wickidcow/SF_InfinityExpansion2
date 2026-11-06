@@ -23,8 +23,8 @@ permissions:
   contents: read
 
 env:
-  VERSION: "2.0.17"
-  OUTPUT_NAME: "SF_InfinityExpansion2.0.17.jar"
+  VERSION: "2.0.18"
+  OUTPUT_NAME: "SF_InfinityExpansion2.0.18.jar"
   CORE_HEAD: c12b12798f7a0edf6ea724ada510ee98f9663cee
   NETWORKS_HEAD: ed1ba235701b3e5ea5e47b74d855376c084aba8e
 
@@ -71,7 +71,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PbuildVersion=2.0.17 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT 2>&1 | tee baseline-compile.log
+          ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PbuildVersion=2.0.18 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT 2>&1 | tee baseline-compile.log
           python3 scripts/verify_owned_deprecations.py baseline-compile.log
       - name: Retain compiler deprecation evidence
         if: always()
@@ -81,11 +81,11 @@ jobs:
           path: baseline-compile.log
           if-no-files-found: warn
       - name: Verify Paper 26.2 compilation
-        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=26.2.build.+ -PtargetJvm=25 -PbuildVersion=2.0.17 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=26.2.build.+ -PtargetJvm=25 -PbuildVersion=2.0.18 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
       - name: Verify Paper 26.3 stable compilation
-        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=26.3.build.+ -PtargetJvm=25 -PbuildVersion=2.0.17 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+        run: ./gradlew clean compileJava compileKotlin --stacktrace --console=plain -PpaperApiVersion=26.3.build.+ -PtargetJvm=25 -PbuildVersion=2.0.18 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
       - name: Build universal Java 21 release JAR
-        run: ./gradlew clean build --stacktrace --console=plain -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PbuildVersion=2.0.17 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
+        run: ./gradlew clean build --stacktrace --console=plain -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PtargetJvm=21 -PbuildVersion=2.0.18 -PslimefunApiCoordinate=com.github.slimefun:Slimefun:ALBION-SNAPSHOT
       - name: Require completed new regression suites
         shell: bash
         run: |
