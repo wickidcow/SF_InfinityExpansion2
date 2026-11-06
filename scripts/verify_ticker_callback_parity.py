@@ -87,7 +87,24 @@ def verify_sources():
             // Keep the actual persisted marker byte: toDisplayItem() randomizes it.
             // Re-encoding the old slot makes the rollback precondition fail.
             val previous = StorageTemplatePersistence.snapshot(existing)
+            val markerKey = net.guizhanss.infinityexpansion2.utils.constant.Keys.DISPLAY_ITEM
+            val markerType = org.bukkit.persistence.PersistentDataType.BYTE
+            val marker = checkNotNull(previous.itemMeta?.persistentDataContainer?.get(markerKey, markerType)) {
+                "Historical storage display marker has no readable byte value"
+            }
             val replacement = StorageTemplatePersistence.snapshot(canonical).toDisplayItem().also { it.amount = 1 }
+            // toDisplayItem() generates a new random marker. Preserve the exact
+            // historical byte, including across a clean retry after SIGKILL.
+            val replacementMeta = checkNotNull(replacement.itemMeta) {
+                "Canonical storage display is missing ItemMeta"
+            }
+            replacementMeta.persistentDataContainer.set(markerKey, markerType, marker)
+            check(replacement.setItemMeta(replacementMeta)) {
+                "Canonical storage display rejected the preserved marker"
+            }
+            check(replacement.itemMeta?.persistentDataContainer?.get(markerKey, markerType) == marker) {
+                "Canonical storage display changed its historical marker"
+            }
             check(previous.removeDisplayItem().isSimilar(original) &&
                 replacement.removeDisplayItem().isSimilar(canonical)) {
                 "Cosmetic template display encoding changed functional identity"
