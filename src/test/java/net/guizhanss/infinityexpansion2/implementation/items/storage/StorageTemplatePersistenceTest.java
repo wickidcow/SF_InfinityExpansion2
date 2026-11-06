@@ -111,6 +111,67 @@ class StorageTemplatePersistenceTest {
         assertFalse(new StorageCache(new ItemStack(Material.DIAMOND), 128, 1000, false).hasUnassignedItems());
     }
 
+    @Test
+    void cosmeticTemplateRepairDoesNotTouchTheSeparateStoredCount() {
+        var original = encoded.clone();
+        var canonical = encoded.clone();
+        canonical.editMeta(meta -> meta.displayName(
+            net.kyori.adventure.text.Component.text("Canonical visual name")));
+        var ledger = new AtomicInteger(731);
+        var dirty = new AtomicInteger();
+        slot.set(original.clone());
+
+        assertTrue(StorageTemplatePersistence.updateCosmeticWithRollback(original, canonical,
+            this::readCopy, slot::set, dirty::incrementAndGet));
+        assertEquals(canonical, slot.get());
+        assertEquals(731, ledger.get(), "Cosmetic repair must never change saved quantity");
+        assertEquals(1, dirty.get());
+        assertEquals(original, encoded, "A saved historical item must not be modified in place");
+    }
+
+    @Test
+    void cosmeticWriteThenThrowRestoresThePreviousSlotAndCount() {
+        var original = encoded.clone();
+        var canonical = encoded.clone();
+        canonical.editMeta(meta -> meta.displayName(
+            net.kyori.adventure.text.Component.text("Canonical visual name")));
+        var ledger = new AtomicInteger(731);
+        var writes = new AtomicInteger();
+        slot.set(original.clone());
+
+        assertThrows(IllegalStateException.class,
+            () -> StorageTemplatePersistence.updateCosmeticWithRollback(original, canonical,
+                this::readCopy, value -> {
+                    slot.set(value);
+                    if (writes.incrementAndGet() == 1) {
+                        throw new IllegalStateException("Injected write-after-commit failure");
+                    }
+                }, () -> {}));
+        assertEquals(2, writes.get(), "Failed canonical write must attempt verified restoration");
+        assertEquals(original, slot.get(), "The previous private template must be restored");
+        assertEquals(731, ledger.get(), "The separate ledger must not be written");
+    }
+
+    @Test
+    void cosmeticDirtyFailureRestoresPreviousTemplate() {
+        var original = encoded.clone();
+        var canonical = encoded.clone();
+        canonical.editMeta(meta -> meta.displayName(
+            net.kyori.adventure.text.Component.text("Canonical visual name")));
+        var dirty = new AtomicInteger();
+        slot.set(original.clone());
+
+        assertThrows(IllegalStateException.class,
+            () -> StorageTemplatePersistence.updateCosmeticWithRollback(original, canonical,
+                this::readCopy, slot::set, () -> {
+                    if (dirty.incrementAndGet() == 1) {
+                        throw new IllegalStateException("Injected markDirty failure");
+                    }
+                }));
+        assertEquals(original, slot.get(), "A failed dirty mark must restore the old template");
+        assertEquals(2, dirty.get());
+    }
+
     private ItemStack readCopy() {
         ItemStack current = slot.get();
         return current == null ? null : current.clone();
