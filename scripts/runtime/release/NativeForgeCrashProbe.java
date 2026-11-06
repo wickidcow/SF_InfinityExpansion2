@@ -393,6 +393,22 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
         }
         require(Files.isRegularFile(snapshot),"original native wrapped item snapshot exists");
         var historic=ItemStack.deserializeBytes(Files.readAllBytes(snapshot));
+        if ("crash".equals(phase)) {
+            var ticker=storedType.getBlockTicker();
+            require(ticker!=null && ticker.isSynchronized(),
+                "registered Storage Unit uses its real synchronized ticker");
+            var physicalSlots=((StorageUnit)storedType).getOutputSlots();
+            require(physicalSlots.length==1,"one physical output slot before native repair");
+            var beforeOutput=menu.getItemInSlot(physicalSlots[0]);
+            results.add("DEBUG historical cosmetic pre-tick: stored="+data.getData("stored_amount")
+                +"; buffered="+beforeOutput
+                +"; private="+menu.getItemInSlot(StorageUnit.ITEM_SLOT));
+            // Native Slimefun's periodic scheduler need not tick this fixture
+            // before the crash probe runs. Exercise the EXACT registered
+            // production BlockTicker, not a simulation or a helper shortcut.
+            // An already occupied output remains protected by production logic.
+            ticker.tick(storageLocation.getBlock(),storedType,data);
+        }
         var currentDisplay=menu.getItemInSlot(StorageUnit.ITEM_SLOT);
         require(currentDisplay!=null && currentDisplay.getAmount()==1,
             "historical private identity template still exists");
