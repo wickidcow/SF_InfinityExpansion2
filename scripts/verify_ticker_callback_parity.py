@@ -34,33 +34,33 @@ def verify_sources():
         # before asserting the original historical storage ticker body hash.
         # An extra or altered ticker mutation is still rejected byte-for-byte.
         if path == 'storage/StorageUnit.kt':
-            text = once(text, '''        // Reconcile historical Adventure component layouts only when a current
-        // registered template is provably identical in PDC, model, attributes,
-        // visible text and every other functional property. Never change the
-        // stored template while a physical output stack is still outstanding.
+            text = once(text, '''        // Cosmetic reconciliation changes only the private identity template.
+        // The separately persisted amount/void ledger is never rewritten here.
+        // Both pre- and post-crash templates are proven semantically equivalent;
+        // the public physical output slot must already be empty.
         if (cache.amount > 0 && menu.getItemInSlot(outputSlots[0]).isAir()) {
             val canonical = StorageItemPresentation.canonicalIfCosmetic(cache.itemStack)
             if (canonical != null) {
                 val original = StorageTemplatePersistence.snapshot(cache.itemStack!!)
                 val originalAmount = cache.amount
                 try {
-                    cache.itemStack = canonical
-                    menu.persistTemplate(cache)
-                    menu.location.save(cache)
-                    check(cache.amount == originalAmount && cache.itemStack?.isSimilar(canonical) == true) {
-                        "Storage presentation repair changed the saved identity or balance"
+                    check(cache.itemStack?.isSimilar(original) == true && cache.amount == originalAmount) {
+                        "Storage presentation repair began with an unexpected balance or identity"
                     }
+                    menu.repairCosmeticTemplate(original, canonical)
+                    check(cache.itemStack?.isSimilar(original) == true && cache.amount == originalAmount) {
+                        "Storage presentation repair changed its source identity or balance"
+                    }
+                    // Commit the in-memory representation only after a verified,
+                    // rollback-protected private template write.
+                    cache.itemStack = canonical
                 } catch (failure: RuntimeException) {
                     cache.itemStack = original
                     cache.blockUnverifiedTransfer()
-                    try {
-                        menu.location.save(cache)
-                    } catch (saveFailure: RuntimeException) {
-                        failure.addSuppressed(saveFailure)
-                    }
                     InfinityExpansion2.instance.logger.log(java.util.logging.Level.SEVERE,
                         "Storage cosmetic repair could not be verified at ${menu.location}; " +
-                            "further transfers are blocked pending administrator inspection.", failure)
+                            "the saved balance was not rewritten. Transfers are blocked " +
+                            "pending administrator inspection.", failure)
                     return
                 }
             }
