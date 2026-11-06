@@ -69,7 +69,17 @@ public final class StorageTemplatePersistence {
             throw new IllegalStateException("Cosmetic repair found an unexpected stored template identity");
         }
         try {
-            return update(next, reader, writer, markDirty);
+            return update(next, reader, candidate -> {
+                // Recheck immediately before the physical write: the initial
+                // identity check alone cannot protect against a changed slot
+                // observed by update() after its own read.
+                ItemStack beforeWrite = reader.get();
+                if (!matches(previous, beforeWrite) && !matches(next, beforeWrite)) {
+                    throw new IllegalStateException(
+                        "Cosmetic repair refused a changed stored template identity");
+                }
+                writer.accept(candidate);
+            }, markDirty);
         } catch (RuntimeException failure) {
             try {
                 // A failed writer can leave the slot owned by another operation.
