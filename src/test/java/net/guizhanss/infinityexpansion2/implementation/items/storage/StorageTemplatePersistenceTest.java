@@ -185,9 +185,14 @@ class StorageTemplatePersistenceTest {
         // runs during SIGKILL; the separate persisted ledger is untouched.
         for (ItemStack persistedTemplate : new ItemStack[] {original, canonical}) {
             slot.set(persistedTemplate.clone());
-            ItemStack restartedTemplate = readCopy();
-            int restartedBalance = persistedBalance;
+            // Cross the actual Bukkit ItemStack byte serialization boundary,
+            // rather than merely cloning an in-memory object. This is still a
+            // unit-level restart fixture, not evidence of a native SIGKILL.
+            byte[] savedBytes = readCopy().serializeAsBytes();
+            ItemStack restartedTemplate = ItemStack.deserializeBytes(savedBytes);
+            int restartedBalance = Integer.parseInt(Integer.toString(persistedBalance));
             assertEquals(persistedTemplate, restartedTemplate);
+            assertNotSame(persistedTemplate, restartedTemplate);
             assertEquals(9_000_000_001L, restartedTemplate.getItemMeta().getPersistentDataContainer()
                 .get(new NamespacedKey("storage-test", "owner"), PersistentDataType.LONG));
             assertEquals((byte) 17, restartedTemplate.getItemMeta().getPersistentDataContainer()
