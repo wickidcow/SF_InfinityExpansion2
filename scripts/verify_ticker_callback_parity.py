@@ -67,6 +67,38 @@ def verify_sources():
         }
 
 ''', '')
+        if path == 'storage/StorageUnit.kt':
+            text = once(text, '''        /**
+         * Rewrite only the protected ITEM_SLOT after checking that it still
+         * contains the exact historical identity. In case of a setter/dirty
+         * callback exception, try restoring the old private template. A hard
+         * stop may leave either semantically equivalent template, but this
+         * method never touches stored_amount or void_excess.
+         */
+        private fun BlockMenu.repairCosmeticTemplate(original: ItemStack, canonical: ItemStack) {
+            check(StorageItemPresentation.matchesRegistered(original, canonical)) {
+                "Storage canonical template changed functional identity"
+            }
+            val existing = getItemInSlot(ITEM_SLOT)
+            check(!existing.isAir() && existing.amount == 1 && existing.isDisplayItem() &&
+                existing.removeDisplayItem().isSimilar(original)) {
+                "Storage private template differs from the historical cached identity"
+            }
+            val previous = StorageTemplatePersistence.snapshot(original).toDisplayItem().also { it.amount = 1 }
+            val replacement = StorageTemplatePersistence.snapshot(canonical).toDisplayItem().also { it.amount = 1 }
+            check(previous.removeDisplayItem().isSimilar(original) &&
+                replacement.removeDisplayItem().isSimilar(canonical)) {
+                "Cosmetic template display encoding changed functional identity"
+            }
+            StorageTemplatePersistence.updateCosmeticWithRollback(
+                previous, replacement,
+                { getItemInSlot(ITEM_SLOT) },
+                { replaceExistingItem(ITEM_SLOT, it) },
+                { markDirty() }
+            )
+        }
+
+''', '')
         text = restore_lookup(path, text)
         text = once(text, MODERN_IMPORT, '')
         text = once(text, ANNOTATION, '')
