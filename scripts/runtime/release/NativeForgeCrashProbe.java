@@ -14,6 +14,10 @@ import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Level;
+import net.kyori.adventure.text.Component;
+import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageItemPresentation;
+import net.guizhanss.infinityexpansion2.utils.constant.Keys;
+import org.bukkit.persistence.PersistentDataType;
 import me.mrCookieSlime.CSCoreLibPlugin.general.Inventory.ClickAction;
 import me.mrCookieSlime.Slimefun.api.inventory.BlockMenu;
 import net.guizhanss.infinityexpansion2.core.menu.MenuLayout;
@@ -45,6 +49,7 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
     private int failures;
     private String phase;
     private Location location;
+    private Location storageLocation;
 
     @Override public void onEnable() {
         if (!"disposable".equals(System.getProperty("ie2.forge.crash"))) {
@@ -75,9 +80,13 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
     private void begin() {
         var world=Bukkit.getWorlds().getFirst();
         location=new Location(world,140,100,128);
+        storageLocation=new Location(world,144,100,128);
         location.getChunk().load();
+        storageLocation.getChunk().load();
         var forge=SlimefunItem.getById("IE_STORAGE_FORGE");
         require(forge instanceof StorageForge,"registered Forge exists in crash fixture");
+        var storageUnit=SlimefunItem.getById("IE_STORAGE_UNIT_1");
+        require(storageUnit instanceof StorageUnit,"registered Storage Unit exists for historical cosmetic fixture");
         if ("seed".equals(phase)) {
             require(!StoredBlockLookup.hasBlockInfo(location),"new isolated crash fixture");
             location.getBlock().setType(forge.getItem().getType());
@@ -85,6 +94,15 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
             var data=controller.createBlock(location,forge.getId());
             if(!data.isDataLoaded())controller.loadBlockData(data);
             data.setData("probe.marker","forge-crash-ledger");
+            require(!StoredBlockLookup.hasBlockInfo(storageLocation),"new isolated historical Storage Unit");
+            storageLocation.getBlock().setType(storageUnit.getItem().getType());
+            var stored=controller.createBlock(storageLocation,storageUnit.getId());
+            if(!stored.isDataLoaded())controller.loadBlockData(stored);
+            stored.setData("probe.marker","cosmetic-repair-731");
+            // Keep balance zero until its private slot has been installed; an
+            // identity-less positive balance is intentionally fail-closed.
+            stored.setData("stored_amount","0");
+            stored.setData("void_excess","true");
         }
         new BukkitRunnable() {
             int attempts;
@@ -96,7 +114,8 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
                     // before the owning-region callback is restored. Do not
                     // click the placeholder and mistake delayed setup for a
                     // failed craft. Fail after a bounded wait if it never heals.
-                    if(handler!=null && handler.getClass().getName().contains("AbstractCraftingMachine")) {
+                    if(handler!=null && handler.getClass().getName().contains("AbstractCraftingMachine")
+                            && StoredBlockLookup.getInventory(storageLocation)!=null) {
                         cancel();
                         runPhase((StorageForge)forge,menu);
                         finish();
@@ -116,6 +135,7 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
         var marker=Slimefun.getDatabaseManager().getBlockDataController().getBlockData(location);
         require("forge-crash-ledger".equals(marker.getData("probe.marker")),
             "crash Forge database marker persists");
+        checkHistoricalCosmeticStorage();
 
         var source=SlimefunItem.getById("IE_STORAGE_UNIT_1");
         var target=SlimefunItem.getById("IE_STORAGE_UNIT_2");
@@ -317,6 +337,136 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
                 "committed restart repeated click cannot restore consumed ingredients");
             results.add("PASS verify: complete new 731-diamond ledger recovered; repeated click cannot duplicate");
         }
+    }
+
+    /**
+     * An actual v2.0.17 Storage Unit record is created during seed using the
+     * historical published addon JAR. Candidate JVMs must load it intact,
+     * preserve the full 731 items across physical buffered output, and retain
+     * the same Slimefun ID after normal restart and disposable SIGKILL.
+     * Output production is accounted for; no artificial item refund is made.
+     */
+    private void checkHistoricalCosmeticStorage() throws Exception {
+        var controller=Slimefun.getDatabaseManager().getBlockDataController();
+        var data=controller.getBlockData(storageLocation);
+        require(data!=null && "cosmetic-repair-731".equals(data.getData("probe.marker")),
+            "historical Storage Unit block data retained");
+        var menu=StoredBlockLookup.getInventory(storageLocation);
+        require(menu!=null,"historical Storage Unit menu is available");
+        var storedType=SlimefunItem.getById("IE_STORAGE_UNIT_1");
+        var templateType=SlimefunItem.getById("IE_STORAGE_FORGE");
+        require(storedType instanceof StorageUnit && templateType!=null,
+            "historical storage and registered content types are available");
+        Files.createDirectories(getDataFolder().toPath());
+        var snapshot=getDataFolder().toPath().resolve("historical-cosmetic-template.bin");
+        if ("seed".equals(phase)) {
+            require(!Files.exists(snapshot),"historical cosmetic snapshot must be newly seeded");
+            var wrapped=mutable(templateType.getItem());
+            var meta=wrapped.getItemMeta();
+            require(meta!=null && meta.displayName()!=null,
+                "old registered Slimefun template has an Adventure name");
+            meta.displayName(Component.text("").append(meta.displayName()));
+            if(meta.lore()!=null && !meta.lore().isEmpty()) {
+                var newLore=new ArrayList<Component>();
+                for(var line:meta.lore())newLore.add(Component.text("").append(line));
+                meta.lore(newLore);
+            }
+            require(wrapped.setItemMeta(meta),"old wrapped template retains its metadata");
+            require(templateType.getId().equals(
+                Slimefun.getItemDataService().getItemData(wrapped.getItemMeta()).orElse(null)),
+                "old wrapped template retains its actual Slimefun ID");
+            Files.write(snapshot,wrapped.serializeAsBytes());
+            var privateDisplay=mutable(wrapped);
+            privateDisplay.editMeta(m->m.getPersistentDataContainer().set(
+                Keys.INSTANCE.getDISPLAY_ITEM(),PersistentDataType.BYTE,(byte)17));
+            menu.replaceExistingItem(StorageUnit.ITEM_SLOT,privateDisplay);
+            menu.markDirty();
+            require(privateDisplay.equals(menu.getItemInSlot(StorageUnit.ITEM_SLOT)),
+                "historical private display template persists before count assigned");
+            // v2.0.17 and current source use the same two existing keys.
+            data.setData("stored_amount","731");
+            data.setData("void_excess","true");
+            require("731".equals(data.getData("stored_amount")),
+                "historical physical record retains exact 731-item balance");
+            results.add("PASS seed: actual released IE2 2.0.17 Storage Unit has 731-item ledger and wrapped private template");
+            return;
+        }
+        require(Files.isRegularFile(snapshot),"original native wrapped item snapshot exists");
+        var historic=ItemStack.deserializeBytes(Files.readAllBytes(snapshot));
+        // Normal historical menu initialization may redraw the display-only
+        // marker to a random byte before the repair tick. Preserve the marker
+        // actually present at the start of THIS tick, never assume a seed-time
+        // marker is a durable item/owner identity across world reloads.
+        var beforeDisplay=menu.getItemInSlot(StorageUnit.ITEM_SLOT);
+        require(beforeDisplay!=null && beforeDisplay.getAmount()==1,
+            "historical private display item is available before repair");
+        var beforeMarker=beforeDisplay.getItemMeta().getPersistentDataContainer().get(
+            Keys.INSTANCE.getDISPLAY_ITEM(),PersistentDataType.BYTE);
+        require(beforeMarker!=null,
+            "historical private display marker must retain its BYTE PDC type");
+        // A SIGKILL can interrupt a markDirty flush after the in-memory
+        // template was repaired. The original and canonical displays are
+        // semantically equivalent; the recovered JVM must be able to retry
+        // the exact native ticker safely before further output moves.
+        if ("crash".equals(phase) || "verify".equals(phase)) {
+            var ticker=storedType.getBlockTicker();
+            require(ticker!=null && ticker.isSynchronized(),
+                "registered Storage Unit uses its real synchronized ticker");
+            var physicalSlots=((StorageUnit)storedType).getOutputSlots();
+            require(physicalSlots.length==1,"one physical output slot before native repair");
+            var beforeOutput=menu.getItemInSlot(physicalSlots[0]);
+            results.add("DEBUG historical cosmetic pre-tick: stored="+data.getData("stored_amount")
+                +"; buffered="+beforeOutput
+                +"; private="+menu.getItemInSlot(StorageUnit.ITEM_SLOT));
+            // Native Slimefun's periodic scheduler need not tick this fixture
+            // before the crash probe runs. Exercise the EXACT registered
+            // production BlockTicker, not a simulation or a helper shortcut.
+            // An already occupied output remains protected by production logic.
+            ticker.tick(storageLocation.getBlock(),storedType,data);
+        }
+        var currentDisplay=menu.getItemInSlot(StorageUnit.ITEM_SLOT);
+        require(currentDisplay!=null && currentDisplay.getAmount()==1,
+            "historical private identity template still exists");
+        // The GUI marker is deliberately randomized by legacy menu redraws
+        // when loading an old world. The cosmetic repair itself may NOT change
+        // the marker already on the protected slot in this running JVM.
+        var markerValue=currentDisplay.getItemMeta().getPersistentDataContainer().get(
+            Keys.INSTANCE.getDISPLAY_ITEM(),PersistentDataType.BYTE);
+        results.add("DEBUG historical display marker before-tick="+beforeMarker
+            +"; after-tick="+markerValue);
+        require(beforeMarker.equals(markerValue),
+            "cosmetic repair changed its pre-tick display marker byte or PDC type");
+        var decoded=mutable(currentDisplay);
+        decoded.editMeta(m->m.getPersistentDataContainer().remove(Keys.INSTANCE.getDISPLAY_ITEM()));
+        require(StorageItemPresentation.matchesRegistered(historic,decoded),
+            "historical template remains Slimefun-ID-identical without owner/model/lore loss");
+        var outputSlots=((StorageUnit)storedType).getOutputSlots();
+        require(outputSlots.length==1,"storage fixture retains one physical output slot");
+        var output=menu.getItemInSlot(outputSlots[0]);
+        int buffered=output==null||output.getType().isAir()?0:output.getAmount();
+        if(buffered>0) {
+            require(StorageItemPresentation.matchesRegistered(historic,output),
+                "physical output retains its original Slimefun item identity");
+        }
+        var serialized=data.getData("stored_amount");
+        require(serialized!=null,"historical stored amount is readable after restart");
+        int amount=Integer.parseInt(serialized);
+        require(amount>=0 && amount+buffered==731,
+            "historical storage balance plus physical output must equal 731 (stored="
+                +amount+", physical="+buffered+")");
+        require("true".equalsIgnoreCase(data.getData("void_excess")),
+            "historical Void Excess remains unchanged");
+        var canonical=mutable(templateType.getItem());
+        require(StorageItemPresentation.matchesRegistered(decoded,canonical),
+            "saved template remains eligible only for harmless cosmetic comparison");
+        // The published 2.0.17 seed starts with an empty physical output and
+        // a truly empty, unstyled Adventure wrapper. On the upgraded JVM's
+        // first tick the guarded repair should write the canonical template
+        // before filling the output, without touching the ledger.
+        require(decoded.isSimilar(canonical),
+            "old wrapped private template must self-repair to canonical display on native tick");
+        results.add("PASS "+phase+": historic v2.0.17 Storage Unit preserves exact 731 items, "
+            +"Slimefun ID, Adventure lore and Void Excess across native restart/SIGKILL");
     }
 
     private boolean upgraded(ItemStack item, StorageUnit target) {

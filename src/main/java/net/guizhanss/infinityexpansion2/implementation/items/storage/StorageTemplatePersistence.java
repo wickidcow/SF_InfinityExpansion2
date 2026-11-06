@@ -42,6 +42,74 @@ public final class StorageTemplatePersistence {
         return true;
     }
 
+    /**
+     * Repair only the private persisted template slot, leaving the separately
+     * stored balance and Void Excess setting completely untouched. The caller
+     * must verify that both templates represent the same registered Slimefun ID
+     * and functional metadata before invoking this method.
+     *
+     * A callback may write and then throw. A failed upgrade therefore attempts
+     * an idempotent restore of the original protected slot and propagates any
+     * failure. An abrupt process stop can leave either template; both must be
+     * semantically equivalent, and neither path modifies the item ledger.
+     */
+    public static boolean updateCosmeticWithRollback(
+        ItemStack encodedOriginal, ItemStack encodedCanonical,
+        Supplier<ItemStack> reader, Consumer<ItemStack> writer, Runnable markDirty) {
+        ItemStack previous = snapshot(encodedOriginal);
+        ItemStack next = snapshot(encodedCanonical);
+        if (previous.getAmount() != 1 || next.getAmount() != 1) {
+            throw new IllegalStateException("Cosmetic repair requires one-item private display templates");
+        }
+        // The protected slot is authoritative, not a disposable GUI icon.
+        // Never overwrite a foreign persisted template, including on rollback.
+        // An interrupted prior attempt may already have installed the canonical item.
+        ItemStack actual = reader.get();
+        if (!matches(previous, actual) && !matches(next, actual)) {
+            throw new IllegalStateException("Cosmetic repair found an unexpected stored template identity");
+        }
+        try {
+            return update(next, reader, candidate -> {
+                // Recheck immediately before the physical write: the initial
+                // identity check alone cannot protect against a changed slot
+                // observed by update() after its own read.
+                ItemStack beforeWrite = reader.get();
+                if (!matches(previous, beforeWrite) && !matches(next, beforeWrite)) {
+                    throw new IllegalStateException(
+                        "Cosmetic repair refused a changed stored template identity");
+                }
+                writer.accept(candidate);
+            }, markDirty);
+        } catch (RuntimeException failure) {
+            try {
+                // A failed writer can leave the slot owned by another operation.
+                // Roll back only our canonical template; never overwrite a
+                // concurrently installed foreign identity.
+                ItemStack afterFailure = reader.get();
+                if (!matches(previous, afterFailure) && !matches(next, afterFailure)) {
+                    throw new IllegalStateException(
+                        "Cosmetic rollback refused an unexpected stored template identity");
+                }
+                if (matches(next, afterFailure)) {
+                    update(previous, reader, candidate -> {
+                        // update() reads before calling the writer; a foreign
+                        // template can replace the slot in that interval.
+                        // Recheck at the rollback write boundary as well.
+                        ItemStack beforeRestore = reader.get();
+                        if (!matches(previous, beforeRestore) && !matches(next, beforeRestore)) {
+                            throw new IllegalStateException(
+                                "Cosmetic rollback refused a changed stored template identity");
+                        }
+                        writer.accept(candidate);
+                    }, markDirty);
+                }
+            } catch (RuntimeException rollbackFailure) {
+                failure.addSuppressed(rollbackFailure);
+            }
+            throw failure;
+        }
+    }
+
     private static boolean matches(ItemStack expected, ItemStack actual) {
         return actual != null && actual.getAmount() == 1 && expected.isSimilar(actual);
     }

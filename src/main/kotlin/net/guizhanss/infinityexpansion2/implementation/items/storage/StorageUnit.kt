@@ -150,6 +150,38 @@ class StorageUnit(
         val cache = _caches[menu.position] ?: return
         if (cache.hasUnassignedItems() || cache.hasBlockedTransfer()) return
 
+        // Cosmetic reconciliation changes only the private identity template.
+        // The separately persisted amount/void ledger is never rewritten here.
+        // Both pre- and post-crash templates are proven semantically equivalent;
+        // the public physical output slot must already be empty.
+        if (cache.amount > 0 && menu.getItemInSlot(outputSlots[0]).isAir()) {
+            val canonical = StorageItemPresentation.canonicalIfCosmetic(cache.itemStack)
+            if (canonical != null) {
+                val original = StorageTemplatePersistence.snapshot(cache.itemStack!!)
+                val originalAmount = cache.amount
+                try {
+                    check(cache.itemStack?.isSimilar(original) == true && cache.amount == originalAmount) {
+                        "Storage presentation repair began with an unexpected balance or identity"
+                    }
+                    menu.repairCosmeticTemplate(original, canonical)
+                    check(cache.itemStack?.isSimilar(original) == true && cache.amount == originalAmount) {
+                        "Storage presentation repair changed its source identity or balance"
+                    }
+                    // Commit the in-memory representation only after a verified,
+                    // rollback-protected private template write.
+                    cache.itemStack = canonical
+                } catch (failure: RuntimeException) {
+                    cache.itemStack = original
+                    cache.blockUnverifiedTransfer()
+                    InfinityExpansion2.instance.logger.log(java.util.logging.Level.SEVERE,
+                        "Storage cosmetic repair could not be verified at ${menu.location}; " +
+                            "the saved balance was not rewritten. Transfers are blocked " +
+                            "pending administrator inspection.", failure)
+                    return
+                }
+            }
+        }
+
         menu.updateDisplay(cache)
 
         // Debit the authoritative physical input slot before crediting storage.
@@ -689,6 +721,55 @@ class StorageUnit(
             }
             StorageTemplatePersistence.update(
                 encoded,
+                { getItemInSlot(ITEM_SLOT) },
+                { replaceExistingItem(ITEM_SLOT, it) },
+                { markDirty() }
+            )
+        }
+
+        /**
+         * Rewrite only the protected ITEM_SLOT after checking that it still
+         * contains the exact historical identity. In case of a setter/dirty
+         * callback exception, try restoring the old private template. A hard
+         * stop may leave either semantically equivalent template, but this
+         * method never touches stored_amount or void_excess.
+         */
+        private fun BlockMenu.repairCosmeticTemplate(original: ItemStack, canonical: ItemStack) {
+            check(StorageItemPresentation.matchesRegistered(original, canonical)) {
+                "Storage canonical template changed functional identity"
+            }
+            val existing = getItemInSlot(ITEM_SLOT)
+            check(!existing.isAir() && existing.amount == 1 && existing.isDisplayItem() &&
+                existing.removeDisplayItem().isSimilar(original)) {
+                "Storage private template differs from the historical cached identity"
+            }
+            // Keep the actual persisted marker byte: toDisplayItem() randomizes it.
+            // Re-encoding the old slot makes the rollback precondition fail.
+            val previous = StorageTemplatePersistence.snapshot(existing)
+            val markerKey = net.guizhanss.infinityexpansion2.utils.constant.Keys.DISPLAY_ITEM
+            val markerType = org.bukkit.persistence.PersistentDataType.BYTE
+            val marker = checkNotNull(previous.itemMeta?.persistentDataContainer?.get(markerKey, markerType)) {
+                "Historical storage display marker has no readable byte value"
+            }
+            val replacement = StorageTemplatePersistence.snapshot(canonical).toDisplayItem().also { it.amount = 1 }
+            // toDisplayItem() generates a new random marker. Preserve the exact
+            // historical byte, including across a clean retry after SIGKILL.
+            val replacementMeta = checkNotNull(replacement.itemMeta) {
+                "Canonical storage display is missing ItemMeta"
+            }
+            replacementMeta.persistentDataContainer.set(markerKey, markerType, marker)
+            check(replacement.setItemMeta(replacementMeta)) {
+                "Canonical storage display rejected the preserved marker"
+            }
+            check(replacement.itemMeta?.persistentDataContainer?.get(markerKey, markerType) == marker) {
+                "Canonical storage display changed its historical marker"
+            }
+            check(previous.removeDisplayItem().isSimilar(original) &&
+                replacement.removeDisplayItem().isSimilar(canonical)) {
+                "Cosmetic template display encoding changed functional identity"
+            }
+            StorageTemplatePersistence.updateCosmeticWithRollback(
+                previous, replacement,
                 { getItemInSlot(ITEM_SLOT) },
                 { replaceExistingItem(ITEM_SLOT, it) },
                 { markDirty() }
