@@ -393,7 +393,11 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
         }
         require(Files.isRegularFile(snapshot),"original native wrapped item snapshot exists");
         var historic=ItemStack.deserializeBytes(Files.readAllBytes(snapshot));
-        if ("crash".equals(phase)) {
+        // A SIGKILL can interrupt a markDirty flush after the in-memory
+        // template was repaired. The original and canonical displays are
+        // semantically equivalent; the recovered JVM must be able to retry
+        // the exact native ticker safely before further output moves.
+        if ("crash".equals(phase) || "verify".equals(phase)) {
             var ticker=storedType.getBlockTicker();
             require(ticker!=null && ticker.isSynchronized(),
                 "registered Storage Unit uses its real synchronized ticker");
