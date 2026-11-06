@@ -58,6 +58,11 @@ class StorageItemPresentationTest {
         assertFalse(StorageItemPresentation.sameText(base,
                 Component.text("Same text", NamedTextColor.GRAY)
                         .clickEvent(net.kyori.adventure.text.event.ClickEvent.suggestCommand("/different"))));
+        assertFalse(StorageItemPresentation.sameText(base,
+                Component.text("Same text", NamedTextColor.GRAY).insertion("different insertion")));
+        assertFalse(StorageItemPresentation.sameText(base,
+                Component.translatable("different.translation.key").fallback("Same text")
+                        .color(NamedTextColor.GRAY)));
         assertTrue(StorageItemPresentation.sameText(Component.text("").append(base), base));
         assertFalse(StorageItemPresentation.sameText(
                 Component.text("", NamedTextColor.RED).append(base), base));
