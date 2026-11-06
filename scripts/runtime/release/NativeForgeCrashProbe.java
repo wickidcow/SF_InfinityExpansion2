@@ -416,6 +416,12 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
         var currentDisplay=menu.getItemInSlot(StorageUnit.ITEM_SLOT);
         require(currentDisplay!=null && currentDisplay.getAmount()==1,
             "historical private identity template still exists");
+        // The private display marker is functional PDC, not cosmetic lore.
+        // Repair and crash recovery must retain its original typed byte value.
+        var markerValue=currentDisplay.getItemMeta().getPersistentDataContainer().get(
+            Keys.INSTANCE.getDISPLAY_ITEM(),PersistentDataType.BYTE);
+        require(Byte.valueOf((byte)17).equals(markerValue),
+            "historical private display marker retains exact typed PDC byte across repair/restart");
         var decoded=mutable(currentDisplay);
         decoded.editMeta(m->m.getPersistentDataContainer().remove(Keys.INSTANCE.getDISPLAY_ITEM()));
         require(StorageItemPresentation.matchesRegistered(historic,decoded),
