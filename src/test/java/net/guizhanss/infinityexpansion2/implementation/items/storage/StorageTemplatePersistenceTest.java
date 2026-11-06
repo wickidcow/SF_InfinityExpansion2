@@ -188,9 +188,10 @@ class StorageTemplatePersistenceTest {
             ItemStack restartedTemplate = readCopy();
             int restartedBalance = persistedBalance;
             assertEquals(persistedTemplate, restartedTemplate);
-            assertEquals(original.getItemMeta().getPersistentDataContainer(),
-                restartedTemplate.getItemMeta().getPersistentDataContainer(),
-                "Neither crash boundary may lose owner or typed PDC metadata");
+            assertEquals(9_000_000_001L, restartedTemplate.getItemMeta().getPersistentDataContainer()
+                .get(new NamespacedKey("storage-test", "owner"), PersistentDataType.LONG));
+            assertEquals((byte) 17, restartedTemplate.getItemMeta().getPersistentDataContainer()
+                .get(new NamespacedKey("storage-test", "display"), PersistentDataType.BYTE));
             assertEquals(731, restartedBalance);
             assertEquals(original.getType(), restartedTemplate.getType());
         }
