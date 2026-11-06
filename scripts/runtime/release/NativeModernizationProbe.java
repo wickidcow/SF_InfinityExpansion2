@@ -20,6 +20,7 @@ import net.guizhanss.infinityexpansion2.core.menu.MenuLayout;
 import net.guizhanss.infinityexpansion2.core.persistent.PersistentStorageCacheType;
 import net.guizhanss.infinityexpansion2.core.recipes.MachineRecipe;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageCache;
+import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageItemPresentation;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageForge;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageUnit;
 import net.guizhanss.infinityexpansion2.implementation.items.tools.Oscillator;
@@ -163,6 +164,7 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             require(actual.getItemMeta().lore().getFirst().hoverEvent()!=null,"restart preserves hover event");
             require("keep insertion".equals(actual.getItemMeta().lore().getFirst().insertion()),"restart preserves insertion");
         }
+        checkNativeCosmeticPresentation();
         checkNativeForgeLedger(menu);
         checkRegisteredForgeClick();
         var oscillator=Oscillator.Companion.getItem("DIAMOND");
@@ -189,6 +191,53 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
         results.add("PASS "+phase+": native metadata, registry, oscillator, cancellable event, stored identity and menu persistence");
     }
 
+
+    /**
+     * Run the real released-core Slimefun ItemDataService and Paper ItemMeta
+     * through the cosmetic fallback. MockBukkit alone cannot show whether
+     * native Slimefun item templates or Adventure wrappers round-trip safely.
+     */
+    private void checkNativeCosmeticPresentation() {
+        var sf=SlimefunItem.getById("IE_STORAGE_FORGE");
+        require(sf!=null,"real registered item exists for native cosmetic test");
+        var canonical=mutableRecipeStack(sf.getItem());
+        var original=mutableRecipeStack(canonical);
+        var metadata=original.getItemMeta();
+        require(metadata!=null && metadata.displayName()!=null,
+            "native registered item retains a named item meta");
+        require(sf.getId().equals(Slimefun.getItemDataService().getItemData(metadata).orElse(null)),
+            "registered template has the real Slimefun ID in native ItemDataService");
+        var oldName=metadata.displayName();
+        metadata.displayName(Component.text("").append(oldName));
+        var lore=metadata.lore();
+        if(lore!=null && !lore.isEmpty()) {
+            var wrapped=new ArrayList<Component>();
+            for(var line:lore)wrapped.add(Component.text("").append(line));
+            metadata.lore(wrapped);
+        }
+        require(original.setItemMeta(metadata),"native wrapped component metadata accepted");
+        require(StorageItemPresentation.matchesRegistered(original,canonical),
+            "native Slimefun ID and semantically equal Adventure wrappers can match");
+        var repaired=StorageItemPresentation.canonicalIfCosmetic(original);
+        if(original.isSimilar(canonical)) {
+            require(repaired==null,"identical templates should avoid a needless write");
+        } else {
+            require(repaired!=null && repaired.isSimilar(canonical),
+                "native historical component wrappers repair to an exact independent template");
+        }
+        require(sf.getId().equals(Slimefun.getItemDataService().getItemData(original.getItemMeta()).orElse(null)),
+            "native repair preflight must not alter the original item-data identity");
+        var changed=mutableRecipeStack(canonical);
+        changed.editMeta(meta->meta.displayName(oldName.hoverEvent(
+            HoverEvent.showText(Component.text("protected semantic data")))));
+        require(!StorageItemPresentation.matchesRegistered(changed,canonical),
+            "native hover-event differences must never be normalized");
+        var owned=mutableRecipeStack(original);
+        owned.editMeta(meta->meta.getPersistentDataContainer().set(OWNER,PersistentDataType.LONG,731L));
+        require(!StorageItemPresentation.matchesRegistered(owned,canonical),
+            "native owner PDC difference must never be normalized");
+        results.add("PASS "+phase+": native registered Slimefun ID, Adventure and PDC cosmetic safety");
+    }
 
     /**
      * Recipe inputs may be Slimefun ItemStackWrapper instances. Their clone() is
