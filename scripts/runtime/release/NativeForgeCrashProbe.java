@@ -419,6 +419,12 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
         var canonical=mutable(templateType.getItem());
         require(StorageItemPresentation.matchesRegistered(decoded,canonical),
             "saved template remains eligible only for harmless cosmetic comparison");
+        // The published 2.0.17 seed starts with an empty physical output and
+        // a truly empty, unstyled Adventure wrapper. On the upgraded JVM's
+        // first tick the guarded repair should write the canonical template
+        // before filling the output, without touching the ledger.
+        require(decoded.isSimilar(canonical),
+            "old wrapped private template must self-repair to canonical display on native tick");
         results.add("PASS "+phase+": historic v2.0.17 Storage Unit preserves exact 731 items, "
             +"Slimefun ID, Adventure lore and Void Excess across native restart/SIGKILL");
     }
