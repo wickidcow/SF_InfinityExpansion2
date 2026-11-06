@@ -357,6 +357,7 @@ public final class NativeForgeCrashProbe extends JavaPlugin {
         var templateType=SlimefunItem.getById("IE_STORAGE_FORGE");
         require(storedType instanceof StorageUnit && templateType!=null,
             "historical storage and registered content types are available");
+        Files.createDirectories(getDataFolder().toPath());
         var snapshot=getDataFolder().toPath().resolve("historical-cosmetic-template.bin");
         if ("seed".equals(phase)) {
             require(!Files.exists(snapshot),"historical cosmetic snapshot must be newly seeded");
