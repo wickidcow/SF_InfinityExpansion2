@@ -324,6 +324,43 @@ class StorageTemplatePersistenceTest {
         assertEquals(0, dirty.get());
     }
 
+    @Test
+    void rollbackMustNotOverwriteForeignOwnerInstalledAfterRollbackRead() {
+        var original = encoded.clone();
+        var canonical = encoded.clone();
+        canonical.editMeta(meta -> meta.displayName(
+            net.kyori.adventure.text.Component.text("Canonical visual name")));
+        var foreign = encoded.clone();
+        foreign.editMeta(meta -> meta.getPersistentDataContainer().set(
+            new NamespacedKey("storage-test", "owner"), PersistentDataType.LONG, 42L));
+        slot.set(original.clone());
+        var reads = new AtomicInteger();
+        var writes = new AtomicInteger();
+        var dirty = new AtomicInteger();
+        java.util.function.Supplier<ItemStack> changingReader = () -> {
+            // Initial check, update check, forward prewrite, failure read,
+            // rollback update check, then rollback prewrite.
+            if (reads.incrementAndGet() == 6) {
+                slot.set(foreign.clone());
+            }
+            return readCopy();
+        };
+        var failure = assertThrows(IllegalStateException.class,
+            () -> StorageTemplatePersistence.updateCosmeticWithRollback(
+                original, canonical, changingReader, candidate -> {
+                    slot.set(candidate);
+                    if (writes.incrementAndGet() == 1) {
+                        throw new IllegalStateException("Injected failure after canonical write");
+                    }
+                }, dirty::incrementAndGet));
+        assertEquals("Injected failure after canonical write", failure.getMessage());
+        assertEquals(1, failure.getSuppressed().length,
+            "The unsafe rollback boundary must remain visible to the caller");
+        assertEquals(foreign, slot.get(), "Rollback must not erase a new owner's template");
+        assertEquals(1, writes.get(), "No rollback writer may run after owner replacement");
+        assertEquals(0, dirty.get());
+    }
+
     private ItemStack readCopy() {
         ItemStack current = slot.get();
         return current == null ? null : current.clone();
