@@ -5,7 +5,8 @@ import io.github.thebusybiscuit.slimefun4.implementation.Slimefun;
 import java.util.List;
 import java.util.Objects;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.format.Style;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
@@ -17,7 +18,6 @@ import org.bukkit.inventory.meta.ItemMeta;
  * presentation-only fallback; vanilla and unidentified items remain strict.
  */
 public final class StorageItemPresentation {
-    private static final PlainTextComponentSerializer PLAIN = PlainTextComponentSerializer.plainText();
 
     private StorageItemPresentation() {}
 
@@ -92,7 +92,19 @@ public final class StorageItemPresentation {
 
     public static boolean sameText(Component first, Component second) {
         if (first == null || second == null) return first == second;
-        return PLAIN.serialize(first).equals(PLAIN.serialize(second));
+        return unwrapEmptyPresentation(first).equals(unwrapEmptyPresentation(second));
+    }
+
+    /** Remove only a truly empty, unstyled, single-child legacy wrapper. */
+    private static Component unwrapEmptyPresentation(Component component) {
+        Component current = component;
+        while (current instanceof TextComponent text
+                && text.content().isEmpty()
+                && text.style().equals(Style.empty())
+                && text.children().size() == 1) {
+            current = text.children().get(0);
+        }
+        return current;
     }
 
     public static boolean sameLore(List<Component> first, List<Component> second) {
