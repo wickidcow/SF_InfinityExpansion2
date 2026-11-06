@@ -84,7 +84,9 @@ def verify_sources():
                 existing.removeDisplayItem().isSimilar(original)) {
                 "Storage private template differs from the historical cached identity"
             }
-            val previous = StorageTemplatePersistence.snapshot(original).toDisplayItem().also { it.amount = 1 }
+            // Keep the actual persisted marker byte: toDisplayItem() randomizes it.
+            // Re-encoding the old slot makes the rollback precondition fail.
+            val previous = StorageTemplatePersistence.snapshot(existing)
             val replacement = StorageTemplatePersistence.snapshot(canonical).toDisplayItem().also { it.amount = 1 }
             check(previous.removeDisplayItem().isSimilar(original) &&
                 replacement.removeDisplayItem().isSimilar(canonical)) {
