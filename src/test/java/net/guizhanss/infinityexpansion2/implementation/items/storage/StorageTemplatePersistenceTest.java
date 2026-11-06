@@ -293,6 +293,37 @@ class StorageTemplatePersistenceTest {
         assertEquals(0, dirty.get());
     }
 
+
+    @Test
+    void changedOwnerBetweenInitialCheckAndWriteMustNotBeOverwritten() {
+        var original = encoded.clone();
+        var canonical = encoded.clone();
+        canonical.editMeta(meta -> meta.displayName(
+            net.kyori.adventure.text.Component.text("Canonical visual name")));
+        var foreign = encoded.clone();
+        foreign.editMeta(meta -> meta.getPersistentDataContainer().set(
+            new NamespacedKey("storage-test", "owner"), PersistentDataType.LONG, 42L));
+        slot.set(original.clone());
+        var reads = new AtomicInteger();
+        var writes = new AtomicInteger();
+        var dirty = new AtomicInteger();
+        java.util.function.Supplier<ItemStack> changingReader = () -> {
+            if (reads.incrementAndGet() == 2) {
+                slot.set(foreign.clone());
+            }
+            return readCopy();
+        };
+
+        assertThrows(IllegalStateException.class,
+            () -> StorageTemplatePersistence.updateCosmeticWithRollback(
+                original, canonical, changingReader,
+                value -> { writes.incrementAndGet(); slot.set(value); },
+                dirty::incrementAndGet));
+        assertEquals(foreign, slot.get(), "A changed owner must retain the physical slot");
+        assertEquals(0, writes.get(), "A stale initial read must not authorize any write");
+        assertEquals(0, dirty.get());
+    }
+
     private ItemStack readCopy() {
         ItemStack current = slot.get();
         return current == null ? null : current.clone();
