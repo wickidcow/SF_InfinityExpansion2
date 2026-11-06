@@ -84,6 +84,24 @@ class StorageItemPresentationTest {
         assertFalse(StorageItemPresentation.equivalentPresentation(old, altered, "ID", "ID"));
     }
 
+    @Test void identicalVisibleLoreCannotOverrideSemanticDifferencesOrOwnerIdentity() {
+        ItemStack legacy = item(true, "owner-a");
+        ItemStack changed = item(false, "owner-a");
+        changed.editMeta(meta -> meta.lore(List.of(
+                Component.text("Requirement: 64", NamedTextColor.RED))));
+        assertFalse(StorageItemPresentation.equivalentPresentation(
+                legacy, changed, "IE_ALUMINUM_SINGULARITY", "IE_ALUMINUM_SINGULARITY"));
+        changed = item(false, "owner-a");
+        changed.editMeta(meta -> meta.lore(List.of(
+                Component.text("Requirement: 64", NamedTextColor.AQUA)
+                        .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(Component.text("secret"))))));
+        assertFalse(StorageItemPresentation.equivalentPresentation(
+                legacy, changed, "IE_ALUMINUM_SINGULARITY", "IE_ALUMINUM_SINGULARITY"));
+        changed = item(false, "owner-b");
+        assertFalse(StorageItemPresentation.equivalentPresentation(
+                legacy, changed, "IE_ALUMINUM_SINGULARITY", "IE_ALUMINUM_SINGULARITY"));
+    }
+
     @Test void functionalMetadataOrLoreLengthCannotBeSilentlyDiscarded() {
         ItemStack old = item(true, "owner-a");
         ItemStack protectedItem = item(false, "owner-a");
