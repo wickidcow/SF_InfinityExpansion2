@@ -61,6 +61,13 @@ public final class StorageTemplatePersistence {
         if (previous.getAmount() != 1 || next.getAmount() != 1) {
             throw new IllegalStateException("Cosmetic repair requires one-item private display templates");
         }
+        // The protected slot is authoritative, not a disposable GUI icon.
+        // Never overwrite a foreign persisted template, including on rollback.
+        // An interrupted prior attempt may already have installed the canonical item.
+        ItemStack actual = reader.get();
+        if (!matches(previous, actual) && !matches(next, actual)) {
+            throw new IllegalStateException("Cosmetic repair found an unexpected stored template identity");
+        }
         try {
             return update(next, reader, writer, markDirty);
         } catch (RuntimeException failure) {
