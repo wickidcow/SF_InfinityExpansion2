@@ -172,6 +172,55 @@ class StorageTemplatePersistenceTest {
         assertEquals(2, dirty.get());
     }
 
+
+    @Test
+    void abruptStopBeforeOrAfterCosmeticWriteKeepsExactLedgerAndOwnerMetadata() {
+        var original = encoded.clone();
+        var canonical = encoded.clone();
+        canonical.editMeta(meta -> meta.displayName(
+            net.kyori.adventure.text.Component.text("Canonical visual name")));
+        final int persistedBalance = 731;
+        // Model the two possible durable snapshots at an abrupt process stop:
+        // old private template, or new private template. No rollback callback
+        // runs during SIGKILL; the separate persisted ledger is untouched.
+        for (ItemStack persistedTemplate : new ItemStack[] {original, canonical}) {
+            slot.set(persistedTemplate.clone());
+            ItemStack restartedTemplate = readCopy();
+            int restartedBalance = persistedBalance;
+            assertEquals(persistedTemplate, restartedTemplate);
+            assertEquals(original.getItemMeta().getPersistentDataContainer(),
+                restartedTemplate.getItemMeta().getPersistentDataContainer(),
+                "Neither crash boundary may lose owner or typed PDC metadata");
+            assertEquals(731, restartedBalance);
+            assertEquals(original.getType(), restartedTemplate.getType());
+        }
+    }
+
+    @Test
+    void failedRollbackLeavesCanonicalTemplateDetectableAndNeverTouchesLedger() {
+        var original = encoded.clone();
+        var canonical = encoded.clone();
+        canonical.editMeta(meta -> meta.displayName(
+            net.kyori.adventure.text.Component.text("Canonical visual name")));
+        var ledger = new AtomicInteger(731);
+        var writes = new AtomicInteger();
+        slot.set(original.clone());
+        var failure = assertThrows(IllegalStateException.class,
+            () -> StorageTemplatePersistence.updateCosmeticWithRollback(original, canonical,
+                this::readCopy, value -> {
+                    if (writes.incrementAndGet() == 2) {
+                        throw new IllegalStateException("Injected rollback failure");
+                    }
+                    slot.set(value);
+                    throw new IllegalStateException("Injected canonical write failure");
+                }, () -> {}));
+        assertEquals(1, failure.getSuppressed().length,
+            "Rollback failure must be surfaced rather than silently claiming restoration");
+        assertEquals(canonical, slot.get(),
+            "A failed rollback can leave a canonical template; never claim old template survived");
+        assertEquals(731, ledger.get());
+    }
+
     private ItemStack readCopy() {
         ItemStack current = slot.get();
         return current == null ? null : current.clone();
