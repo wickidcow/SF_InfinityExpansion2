@@ -91,7 +91,17 @@ public final class StorageTemplatePersistence {
                         "Cosmetic rollback refused an unexpected stored template identity");
                 }
                 if (matches(next, afterFailure)) {
-                    update(previous, reader, writer, markDirty);
+                    update(previous, reader, candidate -> {
+                        // update() reads before calling the writer; a foreign
+                        // template can replace the slot in that interval.
+                        // Recheck at the rollback write boundary as well.
+                        ItemStack beforeRestore = reader.get();
+                        if (!matches(previous, beforeRestore) && !matches(next, beforeRestore)) {
+                            throw new IllegalStateException(
+                                "Cosmetic rollback refused a changed stored template identity");
+                        }
+                        writer.accept(candidate);
+                    }, markDirty);
                 }
             } catch (RuntimeException rollbackFailure) {
                 failure.addSuppressed(rollbackFailure);
