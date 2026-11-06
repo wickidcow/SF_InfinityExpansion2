@@ -45,6 +45,24 @@ class StorageItemPresentationTest {
         assertEquals(before, legacy, "Presentation matching must never mutate actual stored items");
     }
 
+
+    @Test void meaningfulAdventureStylesAndEventsAreNeverCollapsed() {
+        Component base = Component.text("Same text", NamedTextColor.GRAY);
+        assertFalse(StorageItemPresentation.sameText(base, Component.text("Same text", NamedTextColor.RED)));
+        assertFalse(StorageItemPresentation.sameText(base,
+                Component.text("Same text", NamedTextColor.GRAY)
+                        .decorate(net.kyori.adventure.text.format.TextDecoration.BOLD)));
+        assertFalse(StorageItemPresentation.sameText(base,
+                Component.text("Same text", NamedTextColor.GRAY)
+                        .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(Component.text("hidden")))));
+        assertFalse(StorageItemPresentation.sameText(base,
+                Component.text("Same text", NamedTextColor.GRAY)
+                        .clickEvent(net.kyori.adventure.text.event.ClickEvent.suggestCommand("/different"))));
+        assertTrue(StorageItemPresentation.sameText(Component.text("").append(base), base));
+        assertFalse(StorageItemPresentation.sameText(
+                Component.text("", NamedTextColor.RED).append(base), base));
+    }
+
     @Test void differentSlimefunIdsAreNotInterchangeable() {
         assertFalse(StorageItemPresentation.equivalentPresentation(
                 item(true, "same"), item(false, "same"), "IE_ALUMINUM_SINGULARITY", "IE_GOLD_SINGULARITY"));
