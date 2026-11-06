@@ -72,7 +72,17 @@ public final class StorageTemplatePersistence {
             return update(next, reader, writer, markDirty);
         } catch (RuntimeException failure) {
             try {
-                update(previous, reader, writer, markDirty);
+                // A failed writer can leave the slot owned by another operation.
+                // Roll back only our canonical template; never overwrite a
+                // concurrently installed foreign identity.
+                ItemStack afterFailure = reader.get();
+                if (!matches(previous, afterFailure) && !matches(next, afterFailure)) {
+                    throw new IllegalStateException(
+                        "Cosmetic rollback refused an unexpected stored template identity");
+                }
+                if (matches(next, afterFailure)) {
+                    update(previous, reader, writer, markDirty);
+                }
             } catch (RuntimeException rollbackFailure) {
                 failure.addSuppressed(rollbackFailure);
             }
