@@ -265,6 +265,34 @@ class StorageTemplatePersistenceTest {
         assertEquals(canonical, slot.get());
     }
 
+    @Test
+    void failedCanonicalWriteMustNotRollBackOverConcurrentForeignIdentity() {
+        var original = encoded.clone();
+        var canonical = encoded.clone();
+        canonical.editMeta(meta -> meta.displayName(
+            net.kyori.adventure.text.Component.text("Canonical visual name")));
+        var foreign = encoded.clone();
+        foreign.editMeta(meta -> meta.getPersistentDataContainer().set(
+            new NamespacedKey("storage-test", "owner"), PersistentDataType.LONG, 42L));
+        slot.set(original.clone());
+        var writes = new AtomicInteger();
+        var dirty = new AtomicInteger();
+
+        var failure = assertThrows(IllegalStateException.class,
+            () -> StorageTemplatePersistence.updateCosmeticWithRollback(
+                original, canonical, this::readCopy, value -> {
+                    writes.incrementAndGet();
+                    slot.set(foreign.clone());
+                    throw new IllegalStateException("Injected concurrent replacement");
+                }, dirty::incrementAndGet));
+        assertEquals("Injected concurrent replacement", failure.getMessage());
+        assertEquals(1, failure.getSuppressed().length,
+            "Foreign identity must be reported as an unsafe rollback boundary");
+        assertEquals(foreign, slot.get(), "Never overwrite the concurrent owner's item");
+        assertEquals(1, writes.get(), "No rollback write may target a foreign identity");
+        assertEquals(0, dirty.get());
+    }
+
     private ItemStack readCopy() {
         ItemStack current = slot.get();
         return current == null ? null : current.clone();
