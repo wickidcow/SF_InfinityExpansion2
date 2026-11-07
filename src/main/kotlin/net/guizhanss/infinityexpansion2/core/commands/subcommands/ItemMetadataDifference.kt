@@ -39,11 +39,14 @@ internal object ItemMetadataDifference {
         val metaFields = (firstSerialized.keys + secondSerialized.keys).toSortedSet()
             .filter { firstSerialized[it] != secondSerialized[it] }
 
-        // Keep this extra check for Paper component differences not exposed
-        // through ItemMeta serialization. Quantity is intentionally excluded,
-        // because amount does not determine Bukkit ItemStack.isSimilar.
-        val firstStack = main.serialize().filterKeys { it != "amount" }
-        val secondStack = offhand.serialize().filterKeys { it != "amount" }
+        // Compare the component serialization of independent ONE-item clones.
+        // Bukkit/MockBukkit serializers may expose count under different keys;
+        // filtering "amount" alone can report false differences. Never edit
+        // either real stack or assume its quantity is part of its identity.
+        val firstClone = main.clone().apply { amount = 1 }
+        val secondClone = offhand.clone().apply { amount = 1 }
+        val firstStack = firstClone.serialize().filterKeys { it != "amount" }
+        val secondStack = secondClone.serialize().filterKeys { it != "amount" }
         val stackFields = (firstStack.keys + secondStack.keys).toSortedSet()
             .filter { it != "meta" && firstStack[it] != secondStack[it] }
 
