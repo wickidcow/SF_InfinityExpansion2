@@ -362,6 +362,25 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
         }
         require(count==1 && inSlot!=null,
             "Exactly one physical SMALL_URANIUM remains in GEO Quarry output across restart");
+        // The owner reports that these two source items refuse to stack.
+        // Prove real native Bukkit inventory merge semantics, not merely
+        // ItemStack.isSimilar or a copied /give definition. This disposable
+        // nine-slot inventory does not touch any player's inventory.
+        var mergeInventory=Bukkit.createInventory(null,9);
+        var remaining=mergeInventory.addItem(cheat.clone(),inSlot.clone());
+        require(remaining.isEmpty(),
+            "Native inventory could not insert one cheat and one GEO Quarry output");
+        int occupied=0;
+        int combined=0;
+        for (ItemStack item:mergeInventory.getStorageContents()) {
+            if (item==null || item.getType().isAir()) continue;
+            occupied++;
+            combined+=item.getAmount();
+            require(item.isSimilar(cheat),"Native merged slot changed uranium identity");
+        }
+        require(occupied==1 && combined==2,
+            "Native inventory failed to STACK cheat and real GEO Quarry uranium "
+                + "(occupied="+occupied+", total="+combined+")");
         if (phase.equals("seed")) {
             getDataFolder().mkdirs();
             Files.write(snapshot,inSlot.serializeAsBytes());
