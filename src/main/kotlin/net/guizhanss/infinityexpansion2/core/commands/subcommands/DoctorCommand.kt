@@ -2,6 +2,7 @@ package net.guizhanss.infinityexpansion2.core.commands.subcommands
 
 import net.guizhanss.guizhanlib.minecraft.commands.AbstractCommand
 import net.guizhanss.infinityexpansion2.InfinityExpansion2
+import io.github.thebusybiscuit.slimefun4.implementation.Slimefun
 import net.guizhanss.infinityexpansion2.core.commands.AbstractSubCommand
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
@@ -10,7 +11,7 @@ import org.bukkit.entity.Player
 import java.util.Locale
 
 class DoctorCommand(parent: AbstractCommand) : AbstractSubCommand(
-    parent, "doctor", "<status|scan|migrate|refresh>"
+    parent, "doctor", "<status|scan|migrate|refresh|compare>"
 ) {
     override fun onExecute(sender: CommandSender, args: Array<String>) {
         if (!sender.hasPermission()) {
@@ -90,6 +91,8 @@ class DoctorCommand(parent: AbstractCommand) : AbstractSubCommand(
                 ))
             }
 
+            "compare" -> compareHeldItems(sender)
+
             "refresh" -> {
                 if (sender !is Player) {
                     sender.sendMessage(colored(
@@ -106,7 +109,7 @@ class DoctorCommand(parent: AbstractCommand) : AbstractSubCommand(
             }
 
             else -> sender.sendMessage(colored(
-                "Usage: /ie2 doctor <status|scan|migrate|refresh>",
+                "Usage: /ie2 doctor <status|scan|migrate|refresh|compare>",
                 NamedTextColor.RED
             ))
         }
@@ -115,7 +118,7 @@ class DoctorCommand(parent: AbstractCommand) : AbstractSubCommand(
     override fun onTab(sender: CommandSender, args: Array<String>): List<String> {
         if (args.size != 1) return emptyList()
         val current = args[0].lowercase(Locale.ENGLISH)
-        return listOf("status", "scan", "migrate", "refresh").filter { it.startsWith(current) }
+        return listOf("status", "scan", "migrate", "refresh", "compare").filter { it.startsWith(current) }
     }
 
     companion object {
