@@ -1,6 +1,7 @@
 package verification;
 
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem;
+import io.github.thebusybiscuit.slimefun4.api.geo.GEOResource;
 import io.github.thebusybiscuit.slimefun4.implementation.Slimefun;
 import io.github.thebusybiscuit.slimefun4.libraries.dough.data.persistent.PersistentDataAPI;
 import io.papermc.paper.registry.RegistryAccess;
@@ -22,6 +23,7 @@ import net.guizhanss.infinityexpansion2.core.recipes.MachineRecipe;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageCache;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageItemPresentation;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageForge;
+import net.guizhanss.infinityexpansion2.implementation.items.machines.GeoQuarry;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageUnit;
 import net.guizhanss.infinityexpansion2.implementation.items.tools.Oscillator;
 import net.guizhanss.infinityexpansion2.utils.events.BowDamageEvents;
@@ -57,6 +59,7 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
     private Location recordLocation;
     private Location menuLocation;
     private Location forgeLocation;
+    private Location quarryLocation;
     private EntityDamageByEntityEvent active;
 
     @Override public void onEnable() {
@@ -77,12 +80,14 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
         recordLocation=new Location(world,128,100,128);
         menuLocation=new Location(world,132,100,128);
         forgeLocation=new Location(world,136,100,128);
-        recordLocation.getChunk().load(); menuLocation.getChunk().load(); forgeLocation.getChunk().load();
+        quarryLocation=new Location(world,152,100,128);
+        recordLocation.getChunk().load(); menuLocation.getChunk().load(); forgeLocation.getChunk().load(); quarryLocation.getChunk().load();
         var controller=Slimefun.getDatabaseManager().getBlockDataController();
         if (phase.equals("seed")) {
             require(!StoredBlockLookup.hasBlockInfo(recordLocation),"new record fixture");
             require(!StoredBlockLookup.hasBlockInfo(menuLocation),"new menu fixture");
             require(!StoredBlockLookup.hasBlockInfo(forgeLocation),"new Storage Forge fixture");
+            require(!StoredBlockLookup.hasBlockInfo(quarryLocation),"new GEO Quarry fixture");
             recordLocation.getBlock().setType(Material.STONE);
             var record=controller.createBlock(recordLocation,"IE2_NATIVE_UNKNOWN_ID");
             if (!record.isDataLoaded()) controller.loadBlockData(record);
@@ -98,16 +103,22 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             forgeLocation.getBlock().setType(forge.getItem().getType());
             var forgeData=controller.createBlock(forgeLocation,forge.getId());
             if (!forgeData.isDataLoaded()) controller.loadBlockData(forgeData);
+            var quarry=SlimefunItem.getById("IE_GEO_QUARRY");
+            require(quarry instanceof GeoQuarry,"registered IE2 GEO Quarry available for output fixture");
+            quarryLocation.getBlock().setType(quarry.getItem().getType());
+            var quarryData=controller.createBlock(quarryLocation,quarry.getId());
+            if (!quarryData.isDataLoaded()) controller.loadBlockData(quarryData);
         }
         new BukkitRunnable() {
             int attempts;
             @Override public void run() {
                 try {
                     if (StoredBlockLookup.getInventory(menuLocation)!=null
-                        && StoredBlockLookup.getInventory(forgeLocation)!=null) {
+                        && StoredBlockLookup.getInventory(forgeLocation)!=null
+                        && StoredBlockLookup.getInventory(quarryLocation)!=null) {
                         cancel(); checkNative(); finish();
                     } else if (++attempts>100) {
-                        cancel(); fail(new AssertionError("Native workbench or Storage Forge inventory did not load"));
+                        cancel(); fail(new AssertionError("Native workbench, Storage Forge or GEO Quarry inventory did not load"));
                     }
                 } catch(Throwable failure) { cancel(); fail(failure); }
             }
@@ -165,6 +176,7 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             require("keep insertion".equals(actual.getItemMeta().lore().getFirst().insertion()),"restart preserves insertion");
         }
         checkNativeCosmeticPresentation();
+        checkNativeGeoQuarryRegisteredTemplateParity();
         checkNativeForgeLedger(menu);
         checkRegisteredForgeClick();
         var oscillator=Oscillator.Companion.getItem("DIAMOND");
@@ -256,6 +268,133 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
      * restart. This is NOT an end-to-end Forge click/ingredient-consumption test.
      * Never present it as transaction or interrupted-shutdown evidence.
      */
+    /**
+     * An owner-reported SMALL_URANIUM discrepancy is not proven by textual
+     * ordering in Minecraft's copied /give command. Compare native items:
+     * /sf cheat uses the SlimefunItem registry template, while the IE2 GEO
+     * Quarry draws from the registered GEOResource.getItem() template.
+     *
+     * Do not auto-replace external GEO-resource outputs by current Slimefun
+     * templates: custom metadata may be deliberate and protected.
+     */
+    private void checkNativeGeoQuarryRegisteredTemplateParity() throws Exception {
+        var registered = SlimefunItem.getById("SMALL_URANIUM");
+        require(registered != null, "Slimefun SMALL_URANIUM registered for cheat vs GEO comparison");
+        GEOResource uranium = null;
+        for (GEOResource resource : Slimefun.getRegistry().getGEOResources().values()) {
+            if ("uranium".equals(resource.getKey().getKey())
+                    && "slimefun".equals(resource.getKey().getNamespace())) {
+                require(uranium == null, "Only one slimefun:uranium GEO resource registered");
+                uranium = resource;
+            }
+        }
+        require(uranium != null, "Native slimefun:uranium GEO resource exists");
+        ItemStack cheat = registered.getItem().clone();
+        ItemStack produced = uranium.getItem().clone();
+        produced.setAmount(1); // The GeoQuarry output-path clone and quantity.
+        cheat.setAmount(1);
+        require(cheat.getType() == Material.PLAYER_HEAD && produced.getType() == Material.PLAYER_HEAD,
+            "Both uranium paths retain the actual player-head material");
+        String cheatId = Slimefun.getItemDataService()
+            .getItemData(cheat.getItemMeta()).orElse(null);
+        String producedId = Slimefun.getItemDataService()
+            .getItemData(produced.getItemMeta()).orElse(null);
+        require("SMALL_URANIUM".equals(cheatId) && cheatId.equals(producedId),
+            "Cheat and registered GEO uranium contain identical non-null Slimefun ID");
+        var cheatMeta = cheat.getItemMeta();
+        var producedMeta = produced.getItemMeta();
+        boolean pdcSame = cheatMeta.getPersistentDataContainer()
+            .equals(producedMeta.getPersistentDataContainer());
+        boolean nameSame = Objects.equals(cheatMeta.displayName(), producedMeta.displayName());
+        boolean loreSame = Objects.equals(cheatMeta.lore(), producedMeta.lore());
+        boolean materialSame = cheat.getType() == produced.getType();
+        require(cheat.isSimilar(produced),
+            "Native cheat vs GEO uranium item differs beyond copied-component order"
+            + " (material=" + materialSame
+            + ", PDC=" + pdcSame + ", name=" + nameSame
+            + ", lore=" + loreSame + ", ItemMeta=" + cheatMeta.equals(producedMeta) + ")");
+        ItemStack restored = ItemStack.deserializeBytes(produced.serializeAsBytes());
+        require(cheat.isSimilar(restored),
+            "GEO uranium loses registered item identity after native Paper byte serialization");
+        require(produced.isSimilar(restored),
+            "GEO uranium item itself changes after native Paper byte serialization");
+        require(cheat.getAmount() == 1 && produced.getAmount() == 1
+                && restored.getAmount() == 1,
+            "Cheat, GEO and serialized uranium retain exact one-item amount");
+
+        // Exercise the actual registered GeoQuarry output slots and the same
+        // BlockMenu.pushItem path used by production, not an invented chest.
+        var quarryItem=SlimefunItem.getById("IE_GEO_QUARRY");
+        require(quarryItem instanceof GeoQuarry,"real IE2 GEO Quarry exists for output fixture");
+        require("IE_GEO_QUARRY".equals(StoredBlockLookup.getId(quarryLocation)),
+            "GEO Quarry fixture retains registered block identity");
+        var quarryMenu=StoredBlockLookup.getInventory(quarryLocation);
+        require(quarryMenu!=null,"real GEO Quarry output BlockMenu loaded");
+        int[] outputSlots=MenuLayout.Companion.getOUTPUT_ONLY().getOutputSlots();
+        require(outputSlots.length>0,"GEO Quarry declares physical output slots");
+        var snapshot=getDataFolder().toPath().resolve("native-geo-uranium.bin");
+        if (phase.equals("seed")) {
+            for (int slot:outputSlots) {
+                var prior=quarryMenu.getItemInSlot(slot);
+                require(prior==null || prior.getType().isAir(),
+                    "GEO Quarry fixture starts with no physical output");
+            }
+            require(quarryMenu.fits(produced,outputSlots),
+                "Real GEO Quarry output accepts registered uranium without discarding it");
+            var remainder=quarryMenu.pushItem(produced.clone(),outputSlots);
+            require(remainder==null || remainder.getType().isAir() || remainder.getAmount()==0,
+                "Real GEO Quarry output push leaves no uninserted item");
+            quarryMenu.markDirty();
+        }
+        int count=0;
+        ItemStack inSlot=null;
+        for (int slot:outputSlots) {
+            var candidate=quarryMenu.getItemInSlot(slot);
+            if (candidate==null || candidate.getType().isAir()) continue;
+            require("SMALL_URANIUM".equals(Slimefun.getItemDataService()
+                .getItemData(candidate.getItemMeta()).orElse(null)),
+                "No unrelated item appeared in GEO Quarry fixture");
+            count+=candidate.getAmount();
+            require(candidate.getAmount()>0 && candidate.isSimilar(cheat),
+                "Actual GEO Quarry output slot differs from /sf cheat identity after push/reload"
+                    + " (slot="+slot+", meta="+candidate.getItemMeta().equals(cheat.getItemMeta())+")");
+            inSlot=candidate;
+        }
+        require(count==1 && inSlot!=null,
+            "Exactly one physical SMALL_URANIUM remains in GEO Quarry output across restart");
+        // The owner reports that these two source items refuse to stack.
+        // Prove real native Bukkit inventory merge semantics, not merely
+        // ItemStack.isSimilar or a copied /give definition. This disposable
+        // nine-slot inventory does not touch any player's inventory.
+        var mergeInventory=Bukkit.createInventory(null,9);
+        var remaining=mergeInventory.addItem(cheat.clone(),inSlot.clone());
+        require(remaining.isEmpty(),
+            "Native inventory could not insert one cheat and one GEO Quarry output");
+        int occupied=0;
+        int combined=0;
+        for (ItemStack item:mergeInventory.getStorageContents()) {
+            if (item==null || item.getType().isAir()) continue;
+            occupied++;
+            combined+=item.getAmount();
+            require(item.isSimilar(cheat),"Native merged slot changed uranium identity");
+        }
+        require(occupied==1 && combined==2,
+            "Native inventory failed to STACK cheat and real GEO Quarry uranium "
+                + "(occupied="+occupied+", total="+combined+")");
+        if (phase.equals("seed")) {
+            getDataFolder().mkdirs();
+            Files.write(snapshot,inSlot.serializeAsBytes());
+        } else {
+            require(Files.isRegularFile(snapshot),"GEO Quarry output baseline from prior boot exists");
+            var fromPriorBoot=ItemStack.deserializeBytes(Files.readAllBytes(snapshot));
+            require(inSlot.isSimilar(fromPriorBoot) && fromPriorBoot.getAmount()==1,
+                "GEO Quarry physical output changed metadata after clean server restart");
+        }
+        results.add("PASS " + phase
+            + ": real SMALL_URANIUM cheat, registered GEO resource and actual"
+            + " GeoQuarry output slot match before/after persisted menu restart");
+    }
+
     private void checkNativeForgeLedger(me.mrCookieSlime.Slimefun.api.inventory.BlockMenu menu) throws Exception {
         var sourceType=SlimefunItem.getById("IE_STORAGE_UNIT_1");
         var targetType=SlimefunItem.getById("IE_STORAGE_UNIT_2");
