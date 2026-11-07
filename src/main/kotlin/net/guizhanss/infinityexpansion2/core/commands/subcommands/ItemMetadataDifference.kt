@@ -15,6 +15,8 @@ internal object ItemMetadataDifference {
 
     internal data class Report(
         val isSimilar: Boolean,
+        val mainMaxStackSize: Int,
+        val offhandMaxStackSize: Int,
         val materialSame: Boolean,
         val nameSame: Boolean,
         val loreSame: Boolean,
@@ -52,6 +54,8 @@ internal object ItemMetadataDifference {
 
         return Report(
             isSimilar = main.isSimilar(offhand),
+            mainMaxStackSize = main.maxStackSize,
+            offhandMaxStackSize = offhand.maxStackSize,
             materialSame = main.type == offhand.type,
             nameSame = firstMeta?.displayName() == secondMeta?.displayName(),
             loreSame = firstMeta?.lore() == secondMeta?.lore(),
