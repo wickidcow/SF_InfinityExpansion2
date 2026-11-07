@@ -330,7 +330,7 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             "GEO Quarry fixture retains registered block identity");
         var quarryMenu=StoredBlockLookup.getInventory(quarryLocation);
         require(quarryMenu!=null,"real GEO Quarry output BlockMenu loaded");
-        int[] outputSlots=((GeoQuarry)quarryItem).getOutputSlots();
+        int[] outputSlots=MenuLayout.Companion.getOUTPUT_ONLY().getOutputSlots();
         require(outputSlots.length>0,"GEO Quarry declares physical output slots");
         var snapshot=getDataFolder().toPath().resolve("native-geo-uranium.bin");
         if (phase.equals("seed")) {
