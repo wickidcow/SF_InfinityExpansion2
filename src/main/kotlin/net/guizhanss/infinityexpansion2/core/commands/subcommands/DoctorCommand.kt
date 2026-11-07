@@ -149,6 +149,17 @@ class DoctorCommand(parent: AbstractCommand) : AbstractSubCommand(
             NamedTextColor.GRAY
         ))
         sender.sendMessage(colored(
+            "Effective max stack: ${report.mainMaxStackSize} / ${report.offhandMaxStackSize}; " +
+                "material defaults: ${main.type.maxStackSize} / ${offhand.type.maxStackSize}",
+            NamedTextColor.GRAY
+        ))
+        if (report.isSimilar && (report.mainMaxStackSize <= 1 || report.offhandMaxStackSize <= 1)) {
+            sender.sendMessage(colored(
+                "Bukkit sees matching identities, but an effective stack limit of one prevents merging.",
+                NamedTextColor.YELLOW
+            ))
+        }
+        sender.sendMessage(colored(
             "Adventure name: ${if (report.nameSame) "MATCH" else "DIFFERENT"}; " +
                 "ordered lore: ${if (report.loreSame) "MATCH" else "DIFFERENT"}; " +
                 "ItemMeta: ${if (report.itemMetaSame) "MATCH" else "DIFFERENT"}; " +
