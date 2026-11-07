@@ -1,6 +1,7 @@
 package verification;
 
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem;
+import io.github.thebusybiscuit.slimefun4.api.geo.GEOResource;
 import io.github.thebusybiscuit.slimefun4.implementation.Slimefun;
 import io.github.thebusybiscuit.slimefun4.libraries.dough.data.persistent.PersistentDataAPI;
 import io.papermc.paper.registry.RegistryAccess;
@@ -165,6 +166,7 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             require("keep insertion".equals(actual.getItemMeta().lore().getFirst().insertion()),"restart preserves insertion");
         }
         checkNativeCosmeticPresentation();
+        checkNativeGeoQuarryRegisteredTemplateParity();
         checkNativeForgeLedger(menu);
         checkRegisteredForgeClick();
         var oscillator=Oscillator.Companion.getItem("DIAMOND");
@@ -256,6 +258,64 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
      * restart. This is NOT an end-to-end Forge click/ingredient-consumption test.
      * Never present it as transaction or interrupted-shutdown evidence.
      */
+    /**
+     * An owner-reported SMALL_URANIUM discrepancy is not proven by textual
+     * ordering in Minecraft's copied /give command. Compare native items:
+     * /sf cheat uses the SlimefunItem registry template, while the IE2 GEO
+     * Quarry draws from the registered GEOResource.getItem() template.
+     *
+     * Do not auto-replace external GEO-resource outputs by current Slimefun
+     * templates: custom metadata may be deliberate and protected.
+     */
+    private void checkNativeGeoQuarryRegisteredTemplateParity() {
+        var registered = SlimefunItem.getById("SMALL_URANIUM");
+        require(registered != null, "Slimefun SMALL_URANIUM registered for cheat vs GEO comparison");
+        GEOResource uranium = null;
+        for (GEOResource resource : Slimefun.getRegistry().getGEOResources().values()) {
+            if ("uranium".equals(resource.getKey().getKey())
+                    && "slimefun".equals(resource.getKey().getNamespace())) {
+                require(uranium == null, "Only one slimefun:uranium GEO resource registered");
+                uranium = resource;
+            }
+        }
+        require(uranium != null, "Native slimefun:uranium GEO resource exists");
+        ItemStack cheat = registered.getItem().clone();
+        ItemStack produced = uranium.getItem().clone();
+        produced.setAmount(1); // The GeoQuarry output-path clone and quantity.
+        cheat.setAmount(1);
+        require(cheat.getType() == Material.PLAYER_HEAD && produced.getType() == Material.PLAYER_HEAD,
+            "Both uranium paths retain the actual player-head material");
+        String cheatId = Slimefun.getItemDataService()
+            .getItemData(cheat.getItemMeta()).orElse(null);
+        String producedId = Slimefun.getItemDataService()
+            .getItemData(produced.getItemMeta()).orElse(null);
+        require("SMALL_URANIUM".equals(cheatId) && cheatId.equals(producedId),
+            "Cheat and registered GEO uranium contain identical non-null Slimefun ID");
+        var cheatMeta = cheat.getItemMeta();
+        var producedMeta = produced.getItemMeta();
+        boolean pdcSame = cheatMeta.getPersistentDataContainer()
+            .equals(producedMeta.getPersistentDataContainer());
+        boolean nameSame = Objects.equals(cheatMeta.displayName(), producedMeta.displayName());
+        boolean loreSame = Objects.equals(cheatMeta.lore(), producedMeta.lore());
+        boolean materialSame = cheat.getType() == produced.getType();
+        require(cheat.isSimilar(produced),
+            "Native cheat vs GEO uranium item differs beyond copied-component order"
+            + " (material=" + materialSame
+            + ", PDC=" + pdcSame + ", name=" + nameSame
+            + ", lore=" + loreSame + ", ItemMeta=" + cheatMeta.equals(producedMeta) + ")");
+        ItemStack restored = ItemStack.deserializeBytes(produced.serializeAsBytes());
+        require(cheat.isSimilar(restored),
+            "GEO uranium loses registered item identity after native Paper byte serialization");
+        require(produced.isSimilar(restored),
+            "GEO uranium item itself changes after native Paper byte serialization");
+        require(cheat.getAmount() == 1 && produced.getAmount() == 1
+                && restored.getAmount() == 1,
+            "Cheat, GEO and serialized uranium retain exact one-item amount");
+        results.add("PASS " + phase
+            + ": real SMALL_URANIUM /sf cheat registry vs GEO quarry resource"
+            + " matches including item ID, PDC, Adventure text, skull profile/model and restart serialization");
+    }
+
     private void checkNativeForgeLedger(me.mrCookieSlime.Slimefun.api.inventory.BlockMenu menu) throws Exception {
         var sourceType=SlimefunItem.getById("IE_STORAGE_UNIT_1");
         var targetType=SlimefunItem.getById("IE_STORAGE_UNIT_2");
