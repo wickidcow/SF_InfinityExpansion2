@@ -277,7 +277,7 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
      * Do not auto-replace external GEO-resource outputs by current Slimefun
      * templates: custom metadata may be deliberate and protected.
      */
-    private void checkNativeGeoQuarryRegisteredTemplateParity() {
+    private void checkNativeGeoQuarryRegisteredTemplateParity() throws Exception {
         var registered = SlimefunItem.getById("SMALL_URANIUM");
         require(registered != null, "Slimefun SMALL_URANIUM registered for cheat vs GEO comparison");
         GEOResource uranium = null;
