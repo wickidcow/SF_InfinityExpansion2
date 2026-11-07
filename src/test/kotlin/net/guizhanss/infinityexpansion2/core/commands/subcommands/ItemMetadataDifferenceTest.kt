@@ -16,8 +16,8 @@ import org.mockbukkit.mockbukkit.MockBukkit
 
 class ItemMetadataDifferenceTest {
 
-    @BeforeEach fun setup() = MockBukkit.mock()
-    @AfterEach fun teardown() = MockBukkit.unmock()
+    @BeforeEach fun setup() { MockBukkit.mock() }
+    @AfterEach fun teardown() { MockBukkit.unmock() }
 
     private fun uranium(): ItemStack = ItemStack(Material.PAPER, 1).apply {
         editMeta {
