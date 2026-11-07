@@ -1,0 +1,99 @@
+package net.guizhanss.infinityexpansion2.core.commands.subcommands
+
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.NamedTextColor
+import org.bukkit.Material
+import org.bukkit.NamespacedKey
+import org.bukkit.inventory.ItemStack
+import org.bukkit.persistence.PersistentDataType
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.mockbukkit.mockbukkit.MockBukkit
+
+class ItemMetadataDifferenceTest {
+
+    @BeforeEach fun setup() = MockBukkit.mock()
+    @AfterEach fun teardown() = MockBukkit.unmock()
+
+    private fun uranium(): ItemStack = ItemStack(Material.PAPER, 1).apply {
+        editMeta {
+            it.displayName(Component.text("Small Chunk of Uranium", NamedTextColor.RED))
+            it.lore(listOf(Component.text("Radiation Level: Moderate", NamedTextColor.YELLOW)))
+            it.persistentDataContainer.set(
+                NamespacedKey("slimefun", "slimefun_item"),
+                PersistentDataType.STRING,
+                "SMALL_URANIUM"
+            )
+        }
+    }
+
+    @Test fun identicalStackIgnoresQuantityAndDoesNotMutateEitherItem() {
+        val cheat = uranium()
+        val quarry = cheat.clone().apply { amount = 17 }
+        val beforeCheat = cheat.clone()
+        val beforeQuarry = quarry.clone()
+        val report = ItemMetadataDifference.inspect(cheat, quarry)
+        assertTrue(report.isSimilar)
+        assertTrue(report.itemMetaSame)
+        assertTrue(report.pdcSame)
+        assertTrue(report.changedMetaFields.isEmpty())
+        assertTrue(report.changedStackFields.isEmpty())
+        assertEquals(beforeCheat, cheat)
+        assertEquals(beforeQuarry, quarry)
+    }
+
+    @Test fun sameSlimefunIdDoesNotHideAdventureColorOrLoreMismatch() {
+        val cheat = uranium()
+        val quarry = uranium().apply {
+            editMeta {
+                it.displayName(Component.text("Small Chunk of Uranium", NamedTextColor.GOLD))
+                it.lore(listOf(Component.text("Radiation Level: Moderate", NamedTextColor.RED)))
+            }
+        }
+        val report = ItemMetadataDifference.inspect(cheat, quarry)
+        assertFalse(report.isSimilar)
+        assertFalse(report.nameSame)
+        assertFalse(report.loreSame)
+        assertFalse(report.itemMetaSame)
+        assertTrue(report.pdcSame)
+        assertTrue(report.changedMetaFields.isNotEmpty())
+    }
+
+    @Test fun differentOwnerKeysAreReportedWithoutExposingSecretValues() {
+        val cheat = uranium()
+        val quarry = uranium().apply {
+            editMeta {
+                it.persistentDataContainer.set(
+                    NamespacedKey("addon", "owner"),
+                    PersistentDataType.STRING,
+                    "sensitive-value-should-not-be-printed"
+                )
+            }
+        }
+        val report = ItemMetadataDifference.inspect(cheat, quarry)
+        assertFalse(report.isSimilar)
+        assertFalse(report.pdcSame)
+        assertTrue(report.onlyMainPdcKeys.isEmpty())
+        assertEquals(listOf("addon:owner"), report.onlyOffhandPdcKeys)
+        assertTrue(report.changedMetaFields.isNotEmpty())
+    }
+
+    @Test fun metadataReporterNeverNormalizesDifferentlyWrappedLore() {
+        val cheat = uranium()
+        val quarry = uranium().apply {
+            editMeta {
+                it.lore(listOf(Component.text("").append(
+                    Component.text("Radiation Level: Moderate", NamedTextColor.YELLOW))))
+            }
+        }
+        val before = quarry.clone()
+        val report = ItemMetadataDifference.inspect(cheat, quarry)
+        assertFalse(report.loreSame)
+        assertFalse(report.isSimilar)
+        assertEquals(before, quarry)
+    }
+}
