@@ -80,7 +80,7 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
         recordLocation=new Location(world,128,100,128);
         menuLocation=new Location(world,132,100,128);
         forgeLocation=new Location(world,136,100,128);
-        quarryLocation=new Location(world,140,100,128);
+        quarryLocation=new Location(world,152,100,128);
         recordLocation.getChunk().load(); menuLocation.getChunk().load(); forgeLocation.getChunk().load(); quarryLocation.getChunk().load();
         var controller=Slimefun.getDatabaseManager().getBlockDataController();
         if (phase.equals("seed")) {
