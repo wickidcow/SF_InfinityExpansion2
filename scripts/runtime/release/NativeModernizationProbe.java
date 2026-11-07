@@ -339,7 +339,7 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
                 require(prior==null || prior.getType().isAir(),
                     "GEO Quarry fixture starts with no physical output");
             }
-            require(quarryMenu.fits(produced,*outputSlots),
+            require(quarryMenu.fits(produced,outputSlots),
                 "Real GEO Quarry output accepts registered uranium without discarding it");
             var remainder=quarryMenu.pushItem(produced.clone(),outputSlots);
             require(remainder==null || remainder.getType().isAir() || remainder.getAmount()==0,
