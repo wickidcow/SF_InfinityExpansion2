@@ -177,6 +177,54 @@ class DoctorCommand(parent: AbstractCommand) : AbstractSubCommand(
         showFields("PDC keys only in offhand", report.onlyOffhandPdcKeys)
         showFields("Different serialized metadata fields", report.changedMetaFields)
         showFields("Different non-metadata stack fields", report.changedStackFields)
+        // Compare both real stacks with the currently registered templates without modifying any inventory.
+        // This distinguishes a stale GEO registration template from an item changed during machine transport.
+        val mainId = idOf(main)
+        val offhandId = idOf(offhand)
+        if (mainId != "(none)" && mainId == offhandId) {
+            val registered = io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem.getById(mainId)
+            val template = registered?.item?.clone()
+            if (template == null) {
+                sender.sendMessage(colored("Registered Slimefun template: unavailable.", NamedTextColor.YELLOW))
+            } else {
+                val cheatVsTemplate = ItemMetadataDifference.inspect(main, template)
+                val machineVsTemplate = ItemMetadataDifference.inspect(offhand, template)
+                sender.sendMessage(colored(
+                    "Main vs registered Slimefun template: " +
+                        if (cheatVsTemplate.isSimilar) "MATCH" else "DIFFERENT", NamedTextColor.GRAY
+                ))
+                sender.sendMessage(colored(
+                    "Offhand vs registered Slimefun template: " +
+                        if (machineVsTemplate.isSimilar) "MATCH" else "DIFFERENT", NamedTextColor.GRAY
+                ))
+                showFields("Main/template changed metadata", cheatVsTemplate.changedMetaFields)
+                showFields("Offhand/template changed metadata", machineVsTemplate.changedMetaFields)
+            }
+            val geoMatches = Slimefun.getRegistry().geoResources.values().filter { resource ->
+                idOf(resource.item) == mainId
+            }
+            sender.sendMessage(colored(
+                "Registered GEO resources for $mainId: ${geoMatches.size}", NamedTextColor.GRAY
+            ))
+            geoMatches.take(5).forEach { resource ->
+                val geo = resource.item.clone()
+                val cheatVsGeo = ItemMetadataDifference.inspect(main, geo)
+                val machineVsGeo = ItemMetadataDifference.inspect(offhand, geo)
+                val templateVsGeo = template?.let { ItemMetadataDifference.inspect(it, geo) }
+                sender.sendMessage(colored(
+                    "GEO ${resource.key}: main=${if (cheatVsGeo.isSimilar) "MATCH" else "DIFFERENT"}, " +
+                        "offhand=${if (machineVsGeo.isSimilar) "MATCH" else "DIFFERENT"}, " +
+                        "registered=${if (templateVsGeo?.isSimilar == true) "MATCH" else "DIFFERENT"}",
+                    NamedTextColor.GRAY
+                ))
+                showFields("GEO/offhand changed metadata", machineVsGeo.changedMetaFields)
+            }
+        } else {
+            sender.sendMessage(colored(
+                "Registered template comparison skipped: held Slimefun IDs differ or are missing.",
+                NamedTextColor.YELLOW
+            ))
+        }
         if (!report.isSimilar && report.changedMetaFields.isEmpty() && report.changedStackFields.isEmpty()) {
             sender.sendMessage(colored(
                 "Stacking differs without an obvious serialized field: inspect Paper components or a plugin-specific rule.",
