@@ -38,12 +38,27 @@ class ItemMetadataDifferenceTest {
         val beforeQuarry = quarry.clone()
         val report = ItemMetadataDifference.inspect(cheat, quarry)
         assertTrue(report.isSimilar)
+        assertEquals(64, report.mainMaxStackSize)
+        assertEquals(64, report.offhandMaxStackSize)
         assertTrue(report.itemMetaSame)
         assertTrue(report.pdcSame)
         assertTrue(report.changedMetaFields.isEmpty())
         assertTrue(report.changedStackFields.isEmpty())
         assertEquals(beforeCheat, cheat)
         assertEquals(beforeQuarry, quarry)
+    }
+
+    @Test fun effectiveSingleItemStackLimitIsReportedWithoutRewritingItems() {
+        val main = ItemStack(Material.NETHERITE_SWORD)
+        val offhand = main.clone()
+        val before = main.clone()
+        val report = ItemMetadataDifference.inspect(main, offhand)
+
+        assertTrue(report.isSimilar)
+        assertEquals(1, report.mainMaxStackSize)
+        assertEquals(1, report.offhandMaxStackSize)
+        assertEquals(before, main)
+        assertEquals(before, offhand)
     }
 
     @Test fun sameSlimefunIdDoesNotHideAdventureColorOrLoreMismatch() {
