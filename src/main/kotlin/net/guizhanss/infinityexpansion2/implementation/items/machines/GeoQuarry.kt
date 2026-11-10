@@ -45,7 +45,10 @@ class GeoQuarry(
         val output = tryProduceDracFunEnderDraconium(menu)
             ?: tryProduceRareGeoResource(menu)
             ?: tryProduceAutomaticGeoMinerDiscovery(menu)
-            ?: produce(menu)?.edit { amount(speed) }
+            // The weighted GEO pool contains references to registered item templates.
+            // Never let an output operation (or a future change to edit semantics)
+            // mutate the shared template used by crafting and /sf cheat.
+            ?: produce(menu)?.clone()?.edit { amount(speed) }
             ?: return true
 
         if (!menu.fits(output, *outputSlots)) {
