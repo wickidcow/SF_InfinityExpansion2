@@ -326,8 +326,9 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
                 && restored.getAmount() == 1,
             "Cheat, GEO and serialized uranium retain exact one-item amount");
 
-        // Exercise the actual registered GeoQuarry output slots and the same
-        // BlockMenu.pushItem path used by production, not an invented chest.
+        // Exercise the actual registered GeoQuarry.process producer, which selects
+        // from the weighted GEO pool and pushes into real persisted BlockMenu slots.
+        // This disposable fixture never touches owner/player inventories.
         var quarryItem=SlimefunItem.getById("IE_GEO_QUARRY");
         require(quarryItem instanceof GeoQuarry,"real IE2 GEO Quarry exists for output fixture");
         // Read the actual registered quarry guide recipes before production. This path
@@ -361,11 +362,31 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
                 require(prior==null || prior.getType().isAir(),
                     "GEO Quarry fixture starts with no physical output");
             }
-            require(quarryMenu.fits(produced,outputSlots),
-                "Real GEO Quarry output accepts registered uranium without discarding it");
-            var remainder=quarryMenu.pushItem(produced.clone(),outputSlots);
-            require(remainder==null || remainder.getType().isAir() || remainder.getAmount()==0,
-                "Real GEO Quarry output push leaves no uninserted item");
+            // Constrain the real cached weighted pool to one registered uranium
+            // candidate. Restore the exact original contents and ticker state
+            // after the real producer call so no other disposable machine is altered.
+            var poolMethod=GeoQuarry.class.getDeclaredMethod(
+                "getProductPool",org.bukkit.block.Biome.class,org.bukkit.World.Environment.class);
+            poolMethod.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            var weightedPool=(List<ItemStack>)poolMethod.invoke(
+                quarryItem,quarryLocation.getBlock().getBiome(),quarryLocation.getWorld().getEnvironment());
+            var originalPool=new ArrayList<>(weightedPool);
+            var tickerField=net.guizhanss.guizhanlib.slimefun.machines.TickingMenuBlock.class
+                .getDeclaredField("tickCount");
+            tickerField.setAccessible(true);
+            int priorTickCount=tickerField.getInt(quarryItem);
+            try {
+                weightedPool.clear();
+                weightedPool.add(uranium.getItem());
+                tickerField.setInt(quarryItem,0);
+                require(((GeoQuarry)quarryItem).process(quarryLocation.getBlock(),quarryMenu),
+                    "Real GeoQuarry.process declined deterministic uranium output");
+            } finally {
+                weightedPool.clear();
+                weightedPool.addAll(originalPool);
+                tickerField.setInt(quarryItem,priorTickCount);
+            }
             quarryMenu.markDirty();
         }
         int count=0;
@@ -382,8 +403,8 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
                     + " (slot="+slot+", meta="+candidate.getItemMeta().equals(cheat.getItemMeta())+")");
             inSlot=candidate;
         }
-        require(count==1 && inSlot!=null,
-            "Exactly one physical SMALL_URANIUM remains in GEO Quarry output across restart");
+        require(count==((GeoQuarry)quarryItem).getSpeed() && inSlot!=null,
+            "Real GEO Quarry production quantity must survive physical output and restart");
         // The owner reports that these two source items refuse to stack.
         // Prove real native Bukkit inventory merge semantics, not merely
         // ItemStack.isSimilar or a copied /give definition. This disposable
@@ -400,7 +421,7 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             combined+=item.getAmount();
             require(item.isSimilar(cheat),"Native merged slot changed uranium identity");
         }
-        require(occupied==1 && combined==2,
+        require(occupied==1 && combined==1+((GeoQuarry)quarryItem).getSpeed(),
             "Native inventory failed to STACK cheat and real GEO Quarry uranium "
                 + "(occupied="+occupied+", total="+combined+")");
         if (phase.equals("seed")) {
@@ -409,16 +430,17 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
         } else {
             require(Files.isRegularFile(snapshot),"GEO Quarry output baseline from prior boot exists");
             var fromPriorBoot=ItemStack.deserializeBytes(Files.readAllBytes(snapshot));
-            require(inSlot.isSimilar(fromPriorBoot) && fromPriorBoot.getAmount()==1,
-                "GEO Quarry physical output changed metadata after clean server restart");
+            require(inSlot.isSimilar(fromPriorBoot)
+                    && fromPriorBoot.getAmount()==((GeoQuarry)quarryItem).getSpeed(),
+                "GEO Quarry physical output changed metadata or quantity after clean server restart");
         }
         require(geoTemplateBefore.equals(mutableRecipeStack(uranium.getItem())),
             "GEO Quarry output-slot transfer/restart mutated shared GEO template");
         require(cheatTemplateBefore.equals(mutableRecipeStack(registered.getItem())),
             "GEO Quarry output-slot transfer/restart mutated registered cheat template");
         results.add("PASS " + phase
-            + ": real SMALL_URANIUM cheat, registered GEO resource, guide display"
-            + " and GeoQuarry output slot preserve identity and template metadata across restart");
+            + ": real SMALL_URANIUM cheat, GEO guide display and GeoQuarry.process"
+            + " output preserve identity and registered metadata across restart");
     }
 
     private void checkNativeForgeLedger(me.mrCookieSlime.Slimefun.api.inventory.BlockMenu menu) throws Exception {
