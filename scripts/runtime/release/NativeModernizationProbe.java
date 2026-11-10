@@ -289,6 +289,10 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             }
         }
         require(uranium != null, "Native slimefun:uranium GEO resource exists");
+        // Snapshot the actual registered templates, not just copies handed to the player.
+        // Recipe-display code must not write display amounts back to either shared template.
+        ItemStack cheatTemplateBefore = mutableRecipeStack(registered.getItem());
+        ItemStack geoTemplateBefore = mutableRecipeStack(uranium.getItem());
         ItemStack cheat = registered.getItem().clone();
         ItemStack produced = uranium.getItem().clone();
         produced.setAmount(1); // The GeoQuarry output-path clone and quantity.
@@ -326,6 +330,24 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
         // BlockMenu.pushItem path used by production, not an invented chest.
         var quarryItem=SlimefunItem.getById("IE_GEO_QUARRY");
         require(quarryItem instanceof GeoQuarry,"real IE2 GEO Quarry exists for output fixture");
+        // Read the actual registered quarry guide recipes before production. This path
+        // previously passed GEOResource.getItem() to edit(amount) without cloning.
+        var guideOutputs = ((GeoQuarry) quarryItem).getDefaultDisplayRecipes();
+        int uraniumGuideOutputs = 0;
+        for (ItemStack displayed : guideOutputs) {
+            var displayId = Slimefun.getItemDataService().getItemData(displayed.getItemMeta()).orElse(null);
+            if (!"SMALL_URANIUM".equals(displayId)) continue;
+            uraniumGuideOutputs++;
+            require(displayed.isSimilar(cheat),
+                "Real GEO Quarry recipe display changes registered uranium metadata");
+            require(displayed.getAmount() == ((GeoQuarry) quarryItem).getSpeed(),
+                "Normal GEO Quarry guide output must retain configured output speed");
+        }
+        require(uraniumGuideOutputs == 1, "GEO Quarry guide must show the registered uranium resource exactly once");
+        require(geoTemplateBefore.equals(mutableRecipeStack(uranium.getItem())),
+            "GEO Quarry recipe display mutated the shared registered GEO template");
+        require(cheatTemplateBefore.equals(mutableRecipeStack(registered.getItem())),
+            "GEO Quarry recipe display mutated the /sf cheat crafting template");
         require("IE_GEO_QUARRY".equals(StoredBlockLookup.getId(quarryLocation)),
             "GEO Quarry fixture retains registered block identity");
         var quarryMenu=StoredBlockLookup.getInventory(quarryLocation);
@@ -390,9 +412,13 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             require(inSlot.isSimilar(fromPriorBoot) && fromPriorBoot.getAmount()==1,
                 "GEO Quarry physical output changed metadata after clean server restart");
         }
+        require(geoTemplateBefore.equals(mutableRecipeStack(uranium.getItem())),
+            "GEO Quarry output-slot transfer/restart mutated shared GEO template");
+        require(cheatTemplateBefore.equals(mutableRecipeStack(registered.getItem())),
+            "GEO Quarry output-slot transfer/restart mutated registered cheat template");
         results.add("PASS " + phase
-            + ": real SMALL_URANIUM cheat, registered GEO resource and actual"
-            + " GeoQuarry output slot match before/after persisted menu restart");
+            + ": real SMALL_URANIUM cheat, registered GEO resource, guide display"
+            + " and GeoQuarry output slot preserve identity and template metadata across restart");
     }
 
     private void checkNativeForgeLedger(me.mrCookieSlime.Slimefun.api.inventory.BlockMenu menu) throws Exception {
