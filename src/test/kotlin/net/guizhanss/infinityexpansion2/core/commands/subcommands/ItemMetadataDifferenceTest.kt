@@ -49,6 +49,62 @@ class ItemMetadataDifferenceTest {
         assertEquals(beforeQuarry, quarry)
     }
 
+    @Test fun fullOldStackMatchesFreshUraniumButHasNoRemainingCapacity() {
+        // AlbionMC reported 12 fresh items and an older, full 64-item stack.
+        // Full capacity alone prevents adding items, even when identity matches.
+        val fresh = uranium().apply { amount = 12 }
+        val historical = uranium().apply { amount = 64 }
+        val beforeFresh = fresh.clone()
+        val beforeOld = historical.clone()
+
+        val report = ItemMetadataDifference.inspect(fresh, historical)
+
+        assertTrue(report.isSimilar)
+        assertTrue(report.itemMetaSame)
+        assertTrue(report.pdcSame)
+        assertEquals(52, report.mainRemainingCapacity)
+        assertEquals(0, report.offhandRemainingCapacity)
+        assertEquals(64, report.offhandMaxStackSize)
+        assertTrue(report.changedMetaFields.isEmpty())
+        assertTrue(report.changedStackFields.isEmpty())
+        assertEquals(beforeFresh, fresh)
+        assertEquals(beforeOld, historical)
+    }
+
+    @Test fun partiallyFilledOldStackHasSpaceButDifferentFormattingStillPreventsIdentityMatch() {
+        val fresh = uranium().apply { amount = 12 }
+        val historical = uranium().apply {
+            amount = 63
+            editMeta { meta ->
+                meta.displayName(Component.text("").append(
+                    Component.text("Small Chunk of Uranium", NamedTextColor.RED)
+                        .decoration(TextDecoration.BOLD, TextDecoration.State.FALSE)))
+            }
+        }
+        val beforeFresh = fresh.clone()
+        val beforeOld = historical.clone()
+
+        val report = ItemMetadataDifference.inspect(fresh, historical)
+
+        assertFalse(report.isSimilar)
+        assertEquals(1, report.offhandRemainingCapacity)
+        assertFalse(report.nameSame)
+        assertTrue(report.pdcSame)
+        assertTrue(report.componentStructureDifferences.isNotEmpty())
+        assertEquals(beforeFresh, fresh)
+        assertEquals(beforeOld, historical)
+    }
+
+    @Test fun partiallyFilledMatchingOldStackHasAvailableCapacity() {
+        val fresh = uranium().apply { amount = 12 }
+        val historical = uranium().apply { amount = 63 }
+        val report = ItemMetadataDifference.inspect(fresh, historical)
+
+        assertTrue(report.isSimilar)
+        assertEquals(1, report.offhandRemainingCapacity)
+        assertEquals(52, report.mainRemainingCapacity)
+    }
+
     @Test fun effectiveSingleItemStackLimitIsReportedWithoutRewritingItems() {
         val main = ItemStack(Material.NETHERITE_SWORD)
         val offhand = main.clone()
