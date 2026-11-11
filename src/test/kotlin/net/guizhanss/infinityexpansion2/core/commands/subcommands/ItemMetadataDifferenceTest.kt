@@ -2,6 +2,7 @@ package net.guizhanss.infinityexpansion2.core.commands.subcommands
 
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.format.TextDecoration
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
 import org.bukkit.inventory.ItemStack
@@ -111,4 +112,51 @@ class ItemMetadataDifferenceTest {
         assertFalse(report.isSimilar)
         assertEquals(before, quarry)
     }
+    @Test fun nestedBoldMismatchShowsRedactedComponentShapeButNeverItemText() {
+        val cheat = uranium().apply {
+            editMeta {
+                it.displayName(Component.text("Private Uranium Title", NamedTextColor.AQUA)
+                    .decoration(TextDecoration.BOLD, TextDecoration.State.TRUE))
+            }
+        }
+        val machine = cheat.clone().apply {
+            editMeta {
+                it.displayName(Component.text("").append(
+                    Component.text("Private Uranium Title", NamedTextColor.AQUA)
+                        .decoration(TextDecoration.BOLD, TextDecoration.State.FALSE)))
+            }
+        }
+        val beforeCheat = cheat.clone()
+        val beforeMachine = machine.clone()
+        val report = ItemMetadataDifference.inspect(cheat, machine)
+
+        assertFalse(report.isSimilar)
+        assertFalse(report.nameSame)
+        assertTrue(report.pdcSame)
+        assertTrue(report.componentStructureDifferences.any { it.contains("child count 0/1") })
+        assertTrue(report.componentStructureDifferences.any { it.contains("bold") && it.contains("TRUE") })
+        assertTrue(report.componentStructureDifferences.any { it.contains("only in offhand") && it.contains("FALSE") })
+        assertTrue(report.componentStructureDifferences.none { it.contains("Private Uranium Title") })
+        assertTrue(report.componentStructureDifferences.none { it.contains("Radiation Level") })
+        assertEquals(beforeCheat, cheat)
+        assertEquals(beforeMachine, machine)
+    }
+
+    @Test fun hoveredLoreDifferencesAreReportedWithoutExposingHoverPayload() {
+        val cheat = uranium()
+        val machine = cheat.clone().apply {
+            editMeta {
+                it.lore(listOf(Component.text("Radiation Level: Moderate", NamedTextColor.YELLOW)
+                    .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(
+                        Component.text("private-owner-payload-do-not-print")))))
+            }
+        }
+        val report = ItemMetadataDifference.inspect(cheat, machine)
+
+        assertFalse(report.loreSame)
+        assertTrue(report.componentStructureDifferences.any { it.contains("hover differs (redacted)") })
+        assertTrue(report.componentStructureDifferences.none { it.contains("private-owner-payload-do-not-print") })
+        assertTrue(report.pdcSame)
+    }
+
 }
