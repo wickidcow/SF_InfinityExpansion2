@@ -20,6 +20,8 @@ internal object ItemMetadataDifference {
         val isSimilar: Boolean,
         val mainMaxStackSize: Int,
         val offhandMaxStackSize: Int,
+        val mainRemainingCapacity: Int,
+        val offhandRemainingCapacity: Int,
         val materialSame: Boolean,
         val nameSame: Boolean,
         val loreSame: Boolean,
@@ -60,6 +62,10 @@ internal object ItemMetadataDifference {
             isSimilar = main.isSimilar(offhand),
             mainMaxStackSize = main.maxStackSize,
             offhandMaxStackSize = offhand.maxStackSize,
+            // Use the actual held counts for capacity. Identity is compared
+            // separately with one-item clones, and neither stack is modified.
+            mainRemainingCapacity = (main.maxStackSize - main.amount).coerceAtLeast(0),
+            offhandRemainingCapacity = (offhand.maxStackSize - offhand.amount).coerceAtLeast(0),
             materialSame = main.type == offhand.type,
             nameSame = firstMeta?.displayName() == secondMeta?.displayName(),
             loreSame = firstMeta?.lore() == secondMeta?.lore(),
