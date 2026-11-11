@@ -441,6 +441,40 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
         require(occupied==1 && combined==1+((GeoQuarry)quarryItem).getSpeed(),
             "Native inventory failed to STACK cheat and real GEO Quarry uranium "
                 + "(occupied="+occupied+", total="+combined+")");
+        // The AlbionMC report also reproduces on dropped-world item entities.
+        // Exercise the native Paper item-entity stack boundary separately from
+        // BlockMenu and inventory handling. This is NOT an artificial player
+        // pickup event or evidence about plugins running on the live server.
+        var worldEntity=quarryLocation.getWorld().dropItem(
+            quarryLocation.clone().add(0.5,2.0,0.5),inSlot.clone());
+        try {
+            var worldStack=worldEntity.getItemStack();
+            require(worldStack.isSimilar(cheat),
+                "Native dropped GEO Quarry uranium changed identity in world item entity");
+            require(worldStack.getAmount()==((GeoQuarry)quarryItem).getSpeed(),
+                "Native dropped GEO Quarry uranium changed quantity");
+            var retrieved=worldStack.clone();
+            var retrievedBytes=ItemStack.deserializeBytes(retrieved.serializeAsBytes());
+            require(retrievedBytes.isSimilar(cheat)
+                    && retrievedBytes.getAmount()==retrieved.getAmount(),
+                "Native dropped GEO uranium loses identity or amount in Paper serialization");
+            var collected=Bukkit.createInventory(null,9);
+            require(collected.addItem(cheat.clone(),retrievedBytes).isEmpty(),
+                "Native world-derived GEO output cannot enter a regular inventory");
+            int collectedSlots=0;
+            int collectedCount=0;
+            for (ItemStack stack:collected.getStorageContents()) {
+                if (stack==null || stack.getType().isAir()) continue;
+                collectedSlots++;
+                collectedCount+=stack.getAmount();
+                require(stack.isSimilar(cheat),
+                    "Native world-derived uranium loses identity after inventory insertion");
+            }
+            require(collectedSlots==1 && collectedCount==1+retrieved.getAmount(),
+                "Native world-derived uranium cannot stack with cheat after retrieval");
+        } finally {
+            worldEntity.remove();
+        }
         if (phase.equals("seed")) {
             getDataFolder().mkdirs();
             Files.write(snapshot,inSlot.serializeAsBytes());
@@ -456,8 +490,8 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
         require(cheatTemplateBefore.equals(mutableRecipeStack(registered.getItem())),
             "GEO Quarry output-slot transfer/restart mutated registered cheat template");
         results.add("PASS " + phase
-            + ": real SMALL_URANIUM cheat, GEO guide display and GeoQuarry.process"
-            + " output preserve identity and registered metadata across restart");
+            + ": real SMALL_URANIUM cheat, GEO guide display, GeoQuarry.process,"
+            + " world entity and inventory transfer preserve metadata across restart");
     }
 
     private void checkNativeForgeLedger(me.mrCookieSlime.Slimefun.api.inventory.BlockMenu menu) throws Exception {
