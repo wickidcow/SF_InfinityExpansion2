@@ -484,6 +484,26 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             require(inSlot.isSimilar(fromPriorBoot)
                     && fromPriorBoot.getAmount()==((GeoQuarry)quarryItem).getSpeed(),
                 "GEO Quarry physical output changed metadata or quantity after clean server restart");
+            // A full historical stack cannot accept more items even when isSimilar
+            // matches. Test a capacity-available prior-boot stack separately,
+            // without rewriting the stored serialized item or its metadata.
+            var partialOld=fromPriorBoot.clone();
+            partialOld.setAmount(partialOld.getMaxStackSize()-1);
+            var singleNew=cheat.clone();
+            singleNew.setAmount(1);
+            var historicalMerge=Bukkit.createInventory(null,9);
+            historicalMerge.setItem(0,partialOld);
+            require(historicalMerge.addItem(singleNew).isEmpty(),
+                "Prior-boot GEO output with one free slot refused a new cheat item");
+            var mergedHistorical=historicalMerge.getItem(0);
+            require(mergedHistorical!=null
+                    && mergedHistorical.getAmount()==partialOld.getMaxStackSize()
+                    && mergedHistorical.isSimilar(fromPriorBoot),
+                "Prior-boot GEO output lost identity or count when filled to capacity");
+            for (int slot=1;slot<historicalMerge.getSize();slot++) {
+                require(historicalMerge.getItem(slot)==null,
+                    "Prior-boot GEO output unexpectedly occupied another inventory slot");
+            }
         }
         require(geoTemplateBefore.equals(mutableRecipeStack(uranium.getItem())),
             "GEO Quarry output-slot transfer/restart mutated shared GEO template");
