@@ -372,15 +372,32 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             var weightedPool=(List<ItemStack>)poolMethod.invoke(
                 quarryItem,quarryLocation.getBlock().getBiome(),quarryLocation.getWorld().getEnvironment());
             var originalPool=new ArrayList<>(weightedPool);
-            var tickerField=net.guizhanss.guizhanlib.slimefun.machines.TickingMenuBlock.class
-                .getDeclaredField("tickCount");
+            // GuizhanLib is shaded/relocated inside the candidate plugin, so
+            // resolve the ticker field from the real class hierarchy rather
+            // than compile the disposable probe against an unshaded dependency.
+            Class<?> tickerClass=quarryItem.getClass();
+            java.lang.reflect.Field tickerField=null;
+            while (tickerClass!=null && tickerField==null) {
+                try {
+                    tickerField=tickerClass.getDeclaredField("tickCount");
+                } catch (NoSuchFieldException ignored) {
+                    tickerClass=tickerClass.getSuperclass();
+                }
+            }
+            require(tickerField!=null,"Real GEO Quarry ticker has a writable tick counter");
             tickerField.setAccessible(true);
             int priorTickCount=tickerField.getInt(quarryItem);
+            // Kotlin exposes process as protected to Java. Reflect into the
+            // real production method without changing production visibility.
+            var processMethod=GeoQuarry.class.getDeclaredMethod(
+                "process",org.bukkit.block.Block.class,BlockMenu.class);
+            processMethod.setAccessible(true);
             try {
                 weightedPool.clear();
                 weightedPool.add(uranium.getItem());
                 tickerField.setInt(quarryItem,0);
-                require(((GeoQuarry)quarryItem).process(quarryLocation.getBlock(),quarryMenu),
+                require(Boolean.TRUE.equals(
+                    processMethod.invoke(quarryItem,quarryLocation.getBlock(),quarryMenu)),
                     "Real GeoQuarry.process declined deterministic uranium output");
             } finally {
                 weightedPool.clear();
