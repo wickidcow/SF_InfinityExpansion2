@@ -173,6 +173,7 @@ class DoctorCommand(parent: AbstractCommand) : AbstractSubCommand(
                 NamedTextColor.GRAY
             ))
         }
+        showFields("Adventure component shape/style differences (text redacted)", report.componentStructureDifferences)
         showFields("PDC keys only in main", report.onlyMainPdcKeys)
         showFields("PDC keys only in offhand", report.onlyOffhandPdcKeys)
         showFields("Different serialized metadata fields", report.changedMetaFields)
