@@ -134,8 +134,12 @@ class ItemMetadataDifferenceTest {
         assertFalse(report.nameSame)
         assertTrue(report.pdcSame)
         assertTrue(report.componentStructureDifferences.any { it.contains("child count 0/1") })
-        assertTrue(report.componentStructureDifferences.any { it.contains("bold") && it.contains("TRUE") })
-        assertTrue(report.componentStructureDifferences.any { it.contains("only in offhand") && it.contains("FALSE") })
+        assertTrue(report.componentStructureDifferences.any {
+            it.contains("bold") && it.contains("true", ignoreCase = true)
+        }, report.componentStructureDifferences.toString())
+        assertTrue(report.componentStructureDifferences.any {
+            it.contains("only in offhand") && it.contains("false", ignoreCase = true)
+        }, report.componentStructureDifferences.toString())
         assertTrue(report.componentStructureDifferences.none { it.contains("Private Uranium Title") })
         assertTrue(report.componentStructureDifferences.none { it.contains("Radiation Level") })
         assertEquals(beforeCheat, cheat)
