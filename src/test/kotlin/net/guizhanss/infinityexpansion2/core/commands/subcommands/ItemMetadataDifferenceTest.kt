@@ -154,6 +154,77 @@ class ItemMetadataDifferenceTest {
         assertTrue(report.changedMetaFields.isNotEmpty())
     }
 
+
+    @Test fun nestedHistoricalNameAndLoreDifferencesRemainVisibleAndReadOnly() {
+        val cheat = uranium().apply {
+            editMeta {
+                it.displayName(Component.text("Small Chunk of Uranium", NamedTextColor.RED)
+                    .decoration(net.kyori.adventure.text.format.TextDecoration.BOLD, true))
+                it.lore(listOf(Component.text("Radiation Level: Moderate", NamedTextColor.YELLOW)
+                    .decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC, false)))
+            }
+        }
+        val machine = cheat.clone().apply {
+            editMeta {
+                it.displayName(Component.text("").append(
+                    Component.text("Small Chunk of Uranium", NamedTextColor.RED)
+                        .decoration(net.kyori.adventure.text.format.TextDecoration.BOLD, false)))
+                it.lore(listOf(Component.text("").append(
+                    Component.text("Radiation Level: Moderate", NamedTextColor.YELLOW)
+                        .decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC, true))))
+            }
+        }
+        val beforeCheat = cheat.clone()
+        val beforeMachine = machine.clone()
+        val report = ItemMetadataDifference.inspect(cheat, machine)
+        assertFalse(report.isSimilar)
+        assertFalse(report.nameSame)
+        assertFalse(report.loreSame)
+        assertTrue(report.pdcSame)
+        assertTrue(report.onlyMainPdcKeys.isEmpty())
+        assertTrue(report.onlyOffhandPdcKeys.isEmpty())
+        assertTrue(report.changedMetaFields.isNotEmpty())
+        assertEquals(beforeCheat, cheat)
+        assertEquals(beforeMachine, machine)
+    }
+
+    @Test fun nestedHistoricalNameWithExplicitBoldMismatchIsDiagnosedWithoutRewriting() {
+        // AlbionMC old machine output: nested Adventure name with bold=false.
+        // Fresh /sf cheat output: flat name with bold=true. The same visible
+        // name, Slimefun ID and PDC do not imply ItemStack.isSimilar.
+        val cheat = uranium().apply {
+            editMeta {
+                it.displayName(
+                    Component.text("Small Chunk of Uranium", NamedTextColor.RED)
+                        .decoration(net.kyori.adventure.text.format.TextDecoration.BOLD, true)
+                )
+            }
+        }
+        val machine = cheat.clone().apply {
+            editMeta {
+                it.displayName(
+                    Component.text("").append(
+                        Component.text("Small Chunk of Uranium", NamedTextColor.RED)
+                            .decoration(net.kyori.adventure.text.format.TextDecoration.BOLD, false)
+                    )
+                )
+            }
+        }
+        val cheatBefore = cheat.clone()
+        val machineBefore = machine.clone()
+        val report = ItemMetadataDifference.inspect(cheat, machine)
+
+        assertFalse(report.isSimilar)
+        assertFalse(report.nameSame)
+        assertTrue(report.loreSame)
+        assertTrue(report.pdcSame)
+        assertTrue(report.onlyMainPdcKeys.isEmpty())
+        assertTrue(report.onlyOffhandPdcKeys.isEmpty())
+        assertTrue(report.changedMetaFields.isNotEmpty())
+        assertEquals(cheatBefore, cheat)
+        assertEquals(machineBefore, machine)
+    }
+
     @Test fun metadataReporterNeverNormalizesDifferentlyWrappedLore() {
         val cheat = uranium()
         val quarry = uranium().apply {
