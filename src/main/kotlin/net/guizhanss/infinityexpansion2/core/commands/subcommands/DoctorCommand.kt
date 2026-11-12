@@ -116,7 +116,7 @@ class DoctorCommand(parent: AbstractCommand) : AbstractSubCommand(
     }
 
     /**
-     * Diagnostic for a real machine-produced stack versus one from /sf cheat.
+     * Read-only comparison of any two held Slimefun items: crafted, machine-produced, or /sf cheat.
      * Entirely read-only; never replace or normalize player-held items.
      */
     private fun compareHeldItems(sender: CommandSender) {
@@ -128,7 +128,7 @@ class DoctorCommand(parent: AbstractCommand) : AbstractSubCommand(
         val offhand = player.inventory.itemInOffHand
         if (main.type.isAir || offhand.type.isAir) {
             sender.sendMessage(colored(
-                "Place /sf cheat item in main hand and machine item in offhand, then run /ie2 doctor compare.",
+                "Place two items to compare in main hand and offhand (crafted, machine, or /sf cheat), then run /ie2 doctor compare.",
                 NamedTextColor.YELLOW
             ))
             return
@@ -195,18 +195,18 @@ class DoctorCommand(parent: AbstractCommand) : AbstractSubCommand(
             if (template == null) {
                 sender.sendMessage(colored("Registered Slimefun template: unavailable.", NamedTextColor.YELLOW))
             } else {
-                val cheatVsTemplate = ItemMetadataDifference.inspect(main, template)
-                val machineVsTemplate = ItemMetadataDifference.inspect(offhand, template)
+                val mainVsTemplate = ItemMetadataDifference.inspect(main, template)
+                val offhandVsTemplate = ItemMetadataDifference.inspect(offhand, template)
                 sender.sendMessage(colored(
                     "Main vs registered Slimefun template: " +
-                        if (cheatVsTemplate.isSimilar) "MATCH" else "DIFFERENT", NamedTextColor.GRAY
+                        if (mainVsTemplate.isSimilar) "MATCH" else "DIFFERENT", NamedTextColor.GRAY
                 ))
                 sender.sendMessage(colored(
                     "Offhand vs registered Slimefun template: " +
-                        if (machineVsTemplate.isSimilar) "MATCH" else "DIFFERENT", NamedTextColor.GRAY
+                        if (offhandVsTemplate.isSimilar) "MATCH" else "DIFFERENT", NamedTextColor.GRAY
                 ))
-                showFields("Main/template changed metadata", cheatVsTemplate.changedMetaFields)
-                showFields("Offhand/template changed metadata", machineVsTemplate.changedMetaFields)
+                showFields("Main/template changed metadata", mainVsTemplate.changedMetaFields)
+                showFields("Offhand/template changed metadata", offhandVsTemplate.changedMetaFields)
             }
             val geoMatches = Slimefun.getRegistry().geoResources.values().filter { resource ->
                 idOf(resource.item) == mainId
@@ -216,16 +216,16 @@ class DoctorCommand(parent: AbstractCommand) : AbstractSubCommand(
             ))
             geoMatches.take(5).forEach { resource ->
                 val geo = resource.item.clone()
-                val cheatVsGeo = ItemMetadataDifference.inspect(main, geo)
-                val machineVsGeo = ItemMetadataDifference.inspect(offhand, geo)
+                val mainVsGeo = ItemMetadataDifference.inspect(main, geo)
+                val offhandVsGeo = ItemMetadataDifference.inspect(offhand, geo)
                 val templateVsGeo = template?.let { ItemMetadataDifference.inspect(it, geo) }
                 sender.sendMessage(colored(
-                    "GEO ${resource.key}: main=${if (cheatVsGeo.isSimilar) "MATCH" else "DIFFERENT"}, " +
-                        "offhand=${if (machineVsGeo.isSimilar) "MATCH" else "DIFFERENT"}, " +
+                    "GEO ${resource.key}: main=${if (mainVsGeo.isSimilar) "MATCH" else "DIFFERENT"}, " +
+                        "offhand=${if (offhandVsGeo.isSimilar) "MATCH" else "DIFFERENT"}, " +
                         "registered=${if (templateVsGeo?.isSimilar == true) "MATCH" else "DIFFERENT"}",
                     NamedTextColor.GRAY
                 ))
-                showFields("GEO/offhand changed metadata", machineVsGeo.changedMetaFields)
+                showFields("GEO/offhand changed metadata", offhandVsGeo.changedMetaFields)
             }
         } else {
             sender.sendMessage(colored(
