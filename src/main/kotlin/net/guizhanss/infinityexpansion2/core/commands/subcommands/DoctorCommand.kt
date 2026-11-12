@@ -159,14 +159,6 @@ class DoctorCommand(parent: AbstractCommand) : AbstractSubCommand(
                 NamedTextColor.YELLOW
             ))
         }
-        if (report.isSimilar &&
-            (main.amount >= report.mainMaxStackSize || offhand.amount >= report.offhandMaxStackSize)) {
-            sender.sendMessage(colored(
-                "At least one matching held stack is full. A full stack cannot accept more items; " +
-                    "test an otherwise identical pair with spare capacity before blaming a transfer plugin.",
-                NamedTextColor.YELLOW
-            ))
-        }
         sender.sendMessage(colored(
             "Adventure name: ${if (report.nameSame) "MATCH" else "DIFFERENT"}; " +
                 "ordered lore: ${if (report.loreSame) "MATCH" else "DIFFERENT"}; " +
