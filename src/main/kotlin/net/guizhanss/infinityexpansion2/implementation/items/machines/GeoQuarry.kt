@@ -45,7 +45,7 @@ class GeoQuarry(
         val output = tryProduceDracFunEnderDraconium(menu)
             ?: tryProduceRareGeoResource(menu)
             ?: tryProduceAutomaticGeoMinerDiscovery(menu)
-            ?: produce(menu)?.clone()?.edit { amount(speed) }
+            ?: produce(menu)?.edit { amount(speed) }
             ?: return true
 
         if (!menu.fits(output, *outputSlots)) {
@@ -194,7 +194,7 @@ class GeoQuarry(
                 val discoveryOnly = !isOriginalGeoResource(resource) ||
                     itemId == DRACFUN_ENDER_DRACONIUM_ID ||
                     (itemId != null && itemId in rareGeoIds)
-                resource.item.clone().edit { amount(if (discoveryOnly) 1 else speed) }
+                resource.item.edit { amount(if (discoveryOnly) 1 else speed) }
             }
     }
 
