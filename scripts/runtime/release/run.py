@@ -138,6 +138,32 @@ def download_historical_ie2_jar(destination):
                     '-o',str(destination),HISTORICAL_IE2_URL],check=True)
     return verify_historical_ie2_jar(destination)
 
+def native_geo_capture_receipt(runtime, phase, report, prior=None):
+    """Bind real GEO Quarry slot output to the exact native two-boot test receipt.
+
+    Only the disposable registered GEO fixture is eligible. Never ingest historical
+    player inventories or export item bytes/PDC into the machine-readable report.
+    """
+    if phase not in ('seed', 'verify'):
+        raise AssertionError('Unexpected GEO Quarry native phase')
+    marker=('PASS '+phase+': real SMALL_URANIUM cheat, GEO guide display, '
+            'GeoQuarry.process,')
+    if report.count(marker)!=1 or 'failures: 0' not in report:
+        raise AssertionError('Missing exact native GEO Quarry producer phase: '+phase)
+    path=runtime/'plugins/NativeModernizationProbe/native-geo-uranium.bin'
+    if path.is_symlink() or not path.is_file():
+        raise AssertionError('Missing or linked genuine GEO Quarry output capture')
+    size=path.stat().st_size
+    if not (0<size<=1024*1024):
+        raise AssertionError('Invalid GEO Quarry output capture size')
+    receipt={'filename':'native-geo-uranium.bin',
+             'sha256':hashlib.sha256(path.read_bytes()).hexdigest(),
+             'size_bytes':size}
+    if prior is not None and receipt!=prior:
+        raise AssertionError('GEO Quarry output capture changed across native restart')
+    return receipt
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     for name in ('runtime','paper-source','core','ie2','java-home','kotlin-stdlib','kotlin-reflect'):
@@ -167,9 +193,14 @@ def main():
     with zipfile.ZipFile(runtime/'plugins/NativeModernizationProbe.jar','w',zipfile.ZIP_DEFLATED) as jar:
         for compiled in classes.rglob('*.class'):jar.write(compiled,compiled.relative_to(classes))
         jar.writestr('plugin.yml','name: NativeModernizationProbe\nversion: 1.0\nmain: verification.NativeModernizationProbe\napi-version: "1.21"\ndepend: [Slimefun, InfinityExpansion2]\n')
-    evidence={'core_sha256':hashlib.sha256(args.core.read_bytes()).hexdigest(),
+    server_jar=runtime/'server.jar'
+    if server_jar.is_symlink() or not server_jar.is_file():
+        raise AssertionError('Missing or linked native Paper server JAR')
+    evidence={'server_sha256':hashlib.sha256(server_jar.read_bytes()).hexdigest(),
+              'core_sha256':hashlib.sha256(args.core.read_bytes()).hexdigest(),
               'ie2_sha256':hashlib.sha256(args.ie2.read_bytes()).hexdigest(),
               'probe_sha256':hashlib.sha256(source.read_bytes()).hexdigest(),'phases':{}}
+    geo_seed_receipt=None
     for phase in ('seed','verify'):
         result=runtime/f'plugins/NativeModernizationProbe/results-{phase}.txt'
         if result.exists():raise AssertionError('Refusing stale phase result '+str(result))
@@ -184,6 +215,17 @@ def main():
         text=result.read_text();print(text)
         if 'failures: 0' not in text or 'PASS '+phase+':' not in text:
             raise AssertionError('Native phase failed: '+phase)
+        # Receipt is produced by the real GeoQuarry.process/BlockMenu native test,
+        # not a cached GEO resource template or synthetic ItemStack comparison.
+        geo=native_geo_capture_receipt(runtime,phase,text,geo_seed_receipt)
+        if phase=='seed':
+            geo_seed_receipt=geo
+        else:
+            evidence['geo_quarry']={
+                'schema':1,'item_id':'SMALL_URANIUM','producer':'IE2_GEO_QUARRY',
+                'scope':'actual registered machine output; disposable fixture only',
+                'status':'PASS','phases':['seed','verify'],'capture':geo,
+            }
         evidence['phases'][phase]=text
         stored=stored_unknown_snapshot(runtime)
         if phase=='seed':evidence['unknown_record_database_snapshot']=stored
