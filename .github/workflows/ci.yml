@@ -251,6 +251,8 @@ jobs:
             .native/server/plugins/NativeModernizationProbe/results-*.txt
             .native/server/plugins/NativeModernizationProbe/native-geo-uranium.bin
             .native/server/plugins/NativeModernizationProbe/historical-cjk-storage.bin
+            .native/server/plugins/NativeModernizationProbe/native-presentation-backup-id.txt
+            .native/server/plugins/NativeModernizationProbe/native-presentation-backups/**/*.rolledback
             .native/server/plugins/NativeForgeCrashProbe/results-*.txt
             .native/server/plugins/NativeMobCardRefreshProbe/results.txt
           if-no-files-found: warn
