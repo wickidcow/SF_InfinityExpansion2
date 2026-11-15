@@ -90,7 +90,7 @@ final class HistoricalStorageLorePreview {
     }
 
     private static List<Component> translatedLore(String lang, String[] values) {
-        var plugin = InfinityExpansion2.getInstance();
+        var plugin = InfinityExpansion2.Companion.getInstance();
         try (var input = plugin.getResource("lang/" + lang + ".yml")) {
             if (input == null) return null;
             var yaml = YamlConfiguration.loadConfiguration(
