@@ -27,7 +27,8 @@ import org.bukkit.inventory.ItemStack
 internal object HistoricalPresentationDoctor {
     private const val TTL_MILLIS = 120_000L
     private const val PERMISSION = "infinityexpansion2.doctor.presentation"
-    private val pending = mutableMapOf<UUID, Pending>()
+    // Folia can execute commands for different players on separate region threads.
+    private val pending = java.util.concurrent.ConcurrentHashMap<UUID, Pending>()
 
     private data class Pending(
         val originalSlot: Int,
