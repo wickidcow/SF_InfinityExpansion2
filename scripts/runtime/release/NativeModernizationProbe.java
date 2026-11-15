@@ -375,6 +375,37 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
         require(java.util.Arrays.equals(filledBefore, filled.serializeAsBytes()),
             "native translated filled storage preview must leave source byte-exact");
 
+        // Prove full nested storage data survives an actual two-JVM durable
+        // backup/readback/retirement, not only a detached in-memory comparison.
+        var ownerForFilled = UUID.fromString("223e4567-e89b-12d3-a456-426614174000");
+        var filledBackupDirectory = getDataFolder().toPath().resolve("native-filled-storage-backups");
+        var filledBackupIdPath = getDataFolder().toPath().resolve("native-filled-storage-backup-id.txt");
+        if (phase.equals("seed")) {
+            var idForFilled = HistoricalPresentationBackupStore.save(
+                filledBackupDirectory, ownerForFilled, filled, converted);
+            Files.writeString(filledBackupIdPath, idForFilled.toString());
+            var disk = HistoricalPresentationBackupStore.load(
+                filledBackupDirectory, ownerForFilled, idForFilled);
+            require(filled.equals(disk.original()) && converted.equals(disk.proposed()),
+                "native filled IE2 ledger serializes to durable backup without mutation");
+        } else {
+            require(Files.isRegularFile(filledBackupIdPath),
+                "historical filled storage backup reference survived restart");
+            var idForFilled = UUID.fromString(Files.readString(filledBackupIdPath).strip());
+            var disk = HistoricalPresentationBackupStore.load(
+                filledBackupDirectory, ownerForFilled, idForFilled);
+            require(filled.equals(disk.original()) && converted.equals(disk.proposed()),
+                "full nested storage/ledger and English candidate survive native restart");
+            var retainedLedger = PersistentDataAPI.get(disk.original().getItemMeta(),
+                StorageUnit.Companion.getSTORAGE_KEY(), PersistentStorageCacheType.getTYPE());
+            require(retainedLedger != null && retainedLedger.getAmount() == 731
+                    && retainedLedger.getLimit() == capacity
+                    && retainedLedger.getVoidExcess(),
+                "typed inner storage amount, capacity and void flag survive restart");
+            HistoricalPresentationBackupStore.markRolledBack(
+                filledBackupDirectory, ownerForFilled, idForFilled);
+        }
+
         var customLore = filled.clone();
         customLore.editMeta(m -> {
             var lines = new ArrayList<Component>(m.lore());
