@@ -37,7 +37,7 @@ migration:
   refresh-modern-items-on-join: true
 
 # Disabled by default: explicit, backed-up, main-hand-only English name repair for
-# historical IE2 items. Does not change dynamic lore or world storage.
+# historical IE2 items. Rewrites only verified labels, never custom lore or world storage.
 # After upgrading, set true only for supervised administrator repairs.
 doctor:
   historical-presentation-repair: false
