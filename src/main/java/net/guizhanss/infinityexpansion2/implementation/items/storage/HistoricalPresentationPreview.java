@@ -44,21 +44,28 @@ public final class HistoricalPresentationPreview {
         proposed.setItemMeta(proposedMeta);
         if (proposed.getAmount() != original.getAmount()) return null;
 
-        ItemStack originalNeutral = original.clone();
-        ItemStack proposedNeutral = proposed.clone();
-        ItemMeta before = originalNeutral.getItemMeta();
-        ItemMeta after = proposedNeutral.getItemMeta();
-        if (before == null || after == null) return null;
+        if (!sameNonPresentation(original, proposed)) return null;
+
+        // No live item is mutated; the detached candidate can only be applied
+        // by a separately confirmed, backed-up per-player transaction.
+        return proposed;
+    }
+    /** Exactly preserve amount and all components except name and lore. */
+    static boolean sameNonPresentation(ItemStack original, ItemStack proposed) {
+        if (original == null || proposed == null
+                || original.getType() != proposed.getType()
+                || original.getAmount() != proposed.getAmount()) return false;
+        ItemStack first = original.clone();
+        ItemStack second = proposed.clone();
+        ItemMeta before = first.getItemMeta();
+        ItemMeta after = second.getItemMeta();
+        if (before == null || after == null) return false;
         before.displayName(null);
         before.lore(null);
         after.displayName(null);
         after.lore(null);
-        originalNeutral.setItemMeta(before);
-        proposedNeutral.setItemMeta(after);
-        if (!originalNeutral.isSimilar(proposedNeutral)) return null;
-
-        // No live item is mutated; the independent candidate can only be
-        // considered by a separate explicit preview/backup/confirm transaction.
-        return proposed;
+        if (!first.setItemMeta(before) || !second.setItemMeta(after)) return false;
+        return first.isSimilar(second);
     }
+
 }
