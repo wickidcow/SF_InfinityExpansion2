@@ -30,6 +30,13 @@ public final class HistoricalPresentationTransaction {
             ItemStack historical, ItemStack registeredEnglish, String historicalId, String registeredId) {
         ItemStack candidate = HistoricalPresentationPreview.candidate(
                 historical, registeredEnglish, historicalId, registeredId);
+        if (candidate == null) {
+            // Only populated storage shells with the exact known four-line
+            // Chinese layout and a valid typed ledger can use this fallback.
+            // Never generalize it to owner lore or arbitrary translated items.
+            candidate = HistoricalStorageLorePreview.candidate(
+                    historical, registeredEnglish, historicalId, registeredId);
+        }
         return candidate == null ? null : new HistoricalPresentationTransaction(historical, candidate);
     }
 
