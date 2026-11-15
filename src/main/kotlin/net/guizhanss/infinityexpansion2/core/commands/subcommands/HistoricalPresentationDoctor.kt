@@ -124,9 +124,13 @@ internal object HistoricalPresentationDoctor {
             player.inventory.heldItemSlot,
             System.currentTimeMillis() + TTL_MILLIS, tx
         )
+        val generatedStorageLabels = live.itemMeta.lore() != tx.proposed().itemMeta.lore()
         send(player, "READ-ONLY preview: " + id + " x" + live.amount +
-            " — changes DISPLAY NAME ONLY; retains entire lore, typed PDC and amount.",
-            NamedTextColor.GOLD)
+            if (generatedStorageLabels) {
+                " — verified IE2 name and generated storage labels only; typed ledger and dynamic values preserved."
+            } else {
+                " — verified IE2 display name only; all original lore and typed PDC preserved."
+            }, NamedTextColor.GOLD)
         send(player, "No item was changed. Save your world/inventory first. " +
             "Confirm within two minutes using:", NamedTextColor.YELLOW)
         send(player, "/ie2 doctor presentation confirm " + tx.confirmationToken(),
@@ -193,7 +197,7 @@ internal object HistoricalPresentationDoctor {
                 NamedTextColor.RED)
             return
         }
-        send(player, "Applied NAME-ONLY English repair, quantity " + repaired.amount +
+        send(player, "Applied verified English presentation repair, quantity " + repaired.amount +
             " preserved. Durable backup: " + backupId, NamedTextColor.GREEN)
         send(player, "To restore the original while holding this exact item: " +
             "/ie2 doctor presentation rollback " + backupId, NamedTextColor.YELLOW)
