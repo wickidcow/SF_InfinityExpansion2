@@ -23,6 +23,7 @@ import net.guizhanss.infinityexpansion2.core.recipes.MachineRecipe;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageCache;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageItemPresentation;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.HistoricalPresentationPreview;
+import net.guizhanss.infinityexpansion2.implementation.items.storage.HistoricalPresentationTransaction;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageForge;
 import net.guizhanss.infinityexpansion2.implementation.items.machines.GeoQuarry;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageUnit;
@@ -263,6 +264,45 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
         var registered = SlimefunItem.getById("IE_STORAGE_UNIT_2");
         require(registered instanceof StorageUnit, "registered IE2 Storage Unit II exists");
         var english = mutableRecipeStack(registered.getItem());
+        // A translated NAME alone, with the original registered lore unchanged,
+        // can be previewed as a detached candidate without touching the saved item.
+        var nameOnly = mutableRecipeStack(english);
+        nameOnly.setAmount(3);
+        nameOnly.editMeta(m -> {
+            m.displayName(Component.text("存储单元 II"));
+            m.getPersistentDataContainer().set(OWNER, PersistentDataType.LONG, 9_000_000_001L);
+        });
+        var nameOnlyBefore = nameOnly.serializeAsBytes();
+        var preview = HistoricalPresentationTransaction.preview(
+            nameOnly, english, "IE_STORAGE_UNIT_2", registered.getId());
+        require(preview != null, "native name-only translated storage preview exists");
+        var proposed = preview.proposed();
+        require(proposed.getAmount() == 3, "native translated preview preserves quantity");
+        require(english.getItemMeta().displayName().equals(proposed.getItemMeta().displayName()),
+            "native name-only repair uses registered English name");
+        require(Objects.equals(nameOnly.getItemMeta().lore(), proposed.getItemMeta().lore()),
+            "native name-only preview does not discard even identical historical lore");
+        require(Long.valueOf(9_000_000_001L).equals(proposed.getItemMeta()
+            .getPersistentDataContainer().get(OWNER, PersistentDataType.LONG)),
+            "native name-only preview preserves typed owner PDC");
+        require(java.util.Arrays.equals(nameOnlyBefore, nameOnly.serializeAsBytes()),
+            "native preview does not mutate item bytes");
+        require(preview.confirm("wrong-token", nameOnly) == null,
+            "incorrect confirmation token must fail closed");
+        var renamedLive = nameOnly.clone();
+        renamedLive.editMeta(m -> m.getPersistentDataContainer()
+            .set(OWNER, PersistentDataType.LONG, 9_000_000_002L));
+        require(preview.confirm(preview.confirmationToken(), renamedLive) == null,
+            "changed typed owner key must block confirmation");
+        var applied = preview.confirm(preview.confirmationToken(), nameOnly);
+        require(applied != null && applied.equals(proposed), "one-shot preview returns exact candidate");
+        require(preview.confirm(preview.confirmationToken(), nameOnly) == null,
+            "confirm is a single-use operation");
+        var restored = preview.rollback(applied);
+        require(restored != null && java.util.Arrays.equals(nameOnlyBefore, restored.serializeAsBytes()),
+            "native rollback restores original exact bytes");
+        require(preview.confirm(preview.confirmationToken(), restored) == null,
+            "rolled-back confirmation token cannot be replayed");
         var historical = mutableRecipeStack(english);
         historical.setAmount(7);
         var meta = historical.getItemMeta();
