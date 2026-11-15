@@ -171,7 +171,7 @@ public final class HistoricalPresentationBackupStore {
             throw new IOException("Backup directory missing or linked");
         }
         Path dir = base.resolve(owner.toString());
-        if (create) Files.createDirectory(dir);
+        if (create) Files.createDirectories(dir);
         if (!Files.isDirectory(dir, LinkOption.NOFOLLOW_LINKS)) {
             throw new IOException("Owner backup directory missing or linked");
         }
