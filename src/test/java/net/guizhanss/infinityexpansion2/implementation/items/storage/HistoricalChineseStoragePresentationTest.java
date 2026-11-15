@@ -156,6 +156,8 @@ class HistoricalChineseStoragePresentationTest {
         assertNull(transaction.rollback(modified));
         assertEquals(backedUp, transaction.rollback(repaired));
         assertNull(transaction.rollback(repaired));
+        assertNull(transaction.confirm(transaction.confirmationToken(), original),
+                "Rollback must never re-enable an already used confirmation token");
         assertEquals("存储单元 II", ((net.kyori.adventure.text.TextComponent)
                 original.getItemMeta().displayName()).content());
     }
