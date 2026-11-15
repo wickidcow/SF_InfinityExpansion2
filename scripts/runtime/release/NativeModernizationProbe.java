@@ -35,6 +35,7 @@ import net.guizhanss.infinityexpansion2.utils.items.ModernText;
 import net.guizhanss.guizhanlib.minecraft.utils.ChatUtil;
 import net.guizhanss.infinityexpansion2.utils.storage.StoredBlockLookup;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Bukkit;
@@ -364,14 +365,20 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
         require(filledPreview != null,
             "native typed storage shell matches exact recognized historical Chinese suffix");
         var converted = filledPreview.proposed();
-        require(converted.getItemMeta().lore().size() == 4
-                && converted.getItemMeta().lore().get(1).toString().contains("Stored item")
-                && converted.getItemMeta().lore().get(2).toString().contains("Amount")
-                && converted.getItemMeta().lore().get(3).toString().contains("Void Excess"),
+        var outputLore = converted.getItemMeta().lore();
+        var plain = PlainTextComponentSerializer.plainText();
+        require(outputLore != null && outputLore.size() == 4
+                && plain.serialize(outputLore.get(1)).startsWith("Stored item: ")
+                && plain.serialize(outputLore.get(2)).equals("Amount: 731 / " + capacity)
+                && plain.serialize(outputLore.get(3)).startsWith("Void Excess: "),
             "native filled storage translates only the three registered English labels");
-        require(PersistentDataAPI.get(converted.getItemMeta(),
-            StorageUnit.Companion.getSTORAGE_KEY(), PersistentStorageCacheType.getTYPE())
-            .getAmount() == 731, "converted filled storage retains authoritative ledger");
+        var convertedLedger = PersistentDataAPI.get(converted.getItemMeta(),
+            StorageUnit.Companion.getSTORAGE_KEY(), PersistentStorageCacheType.getTYPE());
+        require(convertedLedger != null && convertedLedger.getAmount() == 731
+                && convertedLedger.getLimit() == capacity
+                && convertedLedger.getVoidExcess()
+                && convertedLedger.getItemStack().isSimilar(physical),
+            "converted filled storage retains the exact nested item and typed ledger");
         require(java.util.Arrays.equals(filledBefore, filled.serializeAsBytes()),
             "native translated filled storage preview must leave source byte-exact");
 
