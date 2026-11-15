@@ -116,7 +116,7 @@ internal object HistoricalPresentationDoctor {
         }
         val tx = HistoricalPresentationTransaction.preview(live, template, id, id)
         if (tx == null || live.isSimilar(tx.proposed())) {
-            send(player, "No safe preview. Dynamic or custom historical lore is never replaced. " +
+            send(player, "No safe preview. Unrecognized or custom historical lore is never replaced. " +
                 "Use /ie2 doctor compare to inspect source differences.", NamedTextColor.YELLOW)
             return
         }
