@@ -1,6 +1,5 @@
 package net.guizhanss.infinityexpansion2.implementation.items.storage;
 
-import java.util.Objects;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
