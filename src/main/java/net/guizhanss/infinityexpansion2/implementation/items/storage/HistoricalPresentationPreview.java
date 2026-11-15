@@ -31,18 +31,16 @@ public final class HistoricalPresentationPreview {
         ItemMeta proposedMeta = proposed.getItemMeta();
         if (englishMeta == null || proposedMeta == null) return null;
 
-        // A truncated or missing lore template is not proof of translation.
-        // Reject it rather than silently discarding historical custom lines.
-        if (englishMeta.displayName() == null) return null;
-        var oldLore = proposedMeta.lore();
-        var englishLore = englishMeta.lore();
-        if (oldLore == null ? englishLore != null
-                : englishLore == null || oldLore.size() != englishLore.size()) return null;
+        // Name-only repair is the only proven safe path without a historical
+        // locale-specific template. A same-length Chinese/dynamic/owner lore is
+        // NOT proof that every line may be overwritten by a modern English line.
+        // This intentionally rejects translated or extended historical lore.
+        if (englishMeta.displayName() == null
+                || !java.util.Objects.equals(proposedMeta.lore(), englishMeta.lore())) return null;
 
-        // Only presentation fields may be copied; preserve the original typed PDC,
-        // ownership, custom model data, storage payload, enchantments and quantity.
+        // Preserve the original lore, exact typed PDC, owner, custom model,
+        // storage payload, enchantments and stack quantity. Only change name.
         proposedMeta.displayName(englishMeta.displayName());
-        proposedMeta.lore(englishMeta.lore());
         proposed.setItemMeta(proposedMeta);
         if (proposed.getAmount() != original.getAmount()) return null;
 
