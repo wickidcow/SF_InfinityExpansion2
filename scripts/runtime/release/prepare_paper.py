@@ -28,7 +28,7 @@ def fetch(url):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--version',required=True,choices=['1.21.11','26.3'])
+    parser.add_argument('--version',required=True,choices=['1.21.11','26.2','26.3'])
     parser.add_argument('--directory',required=True,type=Path)
     parser.add_argument('--java-home',required=True,type=Path)
     args=parser.parse_args()
