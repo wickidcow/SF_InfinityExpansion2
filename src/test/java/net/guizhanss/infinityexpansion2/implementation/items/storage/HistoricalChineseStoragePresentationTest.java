@@ -133,4 +133,44 @@ class HistoricalChineseStoragePresentationTest {
         assertEquals(snapshot, historical);
     }
 
+    @Test void transactionRequiresExactConfirmationAndUnchangedLiveLedger() {
+        ItemStack original = storage("存储单元 II", "已存储：34560000");
+        ItemStack english = storage("Storage Unit II", "Stored: 34560000");
+        HistoricalPresentationTransaction transaction = HistoricalPresentationTransaction.preview(
+                original, english, "IE_STORAGE_UNIT_2", "IE_STORAGE_UNIT_2");
+        assertNotNull(transaction);
+        ItemStack backedUp = transaction.backup();
+        ItemStack modified = original.clone();
+        modified.editMeta(meta -> meta.getPersistentDataContainer()
+                .set(STORAGE, PersistentDataType.LONG, 34560001L));
+
+        assertNull(transaction.confirm("incorrect-token", original));
+        assertNull(transaction.confirm(transaction.confirmationToken(), modified));
+        assertEquals(original, backedUp);
+        ItemStack repaired = transaction.confirm(transaction.confirmationToken(), original);
+        assertNotNull(repaired);
+        assertEquals(34560000L, repaired.getItemMeta().getPersistentDataContainer()
+                .get(STORAGE, PersistentDataType.LONG));
+        assertEquals(7, repaired.getAmount());
+        assertNull(transaction.confirm(transaction.confirmationToken(), original));
+        assertNull(transaction.rollback(modified));
+        assertEquals(backedUp, transaction.rollback(repaired));
+        assertNull(transaction.rollback(repaired));
+        assertEquals("存储单元 II", ((net.kyori.adventure.text.TextComponent)
+                original.getItemMeta().displayName()).content());
+    }
+
+    @Test void transactionBackupAndPreviewAreDetachedFromCallers() {
+        ItemStack original = storage("存储单元 II", "已存储：34560000");
+        HistoricalPresentationTransaction transaction = HistoricalPresentationTransaction.preview(
+                original, storage("Storage Unit II", "Stored: 34560000"),
+                "IE_STORAGE_UNIT_2", "IE_STORAGE_UNIT_2");
+        assertNotNull(transaction);
+        transaction.backup().setAmount(1);
+        transaction.proposed().setAmount(2);
+        assertEquals(7, transaction.backup().getAmount());
+        assertEquals(7, transaction.proposed().getAmount());
+        assertEquals(7, transaction.confirm(transaction.confirmationToken(), original).getAmount());
+    }
+
 }
