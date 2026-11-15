@@ -24,6 +24,7 @@ import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageCach
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageItemPresentation;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.HistoricalPresentationPreview;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.HistoricalPresentationTransaction;
+import net.guizhanss.infinityexpansion2.implementation.items.storage.HistoricalPresentationBackupStore;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageForge;
 import net.guizhanss.infinityexpansion2.implementation.items.machines.GeoQuarry;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageUnit;
@@ -303,6 +304,38 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             "native rollback restores original exact bytes");
         require(preview.confirm(preview.confirmationToken(), restored) == null,
             "rolled-back confirmation token cannot be replayed");
+        // Durable backup is a required precondition for any actual item
+        // mutation. Exercise it using native Paper's real ItemStack serialization.
+        var ownerUuid = UUID.fromString("123e4567-e89b-12d3-a456-426614174000");
+        var backups = getDataFolder().toPath().resolve("native-presentation-backups");
+        var backupIdFile = getDataFolder().toPath().resolve("native-presentation-backup-id.txt");
+        if (phase.equals("seed")) {
+            var backupId = HistoricalPresentationBackupStore.save(
+                backups, ownerUuid, nameOnly, proposed);
+            var diskCopy = HistoricalPresentationBackupStore.load(backups, ownerUuid, backupId);
+            require(nameOnly.equals(diskCopy.original()) && proposed.equals(diskCopy.proposed()),
+                "native disk-backed preview preserves exact real Paper ItemStacks");
+            Files.writeString(backupIdFile, backupId.toString());
+        } else {
+            require(Files.isRegularFile(backupIdFile), "native persisted backup ID survived restart");
+            var backupId = UUID.fromString(Files.readString(backupIdFile).strip());
+            var diskCopy = HistoricalPresentationBackupStore.load(backups, ownerUuid, backupId);
+            require(nameOnly.equals(diskCopy.original()) && proposed.equals(diskCopy.proposed()),
+                "durable original and candidate survived native Paper restart");
+            require(diskCopy.original().getAmount() == 3,
+                "native durable backup retained all three historical items");
+            HistoricalPresentationBackupStore.markRolledBack(backups, ownerUuid, backupId);
+            require(Files.isRegularFile(backups.resolve(ownerUuid.toString())
+                .resolve(backupId + ".rolledback")),
+                "native rollback retains archived original without active token");
+            boolean rejectedReplay = false;
+            try {
+                HistoricalPresentationBackupStore.load(backups, ownerUuid, backupId);
+            } catch (java.io.IOException expected) {
+                rejectedReplay = true;
+            }
+            require(rejectedReplay, "consumed native backup cannot authorize a repeat rollback");
+        }
         var historical = mutableRecipeStack(english);
         historical.setAmount(7);
         var meta = historical.getItemMeta();
