@@ -17,6 +17,7 @@ public final class HistoricalPresentationTransaction {
     private final ItemStack proposed;
     private final String confirmation;
     private boolean consumed;
+    private boolean rolledBack;
 
     private HistoricalPresentationTransaction(ItemStack original, ItemStack candidate) {
         this.backup = original.clone();
@@ -52,15 +53,15 @@ public final class HistoricalPresentationTransaction {
      * The caller must persist the backup BEFORE using this returned clone.
      */
     public synchronized ItemStack confirm(String token, ItemStack live) {
-        if (consumed || !Objects.equals(confirmation, token) || !backup.equals(live)) return null;
+        if (consumed || rolledBack || !Objects.equals(confirmation, token) || !backup.equals(live)) return null;
         consumed = true;
         return proposed.clone();
     }
 
     /** Restore only when the live item is EXACTLY the result of this repair. */
     public synchronized ItemStack rollback(ItemStack live) {
-        if (!consumed || !proposed.equals(live)) return null;
-        consumed = false;
+        if (!consumed || rolledBack || !proposed.equals(live)) return null;
+        rolledBack = true;
         return backup.clone();
     }
 }
