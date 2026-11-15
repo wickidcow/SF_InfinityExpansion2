@@ -3,6 +3,8 @@ package net.guizhanss.infinityexpansion2.core.commands.subcommands
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem
 import io.github.thebusybiscuit.slimefun4.implementation.Slimefun
 import java.io.IOException
+import java.io.InputStreamReader
+import java.nio.charset.StandardCharsets
 import java.util.Locale
 import java.util.UUID
 import java.util.logging.Level
@@ -12,6 +14,7 @@ import net.guizhanss.infinityexpansion2.implementation.items.storage.HistoricalP
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
+import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
@@ -103,8 +106,11 @@ internal object HistoricalPresentationDoctor {
         val oldName = meta.displayName()
         val newName = registeredMeta.displayName()
         if (oldName == null || newName == null
-                || !containsHan(oldName) || containsHan(newName) || isRich(oldName)) {
-            send(player, "No safely identifiable Chinese-to-English name-only change found.",
+                || !containsHan(oldName) || containsHan(newName) || isRich(oldName)
+                || !matchesBundledTranslation(oldName, "lang/zh-CN.yml", id)
+                || !matchesBundledTranslation(newName, "lang/en.yml", id)) {
+            send(player, "Name differs from the exact registered, bundled Chinese/English translations. " +
+                "Custom owner names and unsupported historical locales are never rewritten.",
                 NamedTextColor.YELLOW)
             return
         }
@@ -242,6 +248,23 @@ internal object HistoricalPresentationDoctor {
         1 -> listOf("preview", "confirm", "rollback")
             .filter { it.startsWith(args[0].lowercase(Locale.ENGLISH)) }
         else -> emptyList()
+    }
+
+    /**
+     * Known historical locale is a positive allowlist, never a guessed
+     * translation of a player's custom or dynamically generated item name.
+     * Fallback and unknown IDs reject rather than silently rewriting text.
+     */
+    private fun matchesBundledTranslation(name: Component, resource: String, id: String): Boolean {
+        val key = "items.${id.removePrefix("IE_")}.name"
+        val input = InfinityExpansion2.instance.getResource(resource) ?: return false
+        val raw = input.use { stream ->
+            YamlConfiguration.loadConfiguration(
+                InputStreamReader(stream, StandardCharsets.UTF_8)
+            ).getString(key)
+        } ?: return false
+        val expected = raw.replace(Regex("(?i)[&§][0-9a-fk-orx]"), "")
+        return PlainTextComponentSerializer.plainText().serialize(name) == expected
     }
 
     private fun containsHan(c: Component): Boolean =
