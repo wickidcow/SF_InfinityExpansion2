@@ -36,7 +36,13 @@ migration:
   # current after Minecraft/Slimefun display changes.
   refresh-modern-items-on-join: true
 
-# Disabled by default: explicit, backed-up, main-hand-only English name repair for\n# historical IE2 items. Does not change dynamic lore or world storage.\n# After upgrading, set true only for supervised administrator repairs.\ndoctor:\n  historical-presentation-repair: false\n\n# Debug options
+# Disabled by default: explicit, backed-up, main-hand-only English name repair for
+# historical IE2 items. Does not change dynamic lore or world storage.
+# After upgrading, set true only for supervised administrator repairs.
+doctor:
+  historical-presentation-repair: false
+
+# Debug options
 debug:
   # Whether to enable debug logs
   enabled: false
