@@ -92,7 +92,8 @@ class HistoricalPresentationBackupStoreTest {
 
     @Test void rejectsMismatchedAmountsAndUnavailableOwnerDirectories() throws Exception {
         UUID owner = UUID.randomUUID();
-        var old = historical(), next = english(old);
+        ItemStack old = historical();
+        ItemStack next = english(old);
         next.setAmount(6);
         assertThrows(IOException.class, () ->
                 HistoricalPresentationBackupStore.save(root.resolve("backups"), owner, old, next));
