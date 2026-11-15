@@ -31,6 +31,14 @@ public final class HistoricalPresentationPreview {
         ItemMeta proposedMeta = proposed.getItemMeta();
         if (englishMeta == null || proposedMeta == null) return null;
 
+        // A truncated or missing lore template is not proof of translation.
+        // Reject it rather than silently discarding historical custom lines.
+        if (englishMeta.displayName() == null) return null;
+        var oldLore = proposedMeta.lore();
+        var englishLore = englishMeta.lore();
+        if (oldLore == null ? englishLore != null
+                : englishLore == null || oldLore.size() != englishLore.size()) return null;
+
         // Only presentation fields may be copied; preserve the original typed PDC,
         // ownership, custom model data, storage payload, enchantments and quantity.
         proposedMeta.displayName(englishMeta.displayName());
