@@ -102,7 +102,7 @@ class HistoricalChineseStoragePresentationTest {
 
     @Test void previewChangesOnlyEnglishPresentationAndLeavesOriginalUntouched() {
         ItemStack historical = storage("存储单元 II", "已存储：34560000");
-        ItemStack english = storage("Storage Unit II", "Stored: 34560000");
+        ItemStack english = storage("Storage Unit II", "已存储：34560000");
         ItemStack snapshot = historical.clone();
 
         ItemStack candidate = HistoricalPresentationPreview.candidate(
@@ -121,6 +121,16 @@ class HistoricalChineseStoragePresentationTest {
                 candidate.getItemMeta().getPersistentDataContainer().getKeys());
     }
 
+    @Test void sameLengthTranslatedLoreStillCannotBeDiscarded() {
+        ItemStack historical = storage("存储单元 II", "已存储：34560000");
+        ItemStack english = storage("Storage Unit II", "Stored: 34560000");
+        ItemStack before = historical.clone();
+        assertNull(HistoricalPresentationPreview.candidate(
+                historical, english, "IE_STORAGE_UNIT_2", "IE_STORAGE_UNIT_2"),
+                "Same-length Chinese or dynamic lore cannot be blindly replaced");
+        assertEquals(before, historical);
+    }
+
     @Test void previewRejectsIdentityMismatchWithoutMutatingHistoricalItem() {
         ItemStack historical = storage("存储单元 II", "已存储：34560000");
         ItemStack english = storage("Storage Unit II", "Stored: 34560000");
@@ -135,7 +145,7 @@ class HistoricalChineseStoragePresentationTest {
 
     @Test void transactionRequiresExactConfirmationAndUnchangedLiveLedger() {
         ItemStack original = storage("存储单元 II", "已存储：34560000");
-        ItemStack english = storage("Storage Unit II", "Stored: 34560000");
+        ItemStack english = storage("Storage Unit II", "已存储：34560000");
         HistoricalPresentationTransaction transaction = HistoricalPresentationTransaction.preview(
                 original, english, "IE_STORAGE_UNIT_2", "IE_STORAGE_UNIT_2");
         assertNotNull(transaction);
@@ -196,7 +206,7 @@ class HistoricalChineseStoragePresentationTest {
     @Test void transactionBackupAndPreviewAreDetachedFromCallers() {
         ItemStack original = storage("存储单元 II", "已存储：34560000");
         HistoricalPresentationTransaction transaction = HistoricalPresentationTransaction.preview(
-                original, storage("Storage Unit II", "Stored: 34560000"),
+                original, storage("Storage Unit II", "已存储：34560000"),
                 "IE_STORAGE_UNIT_2", "IE_STORAGE_UNIT_2");
         assertNotNull(transaction);
         transaction.backup().setAmount(1);
