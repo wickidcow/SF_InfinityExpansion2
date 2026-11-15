@@ -74,4 +74,30 @@ class HistoricalChineseStoragePresentationTest {
         assertTrue(StorageItemPresentation.equivalentPresentation(
                 wrapped, original, "IE_STORAGE_UNIT_2", "IE_STORAGE_UNIT_2"));
     }
+    @Test void identicalVisibleEnglishCannotOverrideHistoricalOwner() {
+        ItemStack original = storage("Storage Unit II", "Stored: 34560000");
+        ItemStack differentOwner = original.clone();
+        differentOwner.editMeta(meta -> meta.getPersistentDataContainer()
+                .set(OWNER, PersistentDataType.STRING, "different-owner"));
+
+        assertFalse(StorageItemPresentation.equivalentPresentation(
+                original, differentOwner, "IE_STORAGE_UNIT_2", "IE_STORAGE_UNIT_2"));
+        assertEquals(original.getItemMeta().getPersistentDataContainer()
+                .get(OWNER, PersistentDataType.STRING), "private-owner");
+    }
+
+    @Test void dynamicLoreAndDifferentSlimefunIdRemainIneligible() {
+        ItemStack historical = storage("存储单元 II", "已存储：34560000");
+        ItemStack english = storage("Storage Unit II", "Stored: 34560000");
+        english.editMeta(meta -> meta.lore(List.of(
+                Component.text("Stored: 34560000"), Component.text("Capacity: 34560000"))));
+
+        assertFalse(StorageItemPresentation.equivalentPresentation(
+                historical, english, "IE_STORAGE_UNIT_2", "IE_STORAGE_UNIT_2"));
+        assertFalse(StorageItemPresentation.equivalentPresentation(
+                historical, english, "IE_STORAGE_UNIT_2", "IE_STORAGE_UNIT_3"));
+        assertFalse(StorageItemPresentation.equivalentPresentation(
+                historical, english, null, "IE_STORAGE_UNIT_2"));
+    }
+
 }
