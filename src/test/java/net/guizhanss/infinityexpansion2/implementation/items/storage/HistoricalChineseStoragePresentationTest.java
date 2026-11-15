@@ -160,6 +160,37 @@ class HistoricalChineseStoragePresentationTest {
                 original.getItemMeta().displayName()).content());
     }
 
+    @Test void incompleteEnglishLoreCannotDiscardUnknownHistoricalNotes() {
+        ItemStack historical = storage("存储单元 II", "已存储：34560000");
+        historical.editMeta(meta -> meta.lore(List.of(
+                Component.text("已存储：34560000"), Component.text("Owner custom notes: keep me"))));
+        ItemStack english = storage("Storage Unit II", "Stored: 34560000");
+        ItemStack snapshot = historical.clone();
+
+        assertNull(HistoricalPresentationPreview.candidate(
+                historical, english, "IE_STORAGE_UNIT_2", "IE_STORAGE_UNIT_2"),
+                "A shorter English template must not delete historical custom lore lines");
+        assertEquals(snapshot, historical);
+    }
+
+    @Test void missingEnglishNameOrLoreIsNotAnAuthorizedRepairTemplate() {
+        ItemStack historical = storage("存储单元 II", "已存储：34560000");
+        ItemStack english = storage("Storage Unit II", "Stored: 34560000");
+        ItemStack snapshot = historical.clone();
+
+        english.editMeta(meta -> meta.displayName(null));
+        assertNull(HistoricalPresentationPreview.candidate(
+                historical, english, "IE_STORAGE_UNIT_2", "IE_STORAGE_UNIT_2"));
+
+        english.editMeta(meta -> {
+            meta.displayName(Component.text("Storage Unit II"));
+            meta.lore(null);
+        });
+        assertNull(HistoricalPresentationPreview.candidate(
+                historical, english, "IE_STORAGE_UNIT_2", "IE_STORAGE_UNIT_2"));
+        assertEquals(snapshot, historical);
+    }
+
     @Test void transactionBackupAndPreviewAreDetachedFromCallers() {
         ItemStack original = storage("存储单元 II", "已存储：34560000");
         HistoricalPresentationTransaction transaction = HistoricalPresentationTransaction.preview(
