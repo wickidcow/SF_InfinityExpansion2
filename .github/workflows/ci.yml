@@ -205,6 +205,8 @@ jobs:
         include:
           - paper: '1.21.11'
             java: '21'
+          - paper: '26.2'
+            java: '25'
           - paper: '26.3'
             java: '25'
     steps:
