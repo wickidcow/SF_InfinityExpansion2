@@ -195,7 +195,7 @@ internal object HistoricalPresentationDoctor {
 
     private fun rollback(player: Player, argument: String?) {
         val id = try {
-            UUID.fromString(argument)
+            UUID.fromString(argument ?: "")
         } catch (_: Exception) {
             send(player, "Usage: /ie2 doctor presentation rollback BACKUP_UUID",
                 NamedTextColor.YELLOW)
