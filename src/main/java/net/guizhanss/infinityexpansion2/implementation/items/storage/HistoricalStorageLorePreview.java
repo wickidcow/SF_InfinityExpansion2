@@ -15,6 +15,7 @@ import net.guizhanss.infinityexpansion2.core.persistent.PersistentStorageCacheTy
 import net.guizhanss.infinityexpansion2.utils.constant.Strings;
 import net.guizhanss.infinityexpansion2.utils.items.ModernText;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -44,8 +45,11 @@ final class HistoricalStorageLorePreview {
             ItemMeta originalMeta = historical.getItemMeta();
             ItemMeta templateMeta = englishTemplate.getItemMeta();
             if (originalMeta == null || templateMeta == null
-                    || templateMeta.displayName() == null
-                    || templateMeta.lore() != null && !templateMeta.lore().isEmpty()) return null;
+                    || templateMeta.displayName() == null || originalMeta.displayName() == null
+                    || templateMeta.lore() != null && !templateMeta.lore().isEmpty()
+                    || hasRichDisplay(originalMeta.displayName())
+                    || !bundledNameMatches(originalMeta.displayName(), "zh-CN", historicalId)
+                    || !bundledNameMatches(templateMeta.displayName(), "en", historicalId)) return null;
 
             var dataService = Slimefun.getItemDataService();
             if (!historicalId.equals(dataService.getItemData(originalMeta).orElse(null))
@@ -86,6 +90,28 @@ final class HistoricalStorageLorePreview {
             // Corrupt storage data, unavailable Slimefun service, invalid locale
             // or unrelated addon versions must never authorize an item rewrite.
             return null;
+        }
+    }
+
+    private static boolean hasRichDisplay(Component value) {
+        return value.hoverEvent() != null || value.clickEvent() != null
+            || value.insertion() != null
+            || value.children().stream().anyMatch(HistoricalStorageLorePreview::hasRichDisplay);
+    }
+
+    private static boolean bundledNameMatches(Component display, String lang, String id) {
+        if (display == null) return false;
+        var plugin = InfinityExpansion2.Companion.getInstance();
+        try (var stream = plugin.getResource("lang/" + lang + ".yml")) {
+            if (stream == null) return false;
+            var yaml = YamlConfiguration.loadConfiguration(
+                new InputStreamReader(stream, StandardCharsets.UTF_8));
+            var raw = yaml.getString("items." + id.substring("IE_".length()) + ".name");
+            if (raw == null) return false;
+            var expected = raw.replaceAll("(?i)[&§][0-9a-fk-orx]", "");
+            return expected.equals(PlainTextComponentSerializer.plainText().serialize(display));
+        } catch (Exception missingOrInvalidLocale) {
+            return false;
         }
     }
 
