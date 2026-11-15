@@ -22,6 +22,7 @@ import net.guizhanss.infinityexpansion2.core.persistent.PersistentStorageCacheTy
 import net.guizhanss.infinityexpansion2.core.recipes.MachineRecipe;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageCache;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageItemPresentation;
+import net.guizhanss.infinityexpansion2.implementation.items.storage.HistoricalPresentationPreview;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageForge;
 import net.guizhanss.infinityexpansion2.implementation.items.machines.GeoQuarry;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageUnit;
@@ -176,6 +177,7 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             require("keep insertion".equals(actual.getItemMeta().lore().getFirst().insertion()),"restart preserves insertion");
         }
         checkNativeCosmeticPresentation();
+        checkNativeHistoricalChineseStorageSafety();
         checkNativeGeoQuarryRegisteredTemplateParity();
         checkNativeForgeLedger(menu);
         checkRegisteredForgeClick();
@@ -249,6 +251,58 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
         require(!StorageItemPresentation.matchesRegistered(owned,canonical),
             "native owner PDC difference must never be normalized");
         results.add("PASS "+phase+": native registered Slimefun ID, Adventure and PDC cosmetic safety");
+    }
+
+    /**
+     * Real Paper metadata/Slimefun registry boundary for issue #73.
+     * A registered storage unit has no authority to delete historical
+     * dynamically appended lore; reject a shorter English template.
+     * This probe never modifies a player item or a storage ledger.
+     */
+    private void checkNativeHistoricalChineseStorageSafety() throws Exception {
+        var registered = SlimefunItem.getById("IE_STORAGE_UNIT_2");
+        require(registered instanceof StorageUnit, "registered IE2 Storage Unit II exists");
+        var english = mutableRecipeStack(registered.getItem());
+        var historical = mutableRecipeStack(english);
+        historical.setAmount(7);
+        var meta = historical.getItemMeta();
+        require(meta != null && meta.displayName() != null,
+            "registered storage template has display name");
+        var historicalLore = meta.lore() == null
+            ? new ArrayList<Component>() : new ArrayList<Component>(meta.lore());
+        historicalLore.add(Component.text("已存储：34560000"));
+        historicalLore.add(Component.text("Owner custom notes: keep me"));
+        meta.displayName(Component.text("存储单元 II"));
+        meta.lore(historicalLore);
+        meta.getPersistentDataContainer().set(OWNER, PersistentDataType.LONG, 9_000_000_001L);
+        require(historical.setItemMeta(meta), "native historical translated metadata accepted");
+        var originalBytes = historical.serializeAsBytes();
+        var id = Slimefun.getItemDataService().getItemData(historical.getItemMeta()).orElse(null);
+        require("IE_STORAGE_UNIT_2".equals(id), "native registered storage ID retained in PDC");
+        require(HistoricalPresentationPreview.candidate(historical, english, id, registered.getId()) == null,
+            "shorter registered English template must not delete historical storage/custom lore");
+        require(java.util.Arrays.equals(originalBytes, historical.serializeAsBytes()),
+            "read-only native preview may not mutate original storage bytes");
+        require(historical.getAmount() == 7, "historical item quantity must remain seven");
+        require(Long.valueOf(9_000_000_001L).equals(historical.getItemMeta()
+            .getPersistentDataContainer().get(OWNER, PersistentDataType.LONG)),
+            "native translated item retains the exact typed owner field");
+        var snapshot = getDataFolder().toPath().resolve("historical-cjk-storage.bin");
+        if (phase.equals("seed")) {
+            Files.write(snapshot, originalBytes);
+        } else {
+            require(Files.isRegularFile(snapshot), "historical CJK storage item exists after restart");
+            var previous = ItemStack.deserializeBytes(Files.readAllBytes(snapshot));
+            require(previous != null && previous.equals(historical),
+                "native historic CJK storage item and unknown lore survive clean restart");
+            require(previous.getAmount() == 7, "historical CJK item amount survives restart");
+            require(Long.valueOf(9_000_000_001L).equals(previous.getItemMeta()
+                .getPersistentDataContainer().get(OWNER, PersistentDataType.LONG)),
+                "historical CJK typed PDC survives restart");
+        }
+        results.add("PASS " + phase
+            + ": native IE2 Chinese storage lore remains untouched by shorter English template"
+            + " and survives restart");
     }
 
     /**
