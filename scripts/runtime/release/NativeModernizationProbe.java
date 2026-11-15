@@ -32,7 +32,6 @@ import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageUnit
 import net.guizhanss.infinityexpansion2.implementation.items.tools.Oscillator;
 import net.guizhanss.infinityexpansion2.utils.events.BowDamageEvents;
 import net.guizhanss.infinityexpansion2.utils.items.ModernText;
-import net.guizhanss.guizhanlib.minecraft.utils.ChatUtil;
 import net.guizhanss.infinityexpansion2.utils.storage.StoredBlockLookup;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -352,9 +351,9 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
         String storedName = ItemUtils.getItemName(physical);
         var generatedChinese = List.of(
             ModernText.loreLine(""),
-            ModernText.loreLine(ChatUtil.color("&a存储的物品：&7" + storedName)),
-            ModernText.loreLine(ChatUtil.color("&b数量：&7" + "731 / " + capacity)),
-            ModernText.loreLine(ChatUtil.color("&e存满清空输入：&7" + "\u00a7a✔"))
+            ModernText.loreLine(org.bukkit.ChatColor.translateAlternateColorCodes('&', "&a存储的物品：&7" + storedName)),
+            ModernText.loreLine(org.bukkit.ChatColor.translateAlternateColorCodes('&', "&b数量：&7" + "731 / " + capacity)),
+            ModernText.loreLine(org.bukkit.ChatColor.translateAlternateColorCodes('&', "&e存满清空输入：&7" + "\u00a7a✔"))
         );
         filledMeta.displayName(Component.text("存储单元(2)"));
         filledMeta.lore(generatedChinese);
