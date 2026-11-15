@@ -4,6 +4,7 @@ import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem;
 import io.github.thebusybiscuit.slimefun4.api.geo.GEOResource;
 import io.github.thebusybiscuit.slimefun4.implementation.Slimefun;
 import io.github.thebusybiscuit.slimefun4.libraries.dough.data.persistent.PersistentDataAPI;
+import io.github.thebusybiscuit.slimefun4.libraries.dough.items.ItemUtils;
 import io.papermc.paper.registry.RegistryAccess;
 import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.registry.RegistryKey;
@@ -31,6 +32,7 @@ import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageUnit
 import net.guizhanss.infinityexpansion2.implementation.items.tools.Oscillator;
 import net.guizhanss.infinityexpansion2.utils.events.BowDamageEvents;
 import net.guizhanss.infinityexpansion2.utils.items.ModernText;
+import net.guizhanss.guizhanlib.minecraft.utils.ChatUtil;
 import net.guizhanss.infinityexpansion2.utils.storage.StoredBlockLookup;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.HoverEvent;
@@ -336,6 +338,59 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             }
             require(rejectedReplay, "consumed native backup cannot authorize a repeat rollback");
         }
+        // Real, filled, serialized IE2 storage ledger. A matching historical
+        // zh-CN-generated suffix may be translated; arbitrary extra/changed
+        // lines or a different authoritative amount may never be translated.
+        var filled = mutableRecipeStack(english);
+        var filledMeta = filled.getItemMeta();
+        var physical = new ItemStack(Material.DIAMOND, 1);
+        int capacity = ((StorageUnit) registered).getCapacity();
+        var filledLedger = new StorageCache(physical, 731, capacity, true);
+        PersistentDataAPI.set(filledMeta, StorageUnit.Companion.getSTORAGE_KEY(),
+            PersistentStorageCacheType.getTYPE(), filledLedger);
+        String storedName = ItemUtils.getItemName(physical);
+        var generatedChinese = List.of(
+            ModernText.loreLine(""),
+            ModernText.loreLine(ChatUtil.color("&a存储的物品：&7" + storedName)),
+            ModernText.loreLine(ChatUtil.color("&b数量：&7" + "731 / " + capacity)),
+            ModernText.loreLine(ChatUtil.color("&e存满清空输入：&7" + "\u00a7a✔"))
+        );
+        filledMeta.displayName(Component.text("存储单元(2)"));
+        filledMeta.lore(generatedChinese);
+        require(filled.setItemMeta(filledMeta), "native filled historical storage accepts PDC");
+        var filledBefore = filled.serializeAsBytes();
+        var filledPreview = HistoricalPresentationTransaction.preview(
+            filled, english, "IE_STORAGE_UNIT_2", registered.getId());
+        require(filledPreview != null,
+            "native typed storage shell matches exact recognized historical Chinese suffix");
+        var converted = filledPreview.proposed();
+        require(converted.getItemMeta().lore().size() == 4
+                && converted.getItemMeta().lore().get(1).toString().contains("Stored item")
+                && converted.getItemMeta().lore().get(2).toString().contains("Amount")
+                && converted.getItemMeta().lore().get(3).toString().contains("Void Excess"),
+            "native filled storage translates only the three registered English labels");
+        require(PersistentDataAPI.get(converted.getItemMeta(),
+            StorageUnit.Companion.getSTORAGE_KEY(), PersistentStorageCacheType.getTYPE())
+            .getAmount() == 731, "converted filled storage retains authoritative ledger");
+        require(java.util.Arrays.equals(filledBefore, filled.serializeAsBytes()),
+            "native translated filled storage preview must leave source byte-exact");
+
+        var customLore = filled.clone();
+        customLore.editMeta(m -> {
+            var lines = new ArrayList<Component>(m.lore());
+            lines.add(Component.text("Custom owner line: preserve"));
+            m.lore(lines);
+        });
+        require(HistoricalPresentationTransaction.preview(customLore, english,
+            "IE_STORAGE_UNIT_2", registered.getId()) == null,
+            "owner-added storage lore line must block automatic translation");
+        var changedLedger = filled.clone();
+        changedLedger.editMeta(m -> PersistentDataAPI.set(m,
+            StorageUnit.Companion.getSTORAGE_KEY(), PersistentStorageCacheType.getTYPE(),
+            new StorageCache(physical, 732, capacity, true)));
+        require(HistoricalPresentationTransaction.preview(changedLedger, english,
+            "IE_STORAGE_UNIT_2", registered.getId()) == null,
+            "historical displayed count different from authoritative typed ledger must block translation");
         var historical = mutableRecipeStack(english);
         historical.setAmount(7);
         var meta = historical.getItemMeta();
