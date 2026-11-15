@@ -100,4 +100,37 @@ class HistoricalChineseStoragePresentationTest {
                 historical, english, null, "IE_STORAGE_UNIT_2"));
     }
 
+    @Test void previewChangesOnlyEnglishPresentationAndLeavesOriginalUntouched() {
+        ItemStack historical = storage("存储单元 II", "已存储：34560000");
+        ItemStack english = storage("Storage Unit II", "Stored: 34560000");
+        ItemStack snapshot = historical.clone();
+
+        ItemStack candidate = HistoricalPresentationPreview.candidate(
+                historical, english, "IE_STORAGE_UNIT_2", "IE_STORAGE_UNIT_2");
+
+        assertNotNull(candidate);
+        assertEquals(snapshot, historical);
+        assertEquals(7, candidate.getAmount());
+        assertEquals(english.getItemMeta().displayName(), candidate.getItemMeta().displayName());
+        assertEquals(english.getItemMeta().lore(), candidate.getItemMeta().lore());
+        assertEquals(34560000L, candidate.getItemMeta().getPersistentDataContainer()
+                .get(STORAGE, PersistentDataType.LONG));
+        assertEquals("private-owner", candidate.getItemMeta().getPersistentDataContainer()
+                .get(OWNER, PersistentDataType.STRING));
+        assertEquals(snapshot.getItemMeta().getPersistentDataContainer().getKeys(),
+                candidate.getItemMeta().getPersistentDataContainer().getKeys());
+    }
+
+    @Test void previewRejectsIdentityMismatchWithoutMutatingHistoricalItem() {
+        ItemStack historical = storage("存储单元 II", "已存储：34560000");
+        ItemStack english = storage("Storage Unit II", "Stored: 34560000");
+        ItemStack snapshot = historical.clone();
+
+        assertNull(HistoricalPresentationPreview.candidate(
+                historical, english, "IE_STORAGE_UNIT_2", "IE_STORAGE_UNIT_3"));
+        assertNull(HistoricalPresentationPreview.candidate(
+                historical, english, null, "IE_STORAGE_UNIT_2"));
+        assertEquals(snapshot, historical);
+    }
+
 }
