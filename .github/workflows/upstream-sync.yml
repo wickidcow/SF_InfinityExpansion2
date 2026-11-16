@@ -46,10 +46,21 @@ jobs:
           fi
 
           if ! git merge --no-edit upstream/master; then
+            # Keep the failed merge read-only and retain exact source/conflict
+            # evidence before aborting. Never choose upstream or fork versions
+            # automatically for Legacy migration, storage or MobSim files.
+            mkdir -p .ci/upstream-sync
+            {
+              printf 'fork_master=%s\n' "$(git rev-parse origin/master)"
+              printf 'upstream_master=%s\n' "$(git rev-parse upstream/master)"
+              printf 'review_branch=%s\n' "$BRANCH"
+              printf 'result=merge_conflict\n'
+            } > .ci/upstream-sync/source-shas.txt
+            git diff --name-only --diff-filter=U | LC_ALL=C sort > .ci/upstream-sync/conflicted-paths.txt
+            git ls-files -u > .ci/upstream-sync/unmerged-index.txt
             # Keep the sync red and actionable even when the installation token
             # cannot create GitHub issues (observed 2026-10-26).
-            # Never automatically resolve Legacy migration/MobSim conflicts.
-            echo "::error title=InfinityExpansion2 upstream sync conflict::Automatic upstream merge failed. Review the conflicting paths in this job's git merge output; preserve Legacy migration guards, Paper compatibility and MobSim behavior."
+            echo "::error title=InfinityExpansion2 upstream sync conflict::Automatic upstream merge failed. Download the conflict-evidence artifact and review each conflicting path; preserve Legacy migration guards, Paper compatibility and MobSim behavior."
             git merge --abort || true
             exit 1
           fi
@@ -57,6 +68,15 @@ jobs:
           git push --force-with-lease origin "$BRANCH"
           echo "changed=true" >> "$GITHUB_OUTPUT"
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Retain failed upstream merge conflict evidence
+        if: ${{ failure() && steps.merge.outcome == 'failure' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ie2-upstream-merge-conflict-evidence
+          path: .ci/upstream-sync/
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Open or reuse upstream review PR
         if: steps.merge.outputs.changed == 'true'

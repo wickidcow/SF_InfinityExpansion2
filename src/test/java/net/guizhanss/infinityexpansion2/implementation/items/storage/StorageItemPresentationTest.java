@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.util.List;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import io.github.thebusybiscuit.slimefun4.utils.itemstack.ItemStackWrapper;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
@@ -45,6 +46,19 @@ class StorageItemPresentationTest {
         assertEquals(before, legacy, "Presentation matching must never mutate actual stored items");
     }
 
+
+    @Test void cargoItemStackWrappersAreComparedWithoutCloningOrMutation() {
+        ItemStack legacy = item(true, "owner-a");
+        ItemStack wrapped = ItemStackWrapper.forceWrap(item(false, "owner-a"));
+        assertTrue(StorageItemPresentation.equivalentPresentation(legacy, wrapped, "IE_ALUMINUM_SINGULARITY",
+                "IE_ALUMINUM_SINGULARITY"));
+        assertTrue(StorageItemPresentation.equivalentPresentation(wrapped, legacy, "IE_ALUMINUM_SINGULARITY",
+                "IE_ALUMINUM_SINGULARITY"));
+        assertNotNull(wrapped.getItemMeta().displayName(), "The wrapper's cached meta must not be stripped");
+        assertFalse(StorageItemPresentation.equivalentPresentation(legacy,
+                ItemStackWrapper.forceWrap(item(false, "owner-b")), "IE_ALUMINUM_SINGULARITY",
+                "IE_ALUMINUM_SINGULARITY"));
+    }
 
     @Test void meaningfulAdventureStylesAndEventsAreNeverCollapsed() {
         Component base = Component.text("Same text", NamedTextColor.GRAY);
