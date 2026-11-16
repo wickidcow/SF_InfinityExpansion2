@@ -138,7 +138,11 @@ public final class HistoricalPresentationBackupStore {
             var original = ItemStack.deserializeBytes(oldBytes);
             var proposed = ItemStack.deserializeBytes(newBytes);
             if (original == null || proposed == null
-                    || original.getAmount() != proposed.getAmount()) {
+                    || original.getAmount() != proposed.getAmount()
+                    || !HistoricalPresentationPreview.sameNonPresentation(original, proposed)) {
+                // The digest detects corruption, but must not be treated as
+                // permission to restore a record with changed typed PDC or
+                // any non-presentation components (including an old record).
                 throw new IOException("Serialized backup item metadata is not safe");
             }
             return new Backup(original, proposed);
