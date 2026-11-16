@@ -2,7 +2,10 @@ package net.guizhanss.infinityexpansion2.implementation.items.storage;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.security.MessageDigest;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
@@ -76,6 +79,45 @@ class HistoricalPresentationBackupStoreTest {
         assertThrows(IOException.class, () -> HistoricalPresentationBackupStore.load(directory, owner, id));
         assertThrows(IOException.class, () -> HistoricalPresentationBackupStore.load(
                 directory, owner, UUID.randomUUID()));
+    }
+
+    @Test void checksumValidButChangedTypedLedgerRecordCannotBeLoaded() throws Exception {
+        UUID owner = UUID.randomUUID();
+        ItemStack old = historical();
+        ItemStack changed = english(old);
+        changed.editMeta(meta ->
+                meta.getPersistentDataContainer().set(BALANCE, PersistentDataType.LONG, 34_560_010L));
+        Path directory = root.resolve("backups");
+        UUID id = HistoricalPresentationBackupStore.save(
+                directory, owner, old, english(old));
+        Path file = directory.resolve(owner.toString()).resolve(id + ".bin");
+
+        // Model an old or untrusted backup that has a *matching* public digest.
+        // A SHA-256 checksum is not a substitute for validating the typed item
+        // identity and non-presentation components on every rollback read.
+        byte[] oldBytes = old.serializeAsBytes();
+        byte[] changedBytes = changed.serializeAsBytes();
+        MessageDigest sha = MessageDigest.getInstance("SHA-256");
+        sha.update(oldBytes);
+        sha.update(changedBytes);
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (DataOutputStream out = new DataOutputStream(bytes)) {
+            out.writeInt(0x49453250);
+            out.writeInt(1);
+            out.writeLong(owner.getMostSignificantBits());
+            out.writeLong(owner.getLeastSignificantBits());
+            out.writeLong(id.getMostSignificantBits());
+            out.writeLong(id.getLeastSignificantBits());
+            out.writeInt(oldBytes.length);
+            out.write(oldBytes);
+            out.writeInt(changedBytes.length);
+            out.write(changedBytes);
+            out.write(sha.digest());
+        }
+        Files.write(file, bytes.toByteArray());
+        assertThrows(IOException.class, () ->
+                HistoricalPresentationBackupStore.load(directory, owner, id),
+                "Even checksum-valid records must not authorize changed storage ledger data");
     }
 
     @Test void rollbackRetainsButRetiresBackupToPreventReplay() throws Exception {
