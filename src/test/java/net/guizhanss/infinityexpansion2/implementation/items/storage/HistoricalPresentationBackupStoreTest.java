@@ -90,6 +90,33 @@ class HistoricalPresentationBackupStoreTest {
                 HistoricalPresentationBackupStore.markRolledBack(directory, owner, id));
     }
 
+    @Test void backupCannotAuthorizeModifiedOwnerOrTypedLedgerDespiteMatchingQuantity() throws Exception {
+        UUID owner = UUID.randomUUID();
+        Path dir = root.resolve("backups");
+        ItemStack original = historical();
+
+        ItemStack changedLedger = english(original);
+        changedLedger.editMeta(meta ->
+                meta.getPersistentDataContainer().set(BALANCE, PersistentDataType.LONG, 34_560_001L));
+        assertThrows(IOException.class, () ->
+                HistoricalPresentationBackupStore.save(dir, owner, original, changedLedger));
+
+        ItemStack changedOwner = english(original);
+        changedOwner.editMeta(meta ->
+                meta.getPersistentDataContainer().set(OWNER_KEY, PersistentDataType.STRING, "different-owner"));
+        assertThrows(IOException.class, () ->
+                HistoricalPresentationBackupStore.save(dir, owner, original, changedOwner));
+
+        ItemStack changedType = english(original);
+        changedType.setType(Material.CHEST);
+        assertThrows(IOException.class, () ->
+                HistoricalPresentationBackupStore.save(dir, owner, original, changedType));
+
+        // All attempts were rejected before writing any owner-scoped record.
+        Path ownerDir = dir.resolve(owner.toString());
+        assertFalse(Files.exists(ownerDir), "A refused repair must not create backup records");
+    }
+
     @Test void rejectsMismatchedAmountsAndUnavailableOwnerDirectories() throws Exception {
         UUID owner = UUID.randomUUID();
         ItemStack old = historical();
