@@ -230,6 +230,20 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
         require(original.setItemMeta(metadata),"native wrapped component metadata accepted");
         require(StorageItemPresentation.matchesRegistered(original,canonical),
             "native Slimefun ID and semantically equal Adventure wrappers can match");
+        // Cargo hands this method an immutable ItemStackWrapper. Verify the real
+        // Paper implementation, not just MockBukkit, without ever cloning or
+        // mutating the wrapper's cached ItemMeta or the old saved item.
+        var cargoWrapped=io.github.thebusybiscuit.slimefun4.utils.itemstack.ItemStackWrapper.forceWrap(canonical);
+        var cargoMetaBefore=cargoWrapped.getItemMeta().clone();
+        var historicalMetaBefore=original.getItemMeta().clone();
+        require(StorageItemPresentation.matchesRegistered(original,cargoWrapped),
+            "native Cargo wrapper accepts identical Slimefun ID with cosmetic-only old text");
+        require(StorageItemPresentation.matchesRegistered(cargoWrapped,original),
+            "native Cargo wrapper may appear on either side of presentation comparison");
+        require(cargoWrapped.getItemMeta().equals(cargoMetaBefore),
+            "native Cargo wrapper cached ItemMeta remains unchanged");
+        require(original.getItemMeta().equals(historicalMetaBefore),
+            "native historical item metadata remains unchanged after comparison");
         var repaired=StorageItemPresentation.canonicalIfCosmetic(original);
         if(original.isSimilar(canonical)) {
             require(repaired==null,"identical templates should avoid a needless write");
