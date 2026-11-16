@@ -45,6 +45,13 @@ public final class HistoricalPresentationBackupStore {
         if (original.getAmount() != proposed.getAmount()) {
             throw new IOException("Backup quantities differ");
         }
+        // Defense in depth: never persist an authorization record for an item
+        // whose typed ledger, owner PDC, model or any non-presentation component
+        // changed. The preview already checks this, but backup is the final
+        // pre-write boundary and must enforce it independently.
+        if (!HistoricalPresentationPreview.sameNonPresentation(original, proposed)) {
+            throw new IOException("Backup item differs outside presentation");
+        }
         var originalBytes = original.serializeAsBytes();
         var proposedBytes = proposed.serializeAsBytes();
         if (originalBytes.length == 0 || proposedBytes.length == 0
