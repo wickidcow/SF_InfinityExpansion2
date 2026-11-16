@@ -35,7 +35,11 @@ public final class StorageItemPresentation {
     /**
      * Tests the exact PDC-confirmed identity supplied by the caller, then checks
      * every other ItemStack component by neutralizing only display name and lore
-     * on independent clones. Text and lore line count must be exactly equal.
+     * on independent copies. Text and lore line count must be exactly equal.
+     *
+     * <p>Inputs may be Slimefun {@code ItemStackWrapper}s (cargo passes them), which
+     * reject {@code clone()} and share one cached {@link ItemMeta}. Copy the metas
+     * onto fresh stacks instead of cloning the inputs.
      */
     public static boolean equivalentPresentation(ItemStack oldItem, ItemStack newItem, String oldId, String newId) {
         if (oldItem == null || newItem == null || oldItem.getType() != newItem.getType()
@@ -46,10 +50,10 @@ public final class StorageItemPresentation {
         if (!sameText(oldMeta.displayName(), newMeta.displayName())
                 || !sameLore(oldMeta.lore(), newMeta.lore())
                 || !sameCustomModelData(oldMeta, newMeta)) return false;
-        ItemStack first = oldItem.clone();
-        ItemStack second = newItem.clone();
-        ItemMeta firstMeta = first.getItemMeta();
-        ItemMeta secondMeta = second.getItemMeta();
+        ItemStack first = new ItemStack(oldItem.getType());
+        ItemStack second = new ItemStack(newItem.getType());
+        ItemMeta firstMeta = oldMeta.clone();
+        ItemMeta secondMeta = newMeta.clone();
         firstMeta.displayName(null);
         secondMeta.displayName(null);
         firstMeta.lore(null);
