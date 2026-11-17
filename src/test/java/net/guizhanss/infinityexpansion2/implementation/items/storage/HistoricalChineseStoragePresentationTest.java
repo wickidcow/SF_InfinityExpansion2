@@ -121,6 +121,26 @@ class HistoricalChineseStoragePresentationTest {
                 candidate.getItemMeta().getPersistentDataContainer().getKeys());
     }
 
+    @Test void nativeNonPresentationGateAcceptsOnlyIdenticalSerializedFunctionalData() {
+        ItemStack original = storage("存储单元 II", "已存储：34560000");
+        ItemStack translated = original.clone();
+        translated.editMeta(meta -> meta.displayName(Component.text("Storage Unit II")));
+
+        byte[] originalBytes = original.serializeAsBytes();
+        assertTrue(HistoricalPresentationPreview.sameNonPresentation(original, translated));
+        assertArrayEquals(originalBytes, original.serializeAsBytes(),
+                "Read-only native comparison must not mutate the old item");
+
+        translated.editMeta(meta -> meta.getPersistentDataContainer()
+                .set(STORAGE, PersistentDataType.LONG, 34_560_001L));
+        assertFalse(HistoricalPresentationPreview.sameNonPresentation(original, translated),
+                "A changed native storage ledger can never be accepted as presentation-only");
+
+        translated.setAmount(original.getAmount() - 1);
+        assertFalse(HistoricalPresentationPreview.sameNonPresentation(original, translated),
+                "Quantity must remain exact independently of item appearance");
+    }
+
     @Test void sameLengthTranslatedLoreStillCannotBeDiscarded() {
         ItemStack historical = storage("存储单元 II", "已存储：34560000");
         ItemStack english = storage("Storage Unit II", "Stored: 34560000");
