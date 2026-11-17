@@ -138,6 +138,8 @@ public final class HistoricalPresentationBackupStore {
             var original = ItemStack.deserializeBytes(oldBytes);
             var proposed = ItemStack.deserializeBytes(newBytes);
             if (original == null || proposed == null
+                    || !Arrays.equals(oldBytes, original.serializeAsBytes())
+                    || !Arrays.equals(newBytes, proposed.serializeAsBytes())
                     || original.getAmount() != proposed.getAmount()
                     || !HistoricalPresentationPreview.sameNonPresentation(original, proposed)) {
                 // The digest detects corruption, but must not be treated as
