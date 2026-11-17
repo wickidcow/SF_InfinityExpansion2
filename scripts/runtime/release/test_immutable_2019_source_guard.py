@@ -30,7 +30,7 @@ class ImmutableIE2ReleaseSourceTests(unittest.TestCase):
         cls.shell = authorization_script(cls.workflow)
 
     def execute(self, ref="refs/heads/master", head="verified-sha",
-                master="verified-sha", confirmation=VERSION,
+                master="verified-sha", confirmation=VERSION, event="workflow_dispatch",
                 existing_tag=False, existing_release=False):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -69,6 +69,7 @@ class ImmutableIE2ReleaseSourceTests(unittest.TestCase):
             env.update({
                 "PATH": str(binaries) + os.pathsep + env.get("PATH", ""),
                 "GITHUB_REF": ref,
+                "GITHUB_EVENT_NAME": event,
                 "GITHUB_SHA": head,
                 "GITHUB_REPOSITORY": "wickidcow/SF_InfinityExpansion2",
                 "GITHUB_OUTPUT": str(output),
@@ -89,10 +90,22 @@ class ImmutableIE2ReleaseSourceTests(unittest.TestCase):
     def test_release_only_from_exact_current_master_with_explicit_version(self):
         code, output, calls, detail = self.execute()
         self.assertEqual(0, code, detail)
-        self.assertEqual("tag=v2.0.19\n", output)
+        self.assertEqual("tag=v2.0.19\npublish=true\n", output)
         self.assertIn("git fetch --no-tags origin", calls)
         self.assertIn("git rev-parse HEAD", calls)
         self.assertIn("gh release view v2.0.19", calls)
+
+    def test_automatic_master_push_publishes_only_new_verified_version(self):
+        code, output, calls, detail = self.execute(event="push")
+        self.assertEqual(0, code, detail)
+        self.assertEqual("tag=v2.0.19\npublish=true\n", output)
+        self.assertIn("gh release view v2.0.19", calls)
+
+    def test_existing_version_is_noop_on_automatic_master_push(self):
+        code, output, calls, detail = self.execute(event="push", existing_release=True)
+        self.assertEqual(0, code, detail)
+        self.assertEqual("publish=false\n", output)
+        self.assertNotIn("git ls-remote", calls)
 
     def test_refuses_dispatch_from_candidate_branch(self):
         code, output, calls, _ = self.execute(ref="refs/heads/release/ie2-2.0.19")
@@ -131,6 +144,7 @@ class ImmutableIE2ReleaseSourceTests(unittest.TestCase):
         publisher = workflow.split("  publish:\n    name: Publish validated immutable IE2 release", 1)[1]
         self.assertIn("needs: [compatibility, source-safety, native-runtime]", publisher)
         self.assertIn("github.event_name == 'workflow_dispatch' && inputs.publish == true", publisher)
+        self.assertIn("github.event_name == 'push' && github.ref == 'refs/heads/master'", publisher)
         self.assertIn("gh release create", publisher)
         self.assertNotIn("--clobber", publisher)
         self.assertLess(publisher.index('test "$GITHUB_REF" = "refs/heads/master"'),

@@ -270,7 +270,7 @@ jobs:
   publish:
     name: Publish validated immutable IE2 release
     needs: [compatibility, source-safety, native-runtime]
-    if: github.event_name == 'workflow_dispatch' && inputs.publish == true
+    if: (github.event_name == 'workflow_dispatch' && inputs.publish == true) || (github.event_name == 'push' && github.ref == 'refs/heads/master')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -308,15 +308,24 @@ jobs:
             echo "Refusing publication: checked-out source is not current verified master" >&2
             exit 1
           }
-          test "$CONFIRM_VERSION" = "$VERSION" || {
-            echo "Refusing publication: confirm_version must exactly match VERSION ($VERSION)." >&2
-            exit 1
-          }
+          # Explicit dispatch stays confirmation-gated; a successful protected
+          # master push is the owner's standing request for rapid immutable release.
+          if test "$GITHUB_EVENT_NAME" = "workflow_dispatch"; then
+            test "$CONFIRM_VERSION" = "$VERSION" || {
+              echo "Refusing publication: confirm_version must exactly match VERSION ($VERSION)." >&2
+              exit 1
+            }
+          fi
           JAR="dist/${OUTPUT_NAME}"
           test -s "$JAR"
           test -s "docs/releases/${VERSION}.md"
           TAG="v${VERSION}"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            if test "$GITHUB_EVENT_NAME" = "push"; then
+              echo "Immutable $TAG already exists: skipping repeat release on an unbumped master update."
+              echo "publish=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
             echo "Refusing publication: release $TAG already exists." >&2
             exit 1
           fi
@@ -325,8 +334,10 @@ jobs:
             exit 1
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "publish=true" >> "$GITHUB_OUTPUT"
 
       - name: Publish canonical raw JAR release asset
+        if: steps.release_state.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
