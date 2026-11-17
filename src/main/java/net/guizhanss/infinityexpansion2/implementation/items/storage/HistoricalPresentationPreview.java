@@ -50,22 +50,43 @@ public final class HistoricalPresentationPreview {
         // by a separately confirmed, backed-up per-player transaction.
         return proposed;
     }
-    /** Exactly preserve amount and all components except name and lore. */
+    /**
+     * Preserve the complete native identity except display/lore, including
+     * components which Bukkit isSimilar may ignore. Any unroundtrippable item
+     * is ineligible for historical rewriting, even on an opt-in preview.
+     */
     static boolean sameNonPresentation(ItemStack original, ItemStack proposed) {
         if (original == null || proposed == null
                 || original.getType() != proposed.getType()
                 || original.getAmount() != proposed.getAmount()) return false;
-        ItemStack first = original.clone();
-        ItemStack second = proposed.clone();
-        ItemMeta before = first.getItemMeta();
-        ItemMeta after = second.getItemMeta();
-        if (before == null || after == null) return false;
-        before.displayName(null);
-        before.lore(null);
-        after.displayName(null);
-        after.lore(null);
-        if (!first.setItemMeta(before) || !second.setItemMeta(after)) return false;
-        return first.isSimilar(second);
+        try {
+            ItemStack first = exactNativeSnapshot(original);
+            ItemStack second = exactNativeSnapshot(proposed);
+            if (first == null || second == null) return false;
+            ItemMeta before = first.getItemMeta();
+            ItemMeta after = second.getItemMeta();
+            if (before == null || after == null) return false;
+            before.displayName(null);
+            before.lore(null);
+            after.displayName(null);
+            after.lore(null);
+            if (!first.setItemMeta(before) || !second.setItemMeta(after)) return false;
+            return java.util.Arrays.equals(first.serializeAsBytes(), second.serializeAsBytes());
+        } catch (RuntimeException cannotProveIdentity) {
+            return false;
+        }
+    }
+
+    private static ItemStack exactNativeSnapshot(ItemStack item) {
+        try {
+            byte[] bytes = item.serializeAsBytes();
+            ItemStack copy = ItemStack.deserializeBytes(bytes);
+            return copy != null && item.getType() == copy.getType()
+                    && item.getAmount() == copy.getAmount()
+                    && java.util.Arrays.equals(bytes, copy.serializeAsBytes()) ? copy : null;
+        } catch (RuntimeException unknownComponent) {
+            return null;
+        }
     }
 
 }
