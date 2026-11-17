@@ -4,6 +4,7 @@ import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem;
 import io.github.thebusybiscuit.slimefun4.api.geo.GEOResource;
 import io.github.thebusybiscuit.slimefun4.implementation.Slimefun;
 import io.github.thebusybiscuit.slimefun4.libraries.dough.data.persistent.PersistentDataAPI;
+import io.github.thebusybiscuit.slimefun4.libraries.dough.items.ItemUtils;
 import io.papermc.paper.registry.RegistryAccess;
 import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.registry.RegistryKey;
@@ -22,6 +23,9 @@ import net.guizhanss.infinityexpansion2.core.persistent.PersistentStorageCacheTy
 import net.guizhanss.infinityexpansion2.core.recipes.MachineRecipe;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageCache;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageItemPresentation;
+import net.guizhanss.infinityexpansion2.implementation.items.storage.HistoricalPresentationPreview;
+import net.guizhanss.infinityexpansion2.implementation.items.storage.HistoricalPresentationTransaction;
+import net.guizhanss.infinityexpansion2.implementation.items.storage.HistoricalPresentationBackupStore;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageForge;
 import net.guizhanss.infinityexpansion2.implementation.items.machines.GeoQuarry;
 import net.guizhanss.infinityexpansion2.implementation.items.storage.StorageUnit;
@@ -30,6 +34,7 @@ import net.guizhanss.infinityexpansion2.utils.events.BowDamageEvents;
 import net.guizhanss.infinityexpansion2.utils.items.ModernText;
 import net.guizhanss.infinityexpansion2.utils.storage.StoredBlockLookup;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Bukkit;
@@ -176,6 +181,7 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
             require("keep insertion".equals(actual.getItemMeta().lore().getFirst().insertion()),"restart preserves insertion");
         }
         checkNativeCosmeticPresentation();
+        checkNativeHistoricalChineseStorageSafety();
         checkNativeGeoQuarryRegisteredTemplateParity();
         checkNativeForgeLedger(menu);
         checkRegisteredForgeClick();
@@ -249,6 +255,219 @@ public final class NativeModernizationProbe extends JavaPlugin implements Listen
         require(!StorageItemPresentation.matchesRegistered(owned,canonical),
             "native owner PDC difference must never be normalized");
         results.add("PASS "+phase+": native registered Slimefun ID, Adventure and PDC cosmetic safety");
+    }
+
+    /**
+     * Real Paper metadata/Slimefun registry boundary for issue #73.
+     * A registered storage unit has no authority to delete historical
+     * dynamically appended lore; reject a shorter English template.
+     * This probe never modifies a player item or a storage ledger.
+     */
+    private void checkNativeHistoricalChineseStorageSafety() throws Exception {
+        var registered = SlimefunItem.getById("IE_STORAGE_UNIT_2");
+        require(registered instanceof StorageUnit, "registered IE2 Storage Unit II exists");
+        var english = mutableRecipeStack(registered.getItem());
+        // A translated NAME alone, with the original registered lore unchanged,
+        // can be previewed as a detached candidate without touching the saved item.
+        var nameOnly = mutableRecipeStack(english);
+        nameOnly.setAmount(3);
+        nameOnly.editMeta(m -> {
+            m.displayName(Component.text("存储单元 II"));
+            m.getPersistentDataContainer().set(OWNER, PersistentDataType.LONG, 9_000_000_001L);
+        });
+        var nameOnlyBefore = nameOnly.serializeAsBytes();
+        var preview = HistoricalPresentationTransaction.preview(
+            nameOnly, english, "IE_STORAGE_UNIT_2", registered.getId());
+        require(preview != null, "native name-only translated storage preview exists");
+        var proposed = preview.proposed();
+        require(proposed.getAmount() == 3, "native translated preview preserves quantity");
+        require(english.getItemMeta().displayName().equals(proposed.getItemMeta().displayName()),
+            "native name-only repair uses registered English name");
+        require(Objects.equals(nameOnly.getItemMeta().lore(), proposed.getItemMeta().lore()),
+            "native name-only preview does not discard even identical historical lore");
+        require(Long.valueOf(9_000_000_001L).equals(proposed.getItemMeta()
+            .getPersistentDataContainer().get(OWNER, PersistentDataType.LONG)),
+            "native name-only preview preserves typed owner PDC");
+        require(java.util.Arrays.equals(nameOnlyBefore, nameOnly.serializeAsBytes()),
+            "native preview does not mutate item bytes");
+        require(preview.confirm("wrong-token", nameOnly) == null,
+            "incorrect confirmation token must fail closed");
+        var renamedLive = nameOnly.clone();
+        renamedLive.editMeta(m -> m.getPersistentDataContainer()
+            .set(OWNER, PersistentDataType.LONG, 9_000_000_002L));
+        require(preview.confirm(preview.confirmationToken(), renamedLive) == null,
+            "changed typed owner key must block confirmation");
+        var applied = preview.confirm(preview.confirmationToken(), nameOnly);
+        require(applied != null && applied.equals(proposed), "one-shot preview returns exact candidate");
+        require(preview.confirm(preview.confirmationToken(), nameOnly) == null,
+            "confirm is a single-use operation");
+        var restored = preview.rollback(applied);
+        require(restored != null && java.util.Arrays.equals(nameOnlyBefore, restored.serializeAsBytes()),
+            "native rollback restores original exact bytes");
+        require(preview.confirm(preview.confirmationToken(), restored) == null,
+            "rolled-back confirmation token cannot be replayed");
+        // Durable backup is a required precondition for any actual item
+        // mutation. Exercise it using native Paper's real ItemStack serialization.
+        var ownerUuid = UUID.fromString("123e4567-e89b-12d3-a456-426614174000");
+        var backups = getDataFolder().toPath().resolve("native-presentation-backups");
+        var backupIdFile = getDataFolder().toPath().resolve("native-presentation-backup-id.txt");
+        if (phase.equals("seed")) {
+            var backupId = HistoricalPresentationBackupStore.save(
+                backups, ownerUuid, nameOnly, proposed);
+            var diskCopy = HistoricalPresentationBackupStore.load(backups, ownerUuid, backupId);
+            require(nameOnly.equals(diskCopy.original()) && proposed.equals(diskCopy.proposed()),
+                "native disk-backed preview preserves exact real Paper ItemStacks");
+            Files.writeString(backupIdFile, backupId.toString());
+        } else {
+            require(Files.isRegularFile(backupIdFile), "native persisted backup ID survived restart");
+            var backupId = UUID.fromString(Files.readString(backupIdFile).strip());
+            var diskCopy = HistoricalPresentationBackupStore.load(backups, ownerUuid, backupId);
+            require(nameOnly.equals(diskCopy.original()) && proposed.equals(diskCopy.proposed()),
+                "durable original and candidate survived native Paper restart");
+            require(diskCopy.original().getAmount() == 3,
+                "native durable backup retained all three historical items");
+            HistoricalPresentationBackupStore.markRolledBack(backups, ownerUuid, backupId);
+            require(Files.isRegularFile(backups.resolve(ownerUuid.toString())
+                .resolve(backupId + ".rolledback")),
+                "native rollback retains archived original without active token");
+            boolean rejectedReplay = false;
+            try {
+                HistoricalPresentationBackupStore.load(backups, ownerUuid, backupId);
+            } catch (java.io.IOException expected) {
+                rejectedReplay = true;
+            }
+            require(rejectedReplay, "consumed native backup cannot authorize a repeat rollback");
+        }
+        // Real, filled, serialized IE2 storage ledger. A matching historical
+        // zh-CN-generated suffix may be translated; arbitrary extra/changed
+        // lines or a different authoritative amount may never be translated.
+        var filled = mutableRecipeStack(english);
+        var filledMeta = filled.getItemMeta();
+        var physical = new ItemStack(Material.DIAMOND, 1);
+        int capacity = ((StorageUnit) registered).getCapacity();
+        var filledLedger = new StorageCache(physical, 731, capacity, true);
+        PersistentDataAPI.set(filledMeta, StorageUnit.Companion.getSTORAGE_KEY(),
+            PersistentStorageCacheType.getTYPE(), filledLedger);
+        String storedName = ItemUtils.getItemName(physical);
+        var generatedChinese = List.of(
+            ModernText.loreLine(""),
+            ModernText.loreLine(org.bukkit.ChatColor.translateAlternateColorCodes('&', "&a存储的物品：&7" + storedName)),
+            ModernText.loreLine(org.bukkit.ChatColor.translateAlternateColorCodes('&', "&b数量：&7" + "731 / " + capacity)),
+            ModernText.loreLine(org.bukkit.ChatColor.translateAlternateColorCodes('&', "&e存满清空输入：&7" + "\u00a7a✔"))
+        );
+        filledMeta.displayName(Component.text("存储单元(2)"));
+        filledMeta.lore(generatedChinese);
+        require(filled.setItemMeta(filledMeta), "native filled historical storage accepts PDC");
+        var filledBefore = filled.serializeAsBytes();
+        var filledPreview = HistoricalPresentationTransaction.preview(
+            filled, english, "IE_STORAGE_UNIT_2", registered.getId());
+        require(filledPreview != null,
+            "native typed storage shell matches exact recognized historical Chinese suffix");
+        var converted = filledPreview.proposed();
+        var outputLore = converted.getItemMeta().lore();
+        var plain = PlainTextComponentSerializer.plainText();
+        require(outputLore != null && outputLore.size() == 4
+                && plain.serialize(outputLore.get(1)).startsWith("Stored item: ")
+                && plain.serialize(outputLore.get(2)).equals("Amount: 731 / " + capacity)
+                && plain.serialize(outputLore.get(3)).startsWith("Void Excess: "),
+            "native filled storage translates only the three registered English labels");
+        var convertedLedger = PersistentDataAPI.get(converted.getItemMeta(),
+            StorageUnit.Companion.getSTORAGE_KEY(), PersistentStorageCacheType.getTYPE());
+        require(convertedLedger != null && convertedLedger.getAmount() == 731
+                && convertedLedger.getLimit() == capacity
+                && convertedLedger.getVoidExcess()
+                && convertedLedger.getItemStack().isSimilar(physical),
+            "converted filled storage retains the exact nested item and typed ledger");
+        require(java.util.Arrays.equals(filledBefore, filled.serializeAsBytes()),
+            "native translated filled storage preview must leave source byte-exact");
+
+        // Prove full nested storage data survives an actual two-JVM durable
+        // backup/readback/retirement, not only a detached in-memory comparison.
+        var ownerForFilled = UUID.fromString("223e4567-e89b-12d3-a456-426614174000");
+        var filledBackupDirectory = getDataFolder().toPath().resolve("native-filled-storage-backups");
+        var filledBackupIdPath = getDataFolder().toPath().resolve("native-filled-storage-backup-id.txt");
+        if (phase.equals("seed")) {
+            var idForFilled = HistoricalPresentationBackupStore.save(
+                filledBackupDirectory, ownerForFilled, filled, converted);
+            Files.writeString(filledBackupIdPath, idForFilled.toString());
+            var disk = HistoricalPresentationBackupStore.load(
+                filledBackupDirectory, ownerForFilled, idForFilled);
+            require(filled.equals(disk.original()) && converted.equals(disk.proposed()),
+                "native filled IE2 ledger serializes to durable backup without mutation");
+        } else {
+            require(Files.isRegularFile(filledBackupIdPath),
+                "historical filled storage backup reference survived restart");
+            var idForFilled = UUID.fromString(Files.readString(filledBackupIdPath).strip());
+            var disk = HistoricalPresentationBackupStore.load(
+                filledBackupDirectory, ownerForFilled, idForFilled);
+            require(filled.equals(disk.original()) && converted.equals(disk.proposed()),
+                "full nested storage/ledger and English candidate survive native restart");
+            var retainedLedger = PersistentDataAPI.get(disk.original().getItemMeta(),
+                StorageUnit.Companion.getSTORAGE_KEY(), PersistentStorageCacheType.getTYPE());
+            require(retainedLedger != null && retainedLedger.getAmount() == 731
+                    && retainedLedger.getLimit() == capacity
+                    && retainedLedger.getVoidExcess(),
+                "typed inner storage amount, capacity and void flag survive restart");
+            HistoricalPresentationBackupStore.markRolledBack(
+                filledBackupDirectory, ownerForFilled, idForFilled);
+        }
+
+        var customLore = filled.clone();
+        customLore.editMeta(m -> {
+            var lines = new ArrayList<Component>(m.lore());
+            lines.add(Component.text("Custom owner line: preserve"));
+            m.lore(lines);
+        });
+        require(HistoricalPresentationTransaction.preview(customLore, english,
+            "IE_STORAGE_UNIT_2", registered.getId()) == null,
+            "owner-added storage lore line must block automatic translation");
+        var changedLedger = filled.clone();
+        changedLedger.editMeta(m -> PersistentDataAPI.set(m,
+            StorageUnit.Companion.getSTORAGE_KEY(), PersistentStorageCacheType.getTYPE(),
+            new StorageCache(physical, 732, capacity, true)));
+        require(HistoricalPresentationTransaction.preview(changedLedger, english,
+            "IE_STORAGE_UNIT_2", registered.getId()) == null,
+            "historical displayed count different from authoritative typed ledger must block translation");
+        var historical = mutableRecipeStack(english);
+        historical.setAmount(7);
+        var meta = historical.getItemMeta();
+        require(meta != null && meta.displayName() != null,
+            "registered storage template has display name");
+        var historicalLore = meta.lore() == null
+            ? new ArrayList<Component>() : new ArrayList<Component>(meta.lore());
+        historicalLore.add(Component.text("已存储：34560000"));
+        historicalLore.add(Component.text("Owner custom notes: keep me"));
+        meta.displayName(Component.text("存储单元 II"));
+        meta.lore(historicalLore);
+        meta.getPersistentDataContainer().set(OWNER, PersistentDataType.LONG, 9_000_000_001L);
+        require(historical.setItemMeta(meta), "native historical translated metadata accepted");
+        var originalBytes = historical.serializeAsBytes();
+        var id = Slimefun.getItemDataService().getItemData(historical.getItemMeta()).orElse(null);
+        require("IE_STORAGE_UNIT_2".equals(id), "native registered storage ID retained in PDC");
+        require(HistoricalPresentationPreview.candidate(historical, english, id, registered.getId()) == null,
+            "shorter registered English template must not delete historical storage/custom lore");
+        require(java.util.Arrays.equals(originalBytes, historical.serializeAsBytes()),
+            "read-only native preview may not mutate original storage bytes");
+        require(historical.getAmount() == 7, "historical item quantity must remain seven");
+        require(Long.valueOf(9_000_000_001L).equals(historical.getItemMeta()
+            .getPersistentDataContainer().get(OWNER, PersistentDataType.LONG)),
+            "native translated item retains the exact typed owner field");
+        var snapshot = getDataFolder().toPath().resolve("historical-cjk-storage.bin");
+        if (phase.equals("seed")) {
+            Files.write(snapshot, originalBytes);
+        } else {
+            require(Files.isRegularFile(snapshot), "historical CJK storage item exists after restart");
+            var previous = ItemStack.deserializeBytes(Files.readAllBytes(snapshot));
+            require(previous != null && previous.equals(historical),
+                "native historic CJK storage item and unknown lore survive clean restart");
+            require(previous.getAmount() == 7, "historical CJK item amount survives restart");
+            require(Long.valueOf(9_000_000_001L).equals(previous.getItemMeta()
+                .getPersistentDataContainer().get(OWNER, PersistentDataType.LONG)),
+                "historical CJK typed PDC survives restart");
+        }
+        results.add("PASS " + phase
+            + ": native IE2 Chinese storage lore remains untouched by shorter English template"
+            + " and survives restart");
     }
 
     /**

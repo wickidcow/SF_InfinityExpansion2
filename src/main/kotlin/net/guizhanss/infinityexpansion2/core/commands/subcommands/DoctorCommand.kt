@@ -11,7 +11,7 @@ import org.bukkit.entity.Player
 import java.util.Locale
 
 class DoctorCommand(parent: AbstractCommand) : AbstractSubCommand(
-    parent, "doctor", "<status|scan|migrate|refresh|compare>"
+    parent, "doctor", "<status|scan|migrate|refresh|compare|presentation>"
 ) {
     override fun onExecute(sender: CommandSender, args: Array<String>) {
         if (!sender.hasPermission()) {
@@ -92,6 +92,7 @@ class DoctorCommand(parent: AbstractCommand) : AbstractSubCommand(
             }
 
             "compare" -> compareHeldItems(sender)
+            "presentation" -> HistoricalPresentationDoctor.execute(sender, args.drop(1).toTypedArray())
 
             "refresh" -> {
                 if (sender !is Player) {
@@ -109,7 +110,7 @@ class DoctorCommand(parent: AbstractCommand) : AbstractSubCommand(
             }
 
             else -> sender.sendMessage(colored(
-                "Usage: /ie2 doctor <status|scan|migrate|refresh|compare>",
+                "Usage: /ie2 doctor <status|scan|migrate|refresh|compare|presentation>",
                 NamedTextColor.RED
             ))
         }
@@ -246,9 +247,13 @@ class DoctorCommand(parent: AbstractCommand) : AbstractSubCommand(
     }
 
     override fun onTab(sender: CommandSender, args: Array<String>): List<String> {
+        if (args.size > 1 && args[0].equals("presentation", ignoreCase = true)) {
+            return HistoricalPresentationDoctor.tab(args.drop(1).toTypedArray())
+        }
         if (args.size != 1) return emptyList()
         val current = args[0].lowercase(Locale.ENGLISH)
-        return listOf("status", "scan", "migrate", "refresh", "compare").filter { it.startsWith(current) }
+        return listOf("status", "scan", "migrate", "refresh", "compare", "presentation")
+            .filter { it.startsWith(current) }
     }
 
     companion object {

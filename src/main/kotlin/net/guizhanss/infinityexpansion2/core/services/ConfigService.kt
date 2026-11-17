@@ -35,6 +35,7 @@ class ConfigService(plugin: InfinityExpansion2) {
     lateinit var migrationAutoBlocks: ConfigField<Boolean>
     lateinit var migrationAutoItems: ConfigField<Boolean>
     lateinit var migrationRefreshModernItems: ConfigField<Boolean>
+    lateinit var historicalPresentationRepairEnabled: ConfigField<Boolean>
 
     // debug options
     lateinit var debugEnabled: ConfigField<Boolean>
@@ -101,6 +102,7 @@ class ConfigService(plugin: InfinityExpansion2) {
         migrationAutoBlocks = boolean("migration.auto-migrate-blocks", false)
         migrationAutoItems = boolean("migration.auto-migrate-items", false)
         migrationRefreshModernItems = boolean("migration.refresh-modern-items-on-join", true)
+        historicalPresentationRepairEnabled = boolean("doctor.historical-presentation-repair", false)
         debugEnabled = boolean("debug.enabled", false)
         debugCases = custom { it.getStringList("debug.cases") }
         singularityCostMultiplier = double("singularity.cost-multiplier", 1.0, 0.0, 1000.0)
