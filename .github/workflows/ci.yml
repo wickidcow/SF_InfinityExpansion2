@@ -283,6 +283,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Publish only the already-built, current verified master source.
+          # A workflow dispatched from a PR/release branch must never tag it.
+          test "$GITHUB_REF" = "refs/heads/master" || {
+            echo "Refusing publication: workflow dispatch must run on master" >&2
+            exit 1
+          }
+          git fetch --no-tags origin "+refs/heads/master:refs/remotes/origin/master"
+          MASTER_SHA="$(git rev-parse refs/remotes/origin/master)"
+          CHECKOUT_SHA="$(git rev-parse HEAD)"
+          test "$CHECKOUT_SHA" = "$MASTER_SHA" && test "$GITHUB_SHA" = "$MASTER_SHA" || {
+            echo "Refusing publication: checked-out source is not current verified master" >&2
+            exit 1
+          }
           test "$CONFIRM_VERSION" = "$VERSION" || {
             echo "Refusing publication: confirm_version must exactly match VERSION ($VERSION)." >&2
             exit 1
