@@ -290,4 +290,65 @@ class ItemMetadataDifferenceTest {
         assertTrue(report.pdcSame)
     }
 
+    @Test fun registeredGeoOriginEvidenceIsRedactedAndDoesNotChangeEitherStack() {
+        val cheat = uranium().apply {
+            editMeta { it.displayName(Component.text("private-original-item-name", NamedTextColor.RED)) }
+        }
+        val machine = cheat.clone().apply {
+            editMeta { meta ->
+                meta.displayName(Component.text("").append(
+                    Component.text("private-original-item-name", NamedTextColor.RED)
+                        .decoration(TextDecoration.BOLD, TextDecoration.State.FALSE)))
+                meta.persistentDataContainer.set(
+                    NamespacedKey("provenance", "owner"),
+                    PersistentDataType.STRING,
+                    "private-owner-id-do-not-report"
+                )
+            }
+        }
+        val beforeCheat = cheat.clone()
+        val beforeMachine = machine.clone()
+
+        val report = ItemMetadataDifference.inspect(cheat, machine)
+        val lines = ItemMetadataDifference.sourceEvidence("Offhand/GEO", report)
+        val display = lines.joinToString("\n")
+
+        assertFalse(report.isSimilar)
+        assertEquals(3, lines.size)
+        assertTrue(display.contains("name=DIFFERENT"))
+        assertTrue(display.contains("PDC=DIFFERENT"))
+        assertTrue(display.contains("meta="))
+        assertTrue(display.contains("Adventure component shapes (text redacted)"))
+        assertTrue(display.contains("child count"))
+        assertFalse(display.contains("private-original-item-name"))
+        assertFalse(display.contains("private-owner-id-do-not-report"))
+        assertEquals(beforeCheat, cheat)
+        assertEquals(beforeMachine, machine)
+    }
+
+    @Test fun matchingRegisteredGeoOriginsProduceNoAdditionalMessages() {
+        val registered = uranium()
+        val geo = registered.clone().apply { amount = 12 }
+        val report = ItemMetadataDifference.inspect(registered, geo)
+        assertTrue(report.isSimilar)
+        assertTrue(ItemMetadataDifference.sourceEvidence("Slimefun template/GEO", report).isEmpty())
+        assertEquals(1, registered.amount)
+        assertEquals(12, geo.amount)
+    }
+
+    @Test fun originEvidenceBoundsChangedFieldLists() {
+        val report = ItemMetadataDifference.inspect(uranium(), uranium()).copy(
+            isSimilar = false,
+            changedMetaFields = (1..20).map { "field_$it" },
+            changedStackFields = (1..9).map { "stack_$it" },
+            componentStructureDifferences = (1..10).map { "name: child count $it/0" }
+        )
+        val lines = ItemMetadataDifference.sourceEvidence("Main/GEO", report)
+        assertEquals(3, lines.size)
+        assertTrue(lines[1].contains("(+14 more)"))
+        assertTrue(lines[1].contains("(+3 more)"))
+        assertTrue(lines[2].contains("(+4 more)"))
+        assertFalse(lines.joinToString().contains("field_7"))
+    }
+
 }
