@@ -8,7 +8,6 @@ import io.github.thebusybiscuit.slimefun4.api.items.settings.IntRangeSetting
 import io.github.thebusybiscuit.slimefun4.api.recipes.RecipeType
 import io.github.thebusybiscuit.slimefun4.implementation.Slimefun
 import me.mrCookieSlime.Slimefun.api.inventory.BlockMenu
-import net.guizhanss.guizhanlib.kt.minecraft.items.edit
 import net.guizhanss.infinityexpansion2.InfinityExpansion2
 import net.guizhanss.infinityexpansion2.core.items.attributes.InformationalRecipeDisplayItem
 import net.guizhanss.infinityexpansion2.core.menu.MenuLayout
@@ -45,7 +44,7 @@ class GeoQuarry(
         val output = tryProduceDracFunEnderDraconium(menu)
             ?: tryProduceRareGeoResource(menu)
             ?: tryProduceAutomaticGeoMinerDiscovery(menu)
-            ?: produce(menu)?.edit { amount(speed) }
+            ?: produce(menu)?.let { copyGeoQuarryTemplate(it, speed) }
             ?: return true
 
         if (!menu.fits(output, *outputSlots)) {
@@ -194,7 +193,7 @@ class GeoQuarry(
                 val discoveryOnly = !isOriginalGeoResource(resource) ||
                     itemId == DRACFUN_ENDER_DRACONIUM_ID ||
                     (itemId != null && itemId in rareGeoIds)
-                resource.item.edit { amount(if (discoveryOnly) 1 else speed) }
+                copyGeoQuarryTemplate(resource.item, if (discoveryOnly) 1 else speed)
             }
     }
 
@@ -213,3 +212,14 @@ class GeoQuarry(
         private val geoRecipes = mutableMapOf<Triple<Biome, Environment, Set<String>>, List<ItemStack>>()
     }
 }
+
+/**
+ * Never lend a registered GEOResource's mutable ItemStack to production, recipe
+ * display, or BlockMenu. The copy retains its exact historical Adventure tree,
+ * typed PDC, skull profile and other item data; only the requested count changes.
+ *
+ * This protects shared item templates. It deliberately does not normalize old
+ * inventory items, infer identity from Slimefun ID or repair previous worlds.
+ */
+internal fun copyGeoQuarryTemplate(template: ItemStack, quantity: Int): ItemStack =
+    template.clone().apply { amount = quantity }
