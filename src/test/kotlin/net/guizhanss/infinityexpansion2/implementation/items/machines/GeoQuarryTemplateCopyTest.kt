@@ -61,8 +61,20 @@ class GeoQuarryTemplateCopyTest {
         assertTrue(registered.isSimilar(guide))
         assertTrue(registered.isSimilar(produced))
         assertArrayEquals(originalBytes, registered.serializeAsBytes())
-        assertArrayEquals(registered.itemMeta.persistentDataContainer.serializeToBytes(),
-            produced.itemMeta.persistentDataContainer.serializeToBytes())
+        // MockBukkit deliberately leaves PersistentDataContainer.serializeToBytes()
+        // unimplemented and reports it as a skipped test. Check every typed
+        // key directly here; the full original ItemStack bytes are asserted above
+        // and the genuine native Paper GEO test handles binary transfer/restart.
+        val beforePdc = registered.itemMeta.persistentDataContainer
+        val outputPdc = produced.itemMeta.persistentDataContainer
+        assertEquals(beforePdc.get(idKey, PersistentDataType.STRING),
+            outputPdc.get(idKey, PersistentDataType.STRING))
+        assertEquals(beforePdc.get(ownerKey, PersistentDataType.STRING),
+            outputPdc.get(ownerKey, PersistentDataType.STRING))
+        assertEquals(beforePdc.get(ledgerKey, PersistentDataType.LONG),
+            outputPdc.get(ledgerKey, PersistentDataType.LONG))
+        assertArrayEquals(beforePdc.get(bytesKey, PersistentDataType.BYTE_ARRAY),
+            outputPdc.get(bytesKey, PersistentDataType.BYTE_ARRAY))
     }
 
     @Test fun changingBorrowedOutputNeverChangesTheTemplateOrEarlierOutput() {
