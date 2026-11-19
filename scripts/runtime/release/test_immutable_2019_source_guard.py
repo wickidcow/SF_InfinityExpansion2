@@ -13,8 +13,8 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[3]
 WORKFLOW = ROOT / ".github/workflows/ci.yml"
-VERSION = "2.0.20"
-OUTPUT = "SF_InfinityExpansion2.0.20.jar"
+VERSION = "2.0.21"
+OUTPUT = "SF_InfinityExpansion2.0.21.jar"
 
 
 def authorization_script(workflow):
@@ -90,16 +90,16 @@ class ImmutableIE2ReleaseSourceTests(unittest.TestCase):
     def test_release_only_from_exact_current_master_with_explicit_version(self):
         code, output, calls, detail = self.execute()
         self.assertEqual(0, code, detail)
-        self.assertEqual("tag=v2.0.20\npublish=true\n", output)
+        self.assertEqual("tag=v2.0.21\npublish=true\n", output)
         self.assertIn("git fetch --no-tags origin", calls)
         self.assertIn("git rev-parse HEAD", calls)
-        self.assertIn("gh release view v2.0.20", calls)
+        self.assertIn("gh release view v2.0.21", calls)
 
     def test_automatic_master_push_publishes_only_new_verified_version(self):
         code, output, calls, detail = self.execute(event="push")
         self.assertEqual(0, code, detail)
-        self.assertEqual("tag=v2.0.20\npublish=true\n", output)
-        self.assertIn("gh release view v2.0.20", calls)
+        self.assertEqual("tag=v2.0.21\npublish=true\n", output)
+        self.assertIn("gh release view v2.0.21", calls)
 
     def test_existing_version_is_noop_on_automatic_master_push(self):
         code, output, calls, detail = self.execute(event="push", existing_release=True)
@@ -108,7 +108,7 @@ class ImmutableIE2ReleaseSourceTests(unittest.TestCase):
         self.assertNotIn("git ls-remote", calls)
 
     def test_refuses_dispatch_from_candidate_branch(self):
-        code, output, calls, _ = self.execute(ref="refs/heads/release/ie2-2.0.20")
+        code, output, calls, _ = self.execute(ref="refs/heads/release/ie2-2.0.21")
         self.assertNotEqual(0, code)
         self.assertEqual("", output)
         self.assertEqual("", calls, "Reject branch before any release API or git lookup")
@@ -120,7 +120,7 @@ class ImmutableIE2ReleaseSourceTests(unittest.TestCase):
         self.assertNotIn("gh ", calls)
 
     def test_refuses_wrong_explicit_confirmation(self):
-        code, output, calls, _ = self.execute(confirmation="v2.0.20")
+        code, output, calls, _ = self.execute(confirmation="v2.0.21")
         self.assertNotEqual(0, code)
         self.assertEqual("", output)
         self.assertNotIn("gh ", calls)
@@ -139,8 +139,8 @@ class ImmutableIE2ReleaseSourceTests(unittest.TestCase):
 
     def test_release_job_requires_native_and_source_gates(self):
         workflow = self.workflow
-        self.assertIn('VERSION: "2.0.20"', workflow)
-        self.assertIn('OUTPUT_NAME: "SF_InfinityExpansion2.0.20.jar"', workflow)
+        self.assertIn('VERSION: "2.0.21"', workflow)
+        self.assertIn('OUTPUT_NAME: "SF_InfinityExpansion2.0.21.jar"', workflow)
         publisher = workflow.split("  publish:\n    name: Publish validated immutable IE2 release", 1)[1]
         self.assertIn("needs: [compatibility, source-safety, native-runtime]", publisher)
         self.assertIn("github.event_name == 'workflow_dispatch' && inputs.publish == true", publisher)
