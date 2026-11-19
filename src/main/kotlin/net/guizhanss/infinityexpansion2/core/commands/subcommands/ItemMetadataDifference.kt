@@ -34,6 +34,32 @@ internal object ItemMetadataDifference {
         val componentStructureDifferences: List<String>
     )
 
+    /**
+     * Bounded, text-redacted provenance evidence for comparing real held items
+     * against registered Slimefun/GEO templates. These strings contain only
+     * equality statuses, serialized FIELD NAMES, and Adventure component shape.
+     * Never format an ItemStack, PDC value, text payload, or owner data here.
+     */
+    internal fun sourceEvidence(label: String, report: Report): List<String> {
+        if (report.isSimilar) return emptyList()
+
+        fun fields(values: List<String>): String {
+            if (values.isEmpty()) return "(none)"
+            return values.take(6).joinToString(", ") +
+                (if (values.size > 6) " (+${values.size - 6} more)" else "")
+        }
+
+        return listOf(
+            "$label: name=${if (report.nameSame) "MATCH" else "DIFFERENT"}; " +
+                "lore=${if (report.loreSame) "MATCH" else "DIFFERENT"}; " +
+                "PDC=${if (report.pdcSame) "MATCH" else "DIFFERENT"}",
+            "$label changed field names: meta=${fields(report.changedMetaFields)}; " +
+                "stack=${fields(report.changedStackFields)}",
+            "$label Adventure component shapes (text redacted): " +
+                fields(report.componentStructureDifferences)
+        )
+    }
+
     fun inspect(main: ItemStack, offhand: ItemStack): Report {
         val firstMeta = main.itemMeta
         val secondMeta = offhand.itemMeta
