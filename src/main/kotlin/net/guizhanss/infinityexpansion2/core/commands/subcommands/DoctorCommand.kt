@@ -181,6 +181,12 @@ class DoctorCommand(parent: AbstractCommand) : AbstractSubCommand(
                 NamedTextColor.GRAY
             ))
         }
+        fun showSourceEvidence(label: String, compared: ItemMetadataDifference.Report) {
+            ItemMetadataDifference.sourceEvidence(label, compared).forEach { line ->
+                sender.sendMessage(colored(line, NamedTextColor.GRAY))
+            }
+        }
+
         showFields("Adventure component shape/style differences (text redacted)", report.componentStructureDifferences)
         showFields("PDC keys only in main", report.onlyMainPdcKeys)
         showFields("PDC keys only in offhand", report.onlyOffhandPdcKeys)
@@ -206,8 +212,8 @@ class DoctorCommand(parent: AbstractCommand) : AbstractSubCommand(
                     "Offhand vs registered Slimefun template: " +
                         if (offhandVsTemplate.isSimilar) "MATCH" else "DIFFERENT", NamedTextColor.GRAY
                 ))
-                showFields("Main/template changed metadata", mainVsTemplate.changedMetaFields)
-                showFields("Offhand/template changed metadata", offhandVsTemplate.changedMetaFields)
+                showSourceEvidence("Main/Slimefun template", mainVsTemplate)
+                showSourceEvidence("Offhand/Slimefun template", offhandVsTemplate)
             }
             val geoMatches = Slimefun.getRegistry().geoResources.values().filter { resource ->
                 idOf(resource.item) == mainId
@@ -223,10 +229,14 @@ class DoctorCommand(parent: AbstractCommand) : AbstractSubCommand(
                 sender.sendMessage(colored(
                     "GEO ${resource.key}: main=${if (mainVsGeo.isSimilar) "MATCH" else "DIFFERENT"}, " +
                         "offhand=${if (offhandVsGeo.isSimilar) "MATCH" else "DIFFERENT"}, " +
-                        "registered=${if (templateVsGeo?.isSimilar == true) "MATCH" else "DIFFERENT"}",
+                        "registered=${if (templateVsGeo == null) "UNAVAILABLE" else if (templateVsGeo.isSimilar) "MATCH" else "DIFFERENT"}",
                     NamedTextColor.GRAY
                 ))
-                showFields("GEO/offhand changed metadata", offhandVsGeo.changedMetaFields)
+                showSourceEvidence("Main/GEO", mainVsGeo)
+                showSourceEvidence("Offhand/GEO", offhandVsGeo)
+                if (templateVsGeo != null) {
+                    showSourceEvidence("Slimefun template/GEO", templateVsGeo)
+                }
             }
         } else {
             sender.sendMessage(colored(
