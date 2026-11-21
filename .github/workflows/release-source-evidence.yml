@@ -16,13 +16,13 @@ jobs:
       - uses: actions/checkout@v6
         with:
           repository: wickidcow/Slimefun-Legacy
-          ref: f5656f43d220de1fac59e1492eb1f5248af129ab
+          ref: c12b12798f7a0edf6ea724ada510ee98f9663cee
           path: .deps/core
           persist-credentials: false
       - uses: actions/checkout@v6
         with:
           repository: wickidcow/SF_NetworksExp
-          ref: 7c6a36b26ddb294ee5775454449d996c02cb9dc6
+          ref: ed1ba235701b3e5ea5e47b74d855376c084aba8e
           path: .deps/networks
           persist-credentials: false
       - name: Archive tracked source only
