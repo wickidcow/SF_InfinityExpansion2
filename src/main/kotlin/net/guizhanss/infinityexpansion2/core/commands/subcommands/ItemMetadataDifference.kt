@@ -4,6 +4,9 @@ import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.TextComponent
 import net.kyori.adventure.text.format.TextDecoration
 import org.bukkit.inventory.ItemStack
+import org.bukkit.NamespacedKey
+import org.bukkit.persistence.PersistentDataContainer
+import org.bukkit.persistence.PersistentDataType
 
 /**
  * Read-only diagnostic for the *actual* held stacks. An item can share a
@@ -31,7 +34,8 @@ internal object ItemMetadataDifference {
         val onlyOffhandPdcKeys: List<String>,
         val changedMetaFields: List<String>,
         val changedStackFields: List<String>,
-        val componentStructureDifferences: List<String>
+        val componentStructureDifferences: List<String>,
+        val changedPdcTypeKeys: List<String> = emptyList()
     )
 
     /**
@@ -54,7 +58,7 @@ internal object ItemMetadataDifference {
                 "lore=${if (report.loreSame) "MATCH" else "DIFFERENT"}; " +
                 "PDC=${if (report.pdcSame) "MATCH" else "DIFFERENT"}",
             "$label changed field names: meta=${fields(report.changedMetaFields)}; " +
-                "stack=${fields(report.changedStackFields)}",
+                "stack=${fields(report.changedStackFields)}; PDC type keys=${fields(report.changedPdcTypeKeys)}",
             "$label Adventure component shapes (text redacted): " +
                 fields(report.componentStructureDifferences)
         )
@@ -103,9 +107,45 @@ internal object ItemMetadataDifference {
             changedStackFields = stackFields,
             componentStructureDifferences = componentDifferences(
                 firstMeta?.displayName(), secondMeta?.displayName(), firstMeta?.lore(), secondMeta?.lore()
-            )
+            ),
+            changedPdcTypeKeys = matchingKeyTypeDifferences(firstPdc, secondPdc)
         )
     }
+    /**
+     * Diagnose a same-name PDC key stored under a different primitive type.
+     * Values are never read or printed; unknown/adapter types are classified
+     * as OTHER, not inferred from serialized payloads or coerced into strings.
+     *
+     * This is read-only evidence, NOT permission to migrate saved owner or
+     * storage data. Keys are already exposed in the existing Doctor output.
+     */
+    private fun matchingKeyTypeDifferences(
+        first: PersistentDataContainer?,
+        second: PersistentDataContainer?
+    ): List<String> {
+        if (first == null || second == null) return emptyList()
+        val common = first.keys.intersect(second.keys).sortedBy(NamespacedKey::toString)
+        return common.mapNotNull { key ->
+            val left = primitiveTypeLabel(first, key)
+            val right = primitiveTypeLabel(second, key)
+            if (left != right) "$key ($left/$right)" else null
+        }
+    }
+
+    private fun primitiveTypeLabel(container: PersistentDataContainer, key: NamespacedKey): String = when {
+        container.has(key, PersistentDataType.BYTE) -> "BYTE"
+        container.has(key, PersistentDataType.SHORT) -> "SHORT"
+        container.has(key, PersistentDataType.INTEGER) -> "INTEGER"
+        container.has(key, PersistentDataType.LONG) -> "LONG"
+        container.has(key, PersistentDataType.FLOAT) -> "FLOAT"
+        container.has(key, PersistentDataType.DOUBLE) -> "DOUBLE"
+        container.has(key, PersistentDataType.STRING) -> "STRING"
+        container.has(key, PersistentDataType.BYTE_ARRAY) -> "BYTE_ARRAY"
+        container.has(key, PersistentDataType.INTEGER_ARRAY) -> "INTEGER_ARRAY"
+        container.has(key, PersistentDataType.LONG_ARRAY) -> "LONG_ARRAY"
+        else -> "OTHER"
+    }
+
     /**
      * Report only Adventure component shape/style and the *existence* of changed payload.
      * Never print text, hover/click values, insertion, font values, or profile data.
