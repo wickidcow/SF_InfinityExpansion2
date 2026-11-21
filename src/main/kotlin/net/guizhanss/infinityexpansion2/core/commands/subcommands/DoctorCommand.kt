@@ -190,6 +190,7 @@ class DoctorCommand(parent: AbstractCommand) : AbstractSubCommand(
         showFields("Adventure component shape/style differences (text redacted)", report.componentStructureDifferences)
         showFields("PDC keys only in main", report.onlyMainPdcKeys)
         showFields("PDC keys only in offhand", report.onlyOffhandPdcKeys)
+        showFields("Same PDC key with different stored type (values redacted)", report.changedPdcTypeKeys)
         showFields("Different serialized metadata fields", report.changedMetaFields)
         showFields("Different non-metadata stack fields", report.changedStackFields)
         // Compare both real stacks with the currently registered templates without modifying any inventory.
