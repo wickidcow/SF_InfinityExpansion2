@@ -6,7 +6,7 @@ permissions:
   contents: read
 jobs:
   source-evidence:
-    if: startsWith(github.head_ref, 'release/ie2-modernization-')
+    if: startsWith(github.head_ref, 'release/ie2-modernization-') || startsWith(github.head_ref, 'release/ie2-v2.0.22-')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
